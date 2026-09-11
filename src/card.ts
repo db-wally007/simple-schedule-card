@@ -1443,6 +1443,21 @@ export class SimpleScheduleCard extends LitElement {
     .narrow {
       padding: 13px 13px 14px;
     }
+    /* The phone header WRAPS: the calendar name takes the first row and the
+       week nav sits under it. On one row, four 44px buttons leave about 69px
+       for the name, which cut "Ella's Calendar" down to "Ella'..." - and the
+       name is the thing that says whose week you are looking at. Wrapping is
+       what lets the buttons stay full size AND the name stay whole. */
+    .narrow .head {
+      flex-wrap: wrap;
+    }
+    .narrow .titles {
+      flex: 1 1 100%;
+    }
+    .narrow .head-right {
+      flex: 1 1 100%;
+      align-items: flex-end;
+    }
     .narrow .pick-btn .pick-name {
       font-size: 20px;
     }
@@ -1457,16 +1472,13 @@ export class SimpleScheduleCard extends LitElement {
     .narrow .pill {
       display: none;
     }
-    .narrow .tools {
-      gap: 7px;
-    }
-    .narrow .btn {
-      width: 37px;
-      height: 37px;
-    }
-    .narrow .btn ha-icon {
-      --mdc-icon-size: 22px;
-    }
+    /* The header chrome is deliberately NOT shrunk on a phone. It used to be -
+       37px buttons with a 7px gap - which quietly undid the tablet sizing pass:
+       .narrow .tools overrode the wider gap, so the extra air never reached the
+       list layout at all and the buttons read noticeably smaller than the same
+       controls on the tablet. A phone is the device most likely to be used at
+       arm's length with a thumb, so it gets the full 44px target and the same
+       15px of air; the calendar NAME absorbs the difference by ellipsising. */
     .titles {
       min-width: 0;
       flex: 1 1 auto;
