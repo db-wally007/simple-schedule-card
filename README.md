@@ -95,6 +95,8 @@ time_format: '24'
 | `lane_mode` | `by_source` \| `packed` | `by_source` | How a day is divided into lanes — see below. |
 | `time_format` | `auto` \| `12` \| `24` | `auto` | `auto` follows Home Assistant's own setting. Pin it to `24` for a timetable without changing the rest of the frontend. |
 | `show_refresh` | boolean | `true` | Show the refresh button. |
+| `show_mode_toggles` | boolean | `true` | Show the two mode toggles in the middle of the header — see below. Turn them off for a kiosk nobody should be reshaping. |
+| `mode_toggle_icons` | `crop` \| `timeline` \| `calendar` \| `arrows` | `crop` | Which icons those toggles use. Purely cosmetic; all four say the same thing. |
 | `layout` | `auto` \| `grid` \| `list` | `auto` | `auto` picks by the card's own measured width. |
 | `layout_breakpoint` | number | `560` | Width in px below which `auto` uses the list. |
 | `event_colors` | map | `{}` | Colour by event title, e.g. `Lunch: '#f4c542'`. Matched case-insensitively on the whole summary. An explicit override that beats everything, including the colour helper. |
@@ -140,6 +142,26 @@ own colour.
 
 Opening the menu, or an event's detail sheet, dims the schedule and folds the blocks away
 behind it; closing replays the week's entry animation.
+
+### The mode toggles
+
+Two buttons centred in the header flip the **active** calendar's `calendar_mode` and
+`view_width_mode` without editing YAML. The width one appears only under `days-as-rows`, which
+is the orientation with a horizontal axis to fit, and neither appears in the list layout, which
+has no time axis at all.
+
+Each button shows the mode it is currently **in**, not the one it would switch to — a toggle
+that displays its own destination reads backwards the moment you look away — and inverts when it
+is on the non-default setting, so a glance says whether the view has been reshaped.
+
+Overrides are keyed by entity, so each calendar keeps its own shape while the card is open, and
+they are **session only**: the configuration stays the source of truth and a reload returns to
+it.
+
+Note that `full` + `adaptive` squeezes twenty-four hours into the card, which puts a 45-minute
+lesson at about 36px. That is the combination working as intended — `full` was meant for a
+sparse calendar whose empty hours are worth seeing — but for a dense timetable `full` wants
+`fixed`, so the hours stay legible and the grid scrolls.
 
 ### `lane_mode`
 

@@ -238,6 +238,27 @@ long, hold the `_RUNNING` guard, and measure natively before scheduling anything
 - Animate transform and opacity only, and pair every animated rule with
   `@media (prefers-reduced-motion: reduce)`.
 
+### Two sizing traps that have already cost a session
+
+**The transposed grid overrides the generic block styles.** `.ev.rev .ev-time` sets its own
+font size, so editing the generic `.ev-time` rule looks right in the diff and changes nothing
+on a `days-as-rows` card. Check which orientation you are actually looking at before changing a
+block style.
+
+**Absolute pixel floors break the adaptive layout.** `view_width_mode: adaptive` positions
+everything in percentages; a floor stated in pixels means a different length of TIME at every
+scale. The block width floor was 40px, which is invisible at 192px/hour (a 45-minute lesson is
+144px) and catastrophic over a whole day in adaptive, where 40px is nearly fifty minutes: it
+fired on every ordinary lesson, painted 29 of 34 blocks wider than their duration, overlapped
+abutting events, and ate the gaps between lessons. Floors along the time axis belong in
+MINUTES, converted through `pos()` so they land in px or % as the mode requires.
+
+Relatedly, block labels are sized by **container query**, not by mode: each `.ev` is its own
+container and drops its time line below 90px, because the time is 65-80px of digits and cannot
+fit a 36px block at any font size — and leaving it there truncates the name as well. Use
+`text-align` for that, never `align-items: center`, which sizes the label to its content and
+leaves a long name overflowing the block on both sides so you read its middle.
+
 ## Not done yet
 
 - **Editing.** v1 is read-only by decision. The Google config entry is already
