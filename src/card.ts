@@ -73,8 +73,25 @@ const DEFAULTS = {
 
 /** Minimum block height. Below this a 15-minute activity has no readable label. */
 const MIN_BLOCK_PX = 28;
-/** The same idea along the other axis, for the transposed grid. */
-const MIN_BLOCK_W_PX = 40;
+/*
+ * The same idea along the other axis, for the transposed grid - but stated in
+ * MINUTES, not pixels, because the transposed grid has two scales.
+ *
+ * It was 40px, which is fine in view_width_mode:fixed (192px/hour makes a
+ * 45-minute lesson 144px, so the floor only ever caught events under about
+ * twelve minutes) and badly wrong in adaptive. Squeezing a whole 24-hour day
+ * into ~1160px puts an hour at 48px, so 40px is nearly FIFTY MINUTES: the
+ * floor fired on every ordinary lesson, painted 29 of 34 blocks wider than
+ * their real duration, overlapped the next block by 4px wherever two lessons
+ * abut, and welded the day into one solid bar with the gaps eaten. A
+ * proportional axis is the card's whole promise, and an absolute pixel floor
+ * silently breaks it at small scales.
+ *
+ * Twelve minutes is what 40px meant at the default hour_width, so fixed mode
+ * is unchanged in practice, and it now scales with the axis instead of
+ * fighting it.
+ */
+const MIN_BLOCK_MINUTES = 12;
 /*
  * The scroll range is EXACTLY the schedule, and the void a bounce used to reveal
  * is handled by painting, not by content. Three attempts to fix it with content
@@ -904,6 +921,10 @@ export class SimpleScheduleCard extends LitElement {
     const axisEnd = adaptive ? 100 : axisW;
     const pos = (minutes: number) =>
       ((minutes - spanStart) / span) * (adaptive ? 100 : axisW);
+    /** The block floor in whatever unit pos() speaks. pos() is linear, so the
+        floor's own duration measured from the start of the span is the same
+        length anywhere along it. */
+    const minBlockW = pos(spanStart + MIN_BLOCK_MINUTES) - pos(spanStart);
 
     const perDay = days.map((d) => eventsForDay(all.filter((e) => !e.allDay), d));
     // Only the calendar on screen may claim a lane. Handing placeWeek every
@@ -1007,12 +1028,15 @@ export class SimpleScheduleCard extends LitElement {
                       const en = Math.min(spanEnd, eRaw <= st ? st + 15 : eRaw);
                       if (en <= spanStart || st >= spanEnd) return nothing;
                       const left = pos(st);
-                      const width = pos(en) - left;
+                      // Floor in the CURRENT unit - px when fixed, % when
+                      // adaptive - by measuring the floor's own duration
+                      // through pos(), rather than pinning a pixel min-width
+                      // that means a different length of time in each mode.
+                      const width = Math.max(pos(en) - left, minBlockW);
                       return html`
                         <div
                           class="ev rev"
                           style="left:${left}${unit}; width:${width}${unit};
-                                 min-width:${MIN_BLOCK_W_PX}px;
                                  top:${column * laneH}px; height:${laneH}px;
                                  animation-name:${this._evAnim}; animation-delay:${i * STAGGER_MS}ms;
                                  ${blockStyle(this._colorForEvent(ev), this._minContrast)}"
