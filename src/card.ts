@@ -1436,12 +1436,6 @@ export class SimpleScheduleCard extends LitElement {
       align-items: center;
       gap: 15px;
     }
-    /* On = the non-default setting, so a glance says the view has been
-       reshaped from what the YAML asked for. Same inversion as today's cell. */
-    .btn.on {
-      background: var(--ssc-today-cell, #ededed);
-      color: var(--ssc-today-cell-fg, #16161a);
-    }
     /* Narrow chrome. The phone LAYOUT is still undesigned, but the header must
        not visibly break while it waits: the title has to fit, and the week pill
        is redundant next to a date range it would otherwise push onto its own
@@ -1641,6 +1635,17 @@ export class SimpleScheduleCard extends LitElement {
     }
     .btn:active {
       transform: scale(0.92);
+    }
+    /* On = the non-default setting, so a glance says the view has been
+       reshaped from what the YAML asked for. Same inversion as today's cell.
+       This MUST come after :hover. Both selectors have the same specificity,
+       so when .btn.on sat earlier in the sheet the hover grey won and a
+       pressed button went grey instead of white - and on a touch screen the
+       hover state sticks after the tap, so it stayed grey. */
+    .btn.on,
+    .btn.on:hover {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
     }
     .btn.off {
       opacity: 0.3;
@@ -2045,6 +2050,36 @@ export class SimpleScheduleCard extends LitElement {
          (No backticks anywhere in this literal - one ends it and the error lands
          hundreds of lines away. This is the second time.) */
       animation: evIn var(--ssc-block-dur) var(--ssc-block-ease) backwards;
+    }
+    /* Each block is its own query container, so one that is too narrow for its
+       time line can drop it and hand the room to the name. Width-driven rather
+       than mode-driven: the same block is 144px in fixed mode and 36px in
+       adaptive over a whole day, and it has to read in both. */
+    .ev {
+      container-type: inline-size;
+    }
+    /* Measured: the time is 65-80px of digits, while a 36px block has 18px of
+       content box once padding is taken. It cannot fit at any font size, and
+       keeping it truncated BOTH lines to a single letter and an ellipsis.
+       Dropping it, and pulling the padding in, gets most subject names fully
+       legible instead - which is the only thing worth reading at that size. */
+    @container (max-width: 90px) {
+      .ev.rev .ev-time {
+        display: none;
+      }
+      /* text-align, but NOT align-items: center. As a centred flex item the
+         name sizes to its CONTENT, so a long one overflowed the block on both
+         sides and you were left reading its middle - "/ MG" out of
+         "ICT / MGeo". Stretched to the block instead, a short name still
+         centres and a long one clips from the start with an ellipsis, which
+         is the half worth keeping. */
+      .ev.rev .ev-in {
+        padding: 4px 3px;
+        text-align: center;
+      }
+      .ev.rev .ev-name {
+        letter-spacing: -0.3px;
+      }
     }
     /* Opaque: the event's colour, nothing of the grid behind it showing through,
        and square. The label is white the way Google's own calendar draws it. */
