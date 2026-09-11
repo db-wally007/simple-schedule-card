@@ -83,6 +83,14 @@ export interface SimpleScheduleCardConfig {
   /** 'auto' follows Home Assistant's own setting; '12'/'24' pin it for this card. */
   time_format?: 'auto' | '12' | '24';
   show_refresh?: boolean;
+  /**
+   * Show the two mode toggles in the middle of the header, which flip the
+   * ACTIVE calendar's `calendar_mode` and `view_width_mode` for the session.
+   * They override the configured value without writing it back, so a reload
+   * returns to whatever the YAML says. Turn them off for a kiosk that nobody
+   * should be reshaping.
+   */
+  show_mode_toggles?: boolean;
   layout?: LayoutOption;
   layout_breakpoint?: number;
   /**

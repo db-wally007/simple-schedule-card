@@ -95,8 +95,8 @@ let C = class extends HTMLElement {
       this[s] = o;
     } };
     return { get: n, set(o) {
-      const h = n?.call(this);
-      r?.call(this, o), this.requestUpdate(t, h, i);
+      const l = n?.call(this);
+      r?.call(this, o), this.requestUpdate(t, l, i);
     }, configurable: !0, enumerable: !0 };
   }
   static getPropertyOptions(t) {
@@ -181,8 +181,8 @@ let C = class extends HTMLElement {
     if (n !== void 0 && this._$Em !== n) {
       const r = i.getPropertyOptions(n), o = typeof r.converter == "function" ? { fromAttribute: r.converter } : r.converter?.fromAttribute !== void 0 ? r.converter : q;
       this._$Em = n;
-      const h = o.fromAttribute(s, r.type);
-      this[n] = h ?? this._$Ej?.get(n) ?? h, this._$Em = null;
+      const l = o.fromAttribute(s, r.type);
+      this[n] = l ?? this._$Ej?.get(n) ?? l, this._$Em = null;
     }
   }
   requestUpdate(t, s, i, n = !1, r) {
@@ -218,8 +218,8 @@ let C = class extends HTMLElement {
       }
       const i = this.constructor.elementProperties;
       if (i.size > 0) for (const [n, r] of i) {
-        const { wrapped: o } = r, h = this[n];
-        o !== !0 || this._$AL.has(n) || h === void 0 || this.C(n, void 0, r, h);
+        const { wrapped: o } = r, l = this[n];
+        o !== !0 || this._$AL.has(n) || l === void 0 || this.C(n, void 0, r, l);
       }
     }
     let t = !1;
@@ -262,22 +262,22 @@ C.elementStyles = [], C.shadowRootOptions = { mode: "open" }, C[z("elementProper
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const st = globalThis, gt = (e) => e, G = st.trustedTypes, _t = G ? G.createPolicy("lit-html", { createHTML: (e) => e }) : void 0, Rt = "$lit$", A = `lit$${Math.random().toFixed(9).slice(2)}$`, Nt = "?" + A, ae = `<${Nt}>`, T = document, R = () => T.createComment(""), N = (e) => e === null || typeof e != "object" && typeof e != "function", it = Array.isArray, he = (e) => it(e) || typeof e?.[Symbol.iterator] == "function", X = `[ 	
-\f\r]`, M = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, vt = /-->/g, yt = />/g, E = RegExp(`>|${X}(?:([^\\s"'>=/]+)(${X}*=${X}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), bt = /'/g, wt = /"/g, Lt = /^(?:script|style|textarea|title)$/i, le = (e) => (t, ...s) => ({ _$litType$: e, strings: t, values: s }), u = le(1), O = Symbol.for("lit-noChange"), f = Symbol.for("lit-nothing"), $t = /* @__PURE__ */ new WeakMap(), S = T.createTreeWalker(T, 129);
+const st = globalThis, gt = (e) => e, G = st.trustedTypes, _t = G ? G.createPolicy("lit-html", { createHTML: (e) => e }) : void 0, Rt = "$lit$", A = `lit$${Math.random().toFixed(9).slice(2)}$`, Nt = "?" + A, ae = `<${Nt}>`, T = document, R = () => T.createComment(""), N = (e) => e === null || typeof e != "object" && typeof e != "function", it = Array.isArray, le = (e) => it(e) || typeof e?.[Symbol.iterator] == "function", X = `[ 	
+\f\r]`, P = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, vt = /-->/g, yt = />/g, E = RegExp(`>|${X}(?:([^\\s"'>=/]+)(${X}*=${X}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`, "g"), bt = /'/g, wt = /"/g, Lt = /^(?:script|style|textarea|title)$/i, he = (e) => (t, ...s) => ({ _$litType$: e, strings: t, values: s }), p = he(1), O = Symbol.for("lit-noChange"), f = Symbol.for("lit-nothing"), $t = /* @__PURE__ */ new WeakMap(), S = T.createTreeWalker(T, 129);
 function Ht(e, t) {
   if (!it(e) || !e.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return _t !== void 0 ? _t.createHTML(t) : t;
 }
 const ce = (e, t) => {
   const s = e.length - 1, i = [];
-  let n, r = t === 2 ? "<svg>" : t === 3 ? "<math>" : "", o = M;
-  for (let h = 0; h < s; h++) {
-    const a = e[h];
-    let l, c, d = -1, m = 0;
-    for (; m < a.length && (o.lastIndex = m, c = o.exec(a), c !== null); ) m = o.lastIndex, o === M ? c[1] === "!--" ? o = vt : c[1] !== void 0 ? o = yt : c[2] !== void 0 ? (Lt.test(c[2]) && (n = RegExp("</" + c[2], "g")), o = E) : c[3] !== void 0 && (o = E) : o === E ? c[0] === ">" ? (o = n ?? M, d = -1) : c[1] === void 0 ? d = -2 : (d = o.lastIndex - c[2].length, l = c[1], o = c[3] === void 0 ? E : c[3] === '"' ? wt : bt) : o === wt || o === bt ? o = E : o === vt || o === yt ? o = M : (o = E, n = void 0);
-    const y = o === E && e[h + 1].startsWith("/>") ? " " : "";
-    r += o === M ? a + ae : d >= 0 ? (i.push(l), a.slice(0, d) + Rt + a.slice(d) + A + y) : a + A + (d === -2 ? h : y);
+  let n, r = t === 2 ? "<svg>" : t === 3 ? "<math>" : "", o = P;
+  for (let l = 0; l < s; l++) {
+    const a = e[l];
+    let h, c, d = -1, m = 0;
+    for (; m < a.length && (o.lastIndex = m, c = o.exec(a), c !== null); ) m = o.lastIndex, o === P ? c[1] === "!--" ? o = vt : c[1] !== void 0 ? o = yt : c[2] !== void 0 ? (Lt.test(c[2]) && (n = RegExp("</" + c[2], "g")), o = E) : c[3] !== void 0 && (o = E) : o === E ? c[0] === ">" ? (o = n ?? P, d = -1) : c[1] === void 0 ? d = -2 : (d = o.lastIndex - c[2].length, h = c[1], o = c[3] === void 0 ? E : c[3] === '"' ? wt : bt) : o === wt || o === bt ? o = E : o === vt || o === yt ? o = P : (o = E, n = void 0);
+    const y = o === E && e[l + 1].startsWith("/>") ? " " : "";
+    r += o === P ? a + ae : d >= 0 ? (i.push(h), a.slice(0, d) + Rt + a.slice(d) + A + y) : a + A + (d === -2 ? l : y);
   }
   return [Ht(e, r + (e[s] || "<?>") + (t === 2 ? "</svg>" : t === 3 ? "</math>" : "")), i];
 };
@@ -286,16 +286,16 @@ class L {
     let n;
     this.parts = [];
     let r = 0, o = 0;
-    const h = t.length - 1, a = this.parts, [l, c] = ce(t, s);
-    if (this.el = L.createElement(l, i), S.currentNode = this.el.content, s === 2 || s === 3) {
+    const l = t.length - 1, a = this.parts, [h, c] = ce(t, s);
+    if (this.el = L.createElement(h, i), S.currentNode = this.el.content, s === 2 || s === 3) {
       const d = this.el.content.firstChild;
       d.replaceWith(...d.childNodes);
     }
-    for (; (n = S.nextNode()) !== null && a.length < h; ) {
+    for (; (n = S.nextNode()) !== null && a.length < l; ) {
       if (n.nodeType === 1) {
         if (n.hasAttributes()) for (const d of n.getAttributeNames()) if (d.endsWith(Rt)) {
-          const m = c[o++], y = n.getAttribute(d).split(A), p = /([.?@])?(.*)/.exec(m);
-          a.push({ type: 1, index: r, name: p[2], strings: y, ctor: p[1] === "." ? pe : p[1] === "?" ? ue : p[1] === "@" ? fe : V }), n.removeAttribute(d);
+          const m = c[o++], y = n.getAttribute(d).split(A), u = /([.?@])?(.*)/.exec(m);
+          a.push({ type: 1, index: r, name: u[2], strings: y, ctor: u[1] === "." ? pe : u[1] === "?" ? ue : u[1] === "@" ? fe : V }), n.removeAttribute(d);
         } else d.startsWith(A) && (a.push({ type: 6, index: r }), n.removeAttribute(d));
         if (Lt.test(n.tagName)) {
           const d = n.textContent.split(A), m = d.length - 1;
@@ -318,11 +318,11 @@ class L {
     return i.innerHTML = t, i;
   }
 }
-function P(e, t, s = e, i) {
+function M(e, t, s = e, i) {
   if (t === O) return t;
   let n = i !== void 0 ? s._$Co?.[i] : s._$Cl;
   const r = N(t) ? void 0 : t._$litDirective$;
-  return n?.constructor !== r && (n?._$AO?.(!1), r === void 0 ? n = void 0 : (n = new r(e), n._$AT(e, s, i)), i !== void 0 ? (s._$Co ??= [])[i] = n : s._$Cl = n), n !== void 0 && (t = P(e, n._$AS(e, t.values), n, i)), t;
+  return n?.constructor !== r && (n?._$AO?.(!1), r === void 0 ? n = void 0 : (n = new r(e), n._$AT(e, s, i)), i !== void 0 ? (s._$Co ??= [])[i] = n : s._$Cl = n), n !== void 0 && (t = M(e, n._$AS(e, t.values), n, i)), t;
 }
 class de {
   constructor(t, s) {
@@ -337,11 +337,11 @@ class de {
   u(t) {
     const { el: { content: s }, parts: i } = this._$AD, n = (t?.creationScope ?? T).importNode(s, !0);
     S.currentNode = n;
-    let r = S.nextNode(), o = 0, h = 0, a = i[0];
+    let r = S.nextNode(), o = 0, l = 0, a = i[0];
     for (; a !== void 0; ) {
       if (o === a.index) {
-        let l;
-        a.type === 2 ? l = new H(r, r.nextSibling, this, t) : a.type === 1 ? l = new a.ctor(r, a.name, a.strings, this, t) : a.type === 6 && (l = new me(r, this, t)), this._$AV.push(l), a = i[++h];
+        let h;
+        a.type === 2 ? h = new H(r, r.nextSibling, this, t) : a.type === 1 ? h = new a.ctor(r, a.name, a.strings, this, t) : a.type === 6 && (h = new me(r, this, t)), this._$AV.push(h), a = i[++l];
       }
       o !== a?.index && (r = S.nextNode(), o++);
     }
@@ -371,7 +371,7 @@ class H {
     return this._$AB;
   }
   _$AI(t, s = this) {
-    t = P(this, t, s), N(t) ? t === f || t == null || t === "" ? (this._$AH !== f && this._$AR(), this._$AH = f) : t !== this._$AH && t !== O && this._(t) : t._$litType$ !== void 0 ? this.$(t) : t.nodeType !== void 0 ? this.T(t) : he(t) ? this.k(t) : this._(t);
+    t = M(this, t, s), N(t) ? t === f || t == null || t === "" ? (this._$AH !== f && this._$AR(), this._$AH = f) : t !== this._$AH && t !== O && this._(t) : t._$litType$ !== void 0 ? this.$(t) : t.nodeType !== void 0 ? this.T(t) : le(t) ? this.k(t) : this._(t);
   }
   O(t) {
     return this._$AA.parentNode.insertBefore(t, this._$AB);
@@ -424,11 +424,11 @@ class V {
   _$AI(t, s = this, i, n) {
     const r = this.strings;
     let o = !1;
-    if (r === void 0) t = P(this, t, s, 0), o = !N(t) || t !== this._$AH && t !== O, o && (this._$AH = t);
+    if (r === void 0) t = M(this, t, s, 0), o = !N(t) || t !== this._$AH && t !== O, o && (this._$AH = t);
     else {
-      const h = t;
-      let a, l;
-      for (t = r[0], a = 0; a < r.length - 1; a++) l = P(this, h[i + a], s, a), l === O && (l = this._$AH[a]), o ||= !N(l) || l !== this._$AH[a], l === f ? t = f : t !== f && (t += (l ?? "") + r[a + 1]), this._$AH[a] = l;
+      const l = t;
+      let a, h;
+      for (t = r[0], a = 0; a < r.length - 1; a++) h = M(this, l[i + a], s, a), h === O && (h = this._$AH[a]), o ||= !N(h) || h !== this._$AH[a], h === f ? t = f : t !== f && (t += (h ?? "") + r[a + 1]), this._$AH[a] = h;
     }
     o && !n && this.j(t);
   }
@@ -457,7 +457,7 @@ class fe extends V {
     super(t, s, i, n, r), this.type = 5;
   }
   _$AI(t, s = this) {
-    if ((t = P(this, t, s, 0) ?? f) === O) return;
+    if ((t = M(this, t, s, 0) ?? f) === O) return;
     const i = this._$AH, n = t === f && i !== f || t.capture !== i.capture || t.once !== i.once || t.passive !== i.passive, r = t !== f && (i === f || n);
     n && this.element.removeEventListener(this.name, this, i), r && this.element.addEventListener(this.name, this, t), this._$AH = t;
   }
@@ -473,7 +473,7 @@ class me {
     return this._$AM._$AU;
   }
   _$AI(t) {
-    P(this, t);
+    M(this, t);
   }
 }
 const ge = st.litHtmlPolyfillSupport;
@@ -539,18 +539,18 @@ const be = { attribute: !0, type: String, converter: q, reflect: !1, hasChanged:
   let r = globalThis.litPropertyMetadata.get(n);
   if (r === void 0 && globalThis.litPropertyMetadata.set(n, r = /* @__PURE__ */ new Map()), i === "setter" && ((e = Object.create(e)).wrapped = !0), r.set(s.name, e), i === "accessor") {
     const { name: o } = s;
-    return { set(h) {
+    return { set(l) {
       const a = t.get.call(this);
-      t.set.call(this, h), this.requestUpdate(o, a, e, !0, h);
-    }, init(h) {
-      return h !== void 0 && this.C(o, void 0, e, h), h;
+      t.set.call(this, l), this.requestUpdate(o, a, e, !0, l);
+    }, init(l) {
+      return l !== void 0 && this.C(o, void 0, e, l), l;
     } };
   }
   if (i === "setter") {
     const { name: o } = s;
-    return function(h) {
+    return function(l) {
       const a = this[o];
-      t.call(this, h), this.requestUpdate(o, a, e, !0, h);
+      t.call(this, l), this.requestUpdate(o, a, e, !0, l);
     };
   }
   throw Error("Unsupported decorator location: " + i);
@@ -583,8 +583,8 @@ function xe(e, t, s) {
   n.setDate(n.getDate() + 7);
   const r = [];
   for (let o = 0; o < s; o++) {
-    const h = new Date(i);
-    h.setDate(h.getDate() + o), r.push(h);
+    const l = new Date(i);
+    l.setDate(l.getDate() + o), r.push(l);
   }
   return { start: i, end: n, days: r };
 }
@@ -603,15 +603,15 @@ function ke(e, t, s) {
   if (i !== null && n !== null && n > i)
     return { start: i, end: n };
   let r = 1 / 0, o = -1 / 0;
-  for (const l of e) {
-    if (l.allDay) continue;
-    r = Math.min(r, Z(l.start));
-    const c = Z(l.end) === 0 ? 24 * 60 : Z(l.end);
+  for (const h of e) {
+    if (h.allDay) continue;
+    r = Math.min(r, Z(h.start));
+    const c = Z(h.end) === 0 ? 24 * 60 : Z(h.end);
     o = Math.max(o, c);
   }
   (!Number.isFinite(r) || !Number.isFinite(o)) && (r = 8 * 60, o = 16 * 60);
-  const h = i !== null ? i : r, a = n !== null ? n : o;
-  return a > h ? { start: h, end: a } : { start: h, end: h + 60 };
+  const l = i !== null ? i : r, a = n !== null ? n : o;
+  return a > l ? { start: l, end: a } : { start: l, end: l + 60 };
 }
 function Ae(e, t, s) {
   if (!e || !e.start || !e.end) return null;
@@ -669,20 +669,20 @@ class Se {
     const o = `${s.join(",")}|${i.getTime()}|${n.getTime()}`;
     if (o === this._key && this.subscribed && !r) return;
     this._key = o, this.stop();
-    const h = At(i), a = At(n);
-    for (const l of s)
+    const l = At(i), a = At(n);
+    for (const h of s)
       try {
         const c = await t.connection.subscribeMessage(
           (d) => {
-            this._key === o && (!d || d.events === null ? (this._failed.add(l), this._byEntity.set(l, [])) : (this._failed.delete(l), this._byEntity.set(
-              l,
-              d.events.map((m, y) => Ae(m, l, y)).filter((m) => m !== null)
+            this._key === o && (!d || d.events === null ? (this._failed.add(h), this._byEntity.set(h, [])) : (this._failed.delete(h), this._byEntity.set(
+              h,
+              d.events.map((m, y) => Ae(m, h, y)).filter((m) => m !== null)
             )), this._onChange());
           },
           {
             type: "calendar/event/subscribe",
-            entity_id: l,
-            start: h,
+            entity_id: h,
+            start: l,
             end: a
           }
         );
@@ -692,7 +692,7 @@ class Se {
         }
         this._unsubs.push(c);
       } catch {
-        this._failed.add(l), this._byEntity.set(l, []), this._onChange();
+        this._failed.add(h), this._byEntity.set(h, []), this._onChange();
       }
   }
   /**
@@ -777,7 +777,7 @@ function De(e, t) {
     if (i.trim().toLowerCase() === s) return n;
 }
 const Oe = "/local/simple-schedule-card-data/event-colors.json";
-async function Pe(e) {
+async function Me(e) {
   try {
     const t = await fetch(e, { cache: "no-cache" });
     if (!t.ok) return null;
@@ -790,7 +790,7 @@ async function Pe(e) {
     return null;
   }
 }
-function Me(e, t, s) {
+function Pe(e, t, s) {
   if (e) {
     if (s && e.by_recurrence_id[s]) return e.by_recurrence_id[s];
     if (t && e.by_uid[t]) return e.by_uid[t];
@@ -811,13 +811,13 @@ function Ft(e, t) {
   if (!s || !(t > 1)) return e;
   const i = parseInt(s[1], 16), n = parseInt(s[2], 16), r = parseInt(s[3], 16);
   if (Tt(St(i, n, r)) >= t) return e;
-  let o = 0, h = 1;
+  let o = 0, l = 1;
   for (let c = 0; c < 24; c++) {
-    const d = (o + h) / 2;
-    Tt(St(i * d, n * d, r * d)) >= t ? o = d : h = d;
+    const d = (o + l) / 2;
+    Tt(St(i * d, n * d, r * d)) >= t ? o = d : l = d;
   }
-  const a = o, l = (c) => Math.max(0, Math.min(255, Math.round(c * a))).toString(16).padStart(2, "0");
-  return `#${l(i)}${l(n)}${l(r)}`;
+  const a = o, h = (c) => Math.max(0, Math.min(255, Math.round(c * a))).toString(16).padStart(2, "0");
+  return `#${h(i)}${h(n)}${h(r)}`;
 }
 function Ct(e) {
   const t = [...e].sort(
@@ -832,24 +832,24 @@ function Ct(e) {
 function Dt(e, t, s) {
   if (t === "packed") {
     const o = e.map((a) => Ct(a));
-    let h = 1;
-    for (const a of o) h = Math.max(h, Ot(a) + 1);
+    let l = 1;
+    for (const a of o) l = Math.max(l, Ot(a) + 1);
     return {
-      columns: h,
+      columns: l,
       days: e.map(
-        (a, l) => a.map((c) => ({ ev: c, column: o[l].get(c.key) ?? 0 }))
+        (a, h) => a.map((c) => ({ ev: c, column: o[h].get(c.key) ?? 0 }))
       )
     };
   }
   const i = e.map((o) => {
-    const h = /* @__PURE__ */ new Map();
-    for (const l of o) {
-      const c = h.get(l.entity);
-      c ? c.push(l) : h.set(l.entity, [l]);
+    const l = /* @__PURE__ */ new Map();
+    for (const h of o) {
+      const c = l.get(h.entity);
+      c ? c.push(h) : l.set(h.entity, [h]);
     }
     const a = /* @__PURE__ */ new Map();
-    for (const l of h.values())
-      for (const [c, d] of Ct(l)) a.set(c, d);
+    for (const h of l.values())
+      for (const [c, d] of Ct(h)) a.set(c, d);
     return a;
   });
   let n = 1;
@@ -858,9 +858,9 @@ function Dt(e, t, s) {
   return {
     columns: r.length * n,
     days: e.map(
-      (o, h) => o.map((a) => {
-        const l = Math.max(0, r.indexOf(a.entity));
-        return { ev: a, column: l * n + (i[h].get(a.key) ?? 0) };
+      (o, l) => o.map((a) => {
+        const h = Math.max(0, r.indexOf(a.entity));
+        return { ev: a, column: h * n + (i[l].get(a.key) ?? 0) };
       })
     )
   };
@@ -875,7 +875,7 @@ var ze = Object.defineProperty, Ie = Object.getOwnPropertyDescriptor, v = (e, t,
     (o = e[r]) && (n = (i ? o(t, s, n) : o(n)) || n);
   return i && n && ze(t, s, n), n;
 };
-const Re = "0.1.0", x = {
+const Re = "0.1.0", $ = {
   days: "auto",
   day_start: "07:00",
   day_end: "15:00",
@@ -890,12 +890,13 @@ const Re = "0.1.0", x = {
   time_format: "auto",
   min_contrast: 4.5,
   show_refresh: !0,
+  show_mode_toggles: !0,
   layout: "auto",
   layout_breakpoint: 560
 }, Ne = 28, Le = 40, J = 55, He = 22, Ue = 520, Fe = 64, We = 20, je = 172, Be = 18, qe = 600, Ge = 12e3, Ke = 2200;
 let _ = class extends I {
   constructor() {
-    super(...arguments), this._sources = [], this._colors = {}, this._eventColors = null, this._weekOffset = 0, this._now = /* @__PURE__ */ new Date(), this._hostWidth = 0, this._refreshing = !1, this._navDir = "none", this._activeIdx = 0, this._pickerOpen = !1, this._animEpoch = 0, this._hThumb = null, this._revision = 0, this._subs = new Se(() => {
+    super(...arguments), this._sources = [], this._colors = {}, this._eventColors = null, this._weekOffset = 0, this._now = /* @__PURE__ */ new Date(), this._hostWidth = 0, this._refreshing = !1, this._navDir = "none", this._activeIdx = 0, this._modeOverride = {}, this._pickerOpen = !1, this._animEpoch = 0, this._hThumb = null, this._revision = 0, this._subs = new Se(() => {
       this._revision++;
     }), this._colorKey = "", this._focusPx = 0, this._focusKey = "", this._focusBusy = !1, this._colorsAt = 0, this._eventColorsAt = 0, this._eventColorsPending = !1, this._onOutside = (e) => {
       const t = this.renderRoot?.querySelector(".picker");
@@ -926,7 +927,7 @@ let _ = class extends I {
     return {
       type: "custom:simple-schedule-card",
       entity: "calendar.school",
-      ...x
+      ...$
     };
   }
   connectedCallback() {
@@ -949,7 +950,7 @@ let _ = class extends I {
    * weekend before deciding whether to show it.
    */
   get _window() {
-    const e = xe(this._now, this._weekOffset, 7), t = this._config?.days ?? x.days;
+    const e = xe(this._now, this._weekOffset, 7), t = this._config?.days ?? $.days;
     let s = 5;
     return (t === "mon-sun" || t === "auto" && Ee(this._activeEvents, e.days)) && (s = 7), { start: e.start, end: e.end, days: e.days.slice(0, s) };
   }
@@ -995,7 +996,7 @@ let _ = class extends I {
   }
   get _minContrast() {
     const e = this._config?.min_contrast;
-    return typeof e == "number" ? e : x.min_contrast;
+    return typeof e == "number" ? e : $.min_contrast;
   }
   /** URL of the pyscript helper's output, or null when it is switched off. */
   get _helperUrl() {
@@ -1017,7 +1018,7 @@ let _ = class extends I {
     if (!this._eventColorsPending && !(!e && this._eventColorsAt && Date.now() - this._eventColorsAt < 10 * 6e4)) {
       this._eventColorsPending = !0;
       try {
-        this._eventColors = await Pe(t), this._eventColorsAt = Date.now();
+        this._eventColors = await Me(t), this._eventColorsAt = Date.now();
       } finally {
         this._eventColorsPending = !1;
       }
@@ -1033,14 +1034,48 @@ let _ = class extends I {
    * calendar's colour.
    */
   _colorForEvent(e) {
-    return De(e.summary, this._config?.event_colors) ?? Me(this._eventColors, e.uid, e.recurrenceId) ?? this._colorFor(e.entity);
+    return De(e.summary, this._config?.event_colors) ?? Pe(this._eventColors, e.uid, e.recurrenceId) ?? this._colorFor(e.entity);
   }
   /** The calendar's own name, as Home Assistant has it. Never a configured one. */
   _nameFor(e) {
     return Ve(this.hass?.states?.[e]?.attributes?.friendly_name ?? e);
   }
+  /**
+   * The active calendar, with any header-toggle override folded in. Every read
+   * of calendar_mode and view_width_mode goes through here, so overriding at
+   * this one point reaches the axis, the lane packing and both renderers
+   * without any of them knowing the modes can be changed at runtime.
+   */
   get _active() {
-    return this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+    const e = this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+    if (!e) return e;
+    const t = this._modeOverride[e.entity];
+    return t ? { ...e, ...t } : e;
+  }
+  /** The active calendar's mode, override first, then config, then default. */
+  get _calendarMode() {
+    return this._active?.calendar_mode === "full" ? "full" : "focused";
+  }
+  get _widthMode() {
+    return this._active?.view_width_mode === "adaptive" ? "adaptive" : "fixed";
+  }
+  /**
+   * Flip one mode for the active calendar only. Keyed by entity so each
+   * calendar remembers its own shape while the card is open - a timetable and
+   * a household calendar want different ones, which is why these are per
+   * calendar in config to begin with. Deliberately NOT persisted: the YAML
+   * stays the source of truth and a reload returns to it.
+   */
+  _toggleMode(e) {
+    const t = this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+    if (!t) return;
+    const s = this._active, i = e === "calendar_mode" ? { calendar_mode: s.calendar_mode === "full" ? "focused" : "full" } : {
+      view_width_mode: s.view_width_mode === "adaptive" ? "fixed" : "adaptive"
+    };
+    this._modeOverride = {
+      ...this._modeOverride,
+      [t.entity]: { ...this._modeOverride[t.entity], ...i }
+    }, this._animEpoch++;
   }
   /** The person's picture, if one is configured and set. */
   _avatarFor(e) {
@@ -1109,8 +1144,8 @@ let _ = class extends I {
   }
   render() {
     if (!this._config || !this.hass) return f;
-    const e = this._config, t = this._window, s = this._active?.entity, i = this._subs.events.filter((h) => h.entity === s), n = i.filter((h) => !h.allDay), r = ke(n, e.day_start ?? x.day_start, e.day_end ?? x.day_end), o = this._mode === "list";
-    return u`
+    const e = this._config, t = this._window, s = this._active?.entity, i = this._subs.events.filter((l) => l.entity === s), n = i.filter((l) => !l.allDay), r = ke(n, e.day_start ?? $.day_start, e.day_end ?? $.day_end), o = this._mode === "list";
+    return p`
       <ha-card>
         <div class="panel ${o ? "narrow" : ""}">
           ${this._renderHead(t.days)}
@@ -1122,9 +1157,9 @@ let _ = class extends I {
   }
   /** Config pins the layout; 'auto' picks by the card's own measured width. */
   get _mode() {
-    const e = this._config?.layout ?? x.layout;
+    const e = this._config?.layout ?? $.layout;
     if (e === "grid" || e === "list") return e;
-    const t = this._config?.layout_breakpoint ?? x.layout_breakpoint;
+    const t = this._config?.layout_breakpoint ?? $.layout_breakpoint;
     return this._hostWidth > 0 && this._hostWidth < t ? "list" : "grid";
   }
   /**
@@ -1138,9 +1173,9 @@ let _ = class extends I {
   /** Avatar, or the calendar's initial on its own colour when there is none. */
   _renderAvatar(e) {
     const t = this._avatarFor(e);
-    if (t) return u`<img class="av" src=${t} alt="" />`;
+    if (t) return p`<img class="av" src=${t} alt="" />`;
     const s = Ft(this._colorFor(e.entity), this._minContrast), i = (this._nameFor(e.entity).trim()[0] ?? "?").toUpperCase();
-    return u`<span class="av init" style="background:${s}">${i}</span>`;
+    return p`<span class="av init" style="background:${s}">${i}</span>`;
   }
   /**
    * The card's heading: avatar, the calendar's own name, and — when there is
@@ -1153,7 +1188,7 @@ let _ = class extends I {
    */
   _renderPicker() {
     const e = this._sources, t = e.length > 1, s = this._active;
-    return u`
+    return p`
       <div class="picker">
         <button
           class="pick-btn ${t ? "" : "static"}"
@@ -1166,14 +1201,14 @@ let _ = class extends I {
         >
           ${this._renderAvatar(s)}
           <span class="pick-name">${this._nameFor(s.entity)}</span>
-          ${t ? u`<ha-icon
+          ${t ? p`<ha-icon
                 class="pick-chev ${this._pickerOpen ? "open" : ""}"
                 icon="mdi:chevron-down"
               ></ha-icon>` : f}
         </button>
         <div class="pick-menu ${this._pickerOpen ? "open" : ""}" role="listbox">
           ${e.map(
-      (i, n) => u`
+      (i, n) => p`
               <button
                 class="pick-item ${n === this._activeIdx ? "sel" : ""}"
                 role="option"
@@ -1191,12 +1226,13 @@ let _ = class extends I {
   }
   _renderHead(e) {
     const t = this._config, s = this._subs.failed, i = e.length ? `${this._fmtDate(e[0])} – ${this._fmtDate(e[e.length - 1])}` : "";
-    return u`
+    return p`
       <div class="head">
         <div class="titles">${this._renderPicker()}</div>
+        ${this._renderModeToggles()}
         <div class="head-right">
           <div class="tools">
-          ${s.length ? u`<div class="warn" title=${s.join(", ")}>
+          ${s.length ? p`<div class="warn" title=${s.join(", ")}>
                 <ha-icon icon="mdi:alert-circle-outline"></ha-icon>
               </div>` : f}
           <button class="btn" @click=${() => this._goWeek(-1)} aria-label="Previous week">
@@ -1212,7 +1248,7 @@ let _ = class extends I {
           <button class="btn" @click=${() => this._goWeek(1)} aria-label="Next week">
             <ha-icon icon="mdi:chevron-right"></ha-icon>
           </button>
-          ${t.show_refresh ?? x.show_refresh ? u`<button
+          ${t.show_refresh ?? $.show_refresh ? p`<button
                 class="btn ${this._refreshing ? "spin" : ""}"
                 @click=${() => void this._refresh()}
                 aria-label="Refresh"
@@ -1221,9 +1257,50 @@ let _ = class extends I {
               </button>` : f}
           </div>
           <div class="range">
-            ${i}${this._weekLabel ? u`<span class="pill">${this._weekLabel}</span>` : f}
+            ${i}${this._weekLabel ? p`<span class="pill">${this._weekLabel}</span>` : f}
           </div>
         </div>
+      </div>
+    `;
+  }
+  /**
+   * The two mode toggles, centred in the header.
+   *
+   * Each shows the mode it is CURRENTLY in rather than the one it would switch
+   * to - a toggle that displays its own destination reads backwards the moment
+   * you stop looking at it - and is highlighted when it is on the non-default
+   * setting, so a glance says whether the view has been reshaped.
+   *
+   * Only offered where they mean something: the list layout has no time axis at
+   * all, and view_width_mode has nothing to fit unless the days run as rows.
+   */
+  _renderModeToggles() {
+    if (!(this._config.show_mode_toggles ?? $.show_mode_toggles) || this._mode !== "grid") return f;
+    const t = this._calendarMode === "full", s = this._widthMode === "adaptive", i = this._orientation === "days-as-rows";
+    return p`
+      <div class="mode-toggles">
+        <button
+          class="btn ${t ? "on" : ""}"
+          @click=${() => this._toggleMode("calendar_mode")}
+          title=${t ? "Whole day - tap to fit the events" : "Fitted to the events - tap for the whole day"}
+          aria-pressed=${t ? "true" : "false"}
+          aria-label="Time span"
+        >
+          <ha-icon
+            icon=${t ? "mdi:arrow-expand-horizontal" : "mdi:arrow-collapse-horizontal"}
+          ></ha-icon>
+        </button>
+        ${i ? p`<button
+              class="btn ${s ? "on" : ""}"
+              @click=${() => this._toggleMode("view_width_mode")}
+              title=${s ? "Fitted to the card - tap for a fixed scale" : "Fixed scale, scrolls - tap to fit the card"}
+              aria-pressed=${s ? "true" : "false"}
+              aria-label="Width"
+            >
+              <ha-icon
+                icon=${s ? "mdi:fit-to-screen-outline" : "mdi:pan-horizontal"}
+              ></ha-icon>
+            </button>` : f}
       </div>
     `;
   }
@@ -1246,8 +1323,8 @@ let _ = class extends I {
       this._hThumb && (this._hThumb = null);
       return;
     }
-    const r = Math.max(6, n / i * 100), o = s / (i - n) * (100 - r), h = this._hThumb;
-    (!h || Math.abs(h.left - o) > 0.05 || Math.abs(h.width - r) > 0.05) && (this._hThumb = { left: o, width: r });
+    const r = Math.max(6, n / i * 100), o = s / (i - n) * (100 - r), l = this._hThumb;
+    (!l || Math.abs(l.left - o) > 0.05 || Math.abs(l.width - r) > 0.05) && (this._hThumb = { left: o, width: r });
   }
   /**
    * Park the scroller where the active calendar should open: just before the
@@ -1293,10 +1370,10 @@ let _ = class extends I {
   }
   /** Days down the left, time across the top — the printed-timetable shape. */
   _renderRowsGrid(e, t, s) {
-    const i = this._config, n = i.day_height ?? x.day_height, r = i.hour_width ?? x.hour_width, o = this._active?.calendar_mode === "full", h = o ? 0 : s.start, a = o ? 24 * 60 : s.end, l = a - h, c = this._active?.view_width_mode === "adaptive", d = Math.round(l / 60 * r), m = c ? "%" : "px", y = c ? 100 : d, p = (g) => (g - h) / l * (c ? 100 : d), b = e.map((g) => D(t.filter(($) => !$.allDay), g)), U = this._active ? [this._active.entity] : [], rt = Dt(b, i.lane_mode ?? x.lane_mode, U), Wt = rt.columns * n, jt = e.map((g) => D(t.filter(($) => $.allDay), g)), ot = [];
-    for (let g = Math.ceil(h / 60) * 60; g <= a; g += 60) ot.push(g);
-    const Bt = Math.max(160, (this._hostWidth || 1e3) - je - Be * 2), qt = c ? Bt / (l / 60) : r, Gt = Math.max(1, Math.ceil(Fe / qt)), at = ot.filter((g, $) => $ % Gt === 0), Kt = e.findIndex((g) => Mt(g, this._now));
-    return this._focusPx = o && !c ? Math.max(0, Math.round((s.start - We - h) / l * d)) : 0, u`
+    const i = this._config, n = i.day_height ?? $.day_height, r = i.hour_width ?? $.hour_width, o = this._calendarMode === "full", l = o ? 0 : s.start, a = o ? 24 * 60 : s.end, h = a - l, c = this._widthMode === "adaptive", d = Math.round(h / 60 * r), m = c ? "%" : "px", y = c ? 100 : d, u = (g) => (g - l) / h * (c ? 100 : d), b = e.map((g) => D(t.filter((x) => !x.allDay), g)), U = this._active ? [this._active.entity] : [], rt = Dt(b, i.lane_mode ?? $.lane_mode, U), Wt = rt.columns * n, jt = e.map((g) => D(t.filter((x) => x.allDay), g)), ot = [];
+    for (let g = Math.ceil(l / 60) * 60; g <= a; g += 60) ot.push(g);
+    const Bt = Math.max(160, (this._hostWidth || 1e3) - je - Be * 2), qt = c ? Bt / (h / 60) : r, Gt = Math.max(1, Math.ceil(Fe / qt)), at = ot.filter((g, x) => x % Gt === 0), Kt = e.findIndex((g) => Pt(g, this._now));
+    return this._focusPx = o && !c ? Math.max(0, Math.round((s.start - We - l) / h * d)) : 0, p`
       <div
         class="rgrid dir-${this._navDir} ${this._receded ? "dimmed" : ""}"
         style="--row-h:${Wt}px; --lane-h:${n}px"
@@ -1315,9 +1392,9 @@ let _ = class extends I {
           <div class="rdays">
             <div class="rcorner"></div>
             ${e.map(
-      (g, $) => u`
+      (g, x) => p`
                 <div
-                  class="rday ${$ % 2 ? "alt" : ""} ${$ === Kt ? "today" : ""}"
+                  class="rday ${x % 2 ? "alt" : ""} ${x === Kt ? "today" : ""}"
                 >
                   <span class="dow">${this._fmtDowLong(g)},</span>
                   <span class="dnum">${this._fmtDate(g)}</span>
@@ -1330,30 +1407,30 @@ let _ = class extends I {
             <div class="rinner" style="--axis-w:${c ? "100%" : `${d}px`}">
               <div class="rtimes">
                 ${at.map(
-      (g) => u`<div
-                      class="rhr ${p(g) < 0.5 ? "first" : ""} ${p(g) >= y - 0.5 ? "last" : ""}"
-                      style="left:${p(g)}${m}"
+      (g) => p`<div
+                      class="rhr ${u(g) < 0.5 ? "first" : ""} ${u(g) >= y - 0.5 ? "last" : ""}"
+                      style="left:${u(g)}${m}"
                     >
                       ${this._fmtHour(g)}
                     </div>`
     )}
               </div>
 
-              ${e.map((g, $) => {
-      const ht = K(g).getTime();
-      return u`
-                  <div class="rcanvas ${$ % 2 ? "alt" : ""}">
+              ${e.map((g, x) => {
+      const lt = K(g).getTime();
+      return p`
+                  <div class="rcanvas ${x % 2 ? "alt" : ""}">
                     <div class="rlines">
                       ${at.map(
-        (k) => u`<div class="rline" style="left:${p(k)}${m}"></div>`
+        (k) => p`<div class="rline" style="left:${u(k)}${m}"></div>`
       )}
                     </div>
-                    ${jt[$].map(
-        (k) => u`
+                    ${jt[x].map(
+        (k) => p`
                         <div
                           class="ev rev"
                           style="left:0; width:100%; top:0; height:${n}px;
-                                 animation-name:${this._evAnim}; animation-delay:${$ * J}ms;
+                                 animation-name:${this._evAnim}; animation-delay:${x * J}ms;
                                  ${W(this._colorForEvent(k), this._minContrast)}"
                           @click=${() => this._selected = k}
                         >
@@ -1361,17 +1438,17 @@ let _ = class extends I {
                         </div>
                       `
       )}
-                    ${rt.days[$].map(({ ev: k, column: Yt }) => {
-        const F = Math.max(h, j(k.start, ht)), lt = j(k.end, ht), ct = Math.min(a, lt <= F ? F + 15 : lt);
-        if (ct <= h || F >= a) return f;
-        const dt = p(F), Vt = p(ct) - dt;
-        return u`
+                    ${rt.days[x].map(({ ev: k, column: Yt }) => {
+        const F = Math.max(l, j(k.start, lt)), ht = j(k.end, lt), ct = Math.min(a, ht <= F ? F + 15 : ht);
+        if (ct <= l || F >= a) return f;
+        const dt = u(F), Vt = u(ct) - dt;
+        return p`
                         <div
                           class="ev rev"
                           style="left:${dt}${m}; width:${Vt}${m};
                                  min-width:${Le}px;
                                  top:${Yt * n}px; height:${n}px;
-                                 animation-name:${this._evAnim}; animation-delay:${$ * J}ms;
+                                 animation-name:${this._evAnim}; animation-delay:${x * J}ms;
                                  ${W(this._colorForEvent(k), this._minContrast)}"
                           @click=${() => this._selected = k}
                         >
@@ -1390,7 +1467,7 @@ let _ = class extends I {
             </div>
           </div>
         </div>
-        ${this._hThumb ? u`<div class="hbar">
+        ${this._hThumb ? p`<div class="hbar">
               <div
                 class="hthumb"
                 style="left:${this._hThumb.left}%; width:${this._hThumb.width}%"
@@ -1401,14 +1478,14 @@ let _ = class extends I {
   }
   /** Days across the top, time down the left — the calendar shape. */
   _renderColumnsGrid(e, t, s) {
-    this._active?.calendar_mode === "full" && (s = { start: 0, end: 24 * 60 });
-    const i = this._config, n = i.hour_height ?? x.hour_height, r = s.end - s.start, o = Math.round(r / 60 * n), h = e.map((p) => D(t.filter((b) => !b.allDay), p)), a = this._active ? [this._active.entity] : [], l = Dt(h, i.lane_mode ?? x.lane_mode, a), c = e.map((p) => D(t.filter((b) => b.allDay), p)), d = c.some((p) => p.length > 0), m = [];
-    for (let p = Math.ceil(s.start / 60) * 60; p <= s.end; p += 60) m.push(p);
+    this._calendarMode === "full" && (s = { start: 0, end: 24 * 60 });
+    const i = this._config, n = i.hour_height ?? $.hour_height, r = s.end - s.start, o = Math.round(r / 60 * n), l = e.map((u) => D(t.filter((b) => !b.allDay), u)), a = this._active ? [this._active.entity] : [], h = Dt(l, i.lane_mode ?? $.lane_mode, a), c = e.map((u) => D(t.filter((b) => b.allDay), u)), d = c.some((u) => u.length > 0), m = [];
+    for (let u = Math.ceil(s.start / 60) * 60; u <= s.end; u += 60) m.push(u);
     const y = e.length;
-    return u`
+    return p`
       <div
         class="grid dir-${this._navDir} ${this._receded ? "dimmed" : ""}"
-        style="--cols:${y}; --sub:${l.columns}; --body-h:${o}px"
+        style="--cols:${y}; --sub:${h.columns}; --body-h:${o}px"
         @animationend=${() => {
       this._navDir = "none";
     }}
@@ -1416,23 +1493,23 @@ let _ = class extends I {
         <div class="hdr">
           <div class="corner"></div>
           ${e.map(
-      (p, b) => u`
+      (u, b) => p`
               <div class="dayhead ${b % 2 ? "alt" : ""}">
-                <span class="dow">${this._fmtDowLong(p)},</span>
-                <span class="dnum">${this._fmtDate(p)}</span>
+                <span class="dow">${this._fmtDowLong(u)},</span>
+                <span class="dnum">${this._fmtDate(u)}</span>
               </div>
             `
     )}
         </div>
 
-        ${d ? u`
+        ${d ? p`
               <div class="allday">
                 <div class="gut-lbl">all-day</div>
                 ${c.map(
-      (p) => u`
+      (u) => p`
                     <div class="ad-cell">
-                      ${p.map(
-        (b) => u`
+                      ${u.map(
+        (b) => p`
                           <div
                             class="ad"
                             style=${W(this._colorForEvent(b), this._minContrast)}
@@ -1451,34 +1528,34 @@ let _ = class extends I {
         <div class="body">
           <div class="lines">
             ${m.map(
-      (p) => u`<div class="line" style="top:${zt(p, s)}"></div>`
+      (u) => p`<div class="line" style="top:${zt(u, s)}"></div>`
     )}
           </div>
           <div class="gutter">
             ${m.map(
-      (p) => u`<div class="hr" style="top:${zt(p, s)}">${this._fmtHour(p)}</div>`
+      (u) => p`<div class="hr" style="top:${zt(u, s)}">${this._fmtHour(u)}</div>`
     )}
           </div>
           ${e.map(
-      (p, b) => this._renderDay(p, b, l.days[b], l.columns, s, o)
+      (u, b) => this._renderDay(u, b, h.days[b], h.columns, s, o)
     )}
         </div>
       </div>
     `;
   }
   _renderDay(e, t, s, i, n, r) {
-    const o = n.end - n.start, h = K(e).getTime();
-    return u`
+    const o = n.end - n.start, l = K(e).getTime();
+    return p`
       <div class="day ${t % 2 ? "alt" : ""}">
-        ${s.map(({ ev: a, column: l }) => {
-      const c = Math.max(n.start, j(a.start, h)), d = j(a.end, h), m = Math.min(n.end, d <= c ? c + 15 : d);
+        ${s.map(({ ev: a, column: h }) => {
+      const c = Math.max(n.start, j(a.start, l)), d = j(a.end, l), m = Math.min(n.end, d <= c ? c + 15 : d);
       if (m <= n.start || c >= n.end) return f;
-      const y = (c - n.start) / o * r, p = Math.max(Ne, (m - c) / o * r), b = this._colorForEvent(a), U = p < 46;
-      return u`
+      const y = (c - n.start) / o * r, u = Math.max(Ne, (m - c) / o * r), b = this._colorForEvent(a), U = u < 46;
+      return p`
             <div
               class="ev ${U ? "compact" : ""} ${this._selected?.key === a.key ? "sel" : ""}"
-              style="top:${y}px; height:${p}px;
-                     left:calc(${l} * (100% / ${i}));
+              style="top:${y}px; height:${u}px;
+                     left:calc(${h} * (100% / ${i}));
                      width:calc(100% / ${i});
                      animation-name:${this._evAnim}; animation-delay:${t * J}ms;
                      ${W(b, this._minContrast)}"
@@ -1486,7 +1563,7 @@ let _ = class extends I {
             >
               <div class="ev-in">
                 <div class="ev-name">${a.summary}</div>
-                ${U ? f : u`<div class="ev-time">
+                ${U ? f : p`<div class="ev-time">
                       ${this._fmtTime(a.start)} – ${this._fmtTime(a.end)}
                     </div>`}
               </div>
@@ -1502,7 +1579,7 @@ let _ = class extends I {
    */
   _renderList(e, t) {
     let s = 0;
-    return u`
+    return p`
       <div
         class="list ${this._receded ? "dimmed" : ""} dir-${this._navDir}"
         @animationend=${() => {
@@ -1513,14 +1590,14 @@ let _ = class extends I {
       const n = D(t, i).sort(
         (r, o) => r.start.getTime() - o.start.getTime()
       );
-      return u`
+      return p`
             <div class="ld">
-              <div class="ld-head ${Mt(i, this._now) ? "today" : ""}">
+              <div class="ld-head ${Pt(i, this._now) ? "today" : ""}">
                 <span class="dow">${this._fmtDowLong(i)},</span>
                 <span class="dnum">${this._fmtDate(i)}</span>
               </div>
               ${n.length ? n.map(
-        (r) => u`
+        (r) => p`
                       <div
                         class="lr"
                         style="animation-name:${this._evAnim};
@@ -1532,12 +1609,12 @@ let _ = class extends I {
                       >
                         <span class="lr-bar" style="background:${this._colorForEvent(r)}"></span>
                         <span class="lr-time">
-                          ${r.allDay ? "all day" : u`${this._fmtTime(r.start)}<br />${this._fmtTime(r.end)}`}
+                          ${r.allDay ? "all day" : p`${this._fmtTime(r.start)}<br />${this._fmtTime(r.end)}`}
                         </span>
                         <span class="lr-name">${r.summary}</span>
                       </div>
                     `
-      ) : u`<div class="lr empty">Nothing scheduled</div>`}
+      ) : p`<div class="lr empty">Nothing scheduled</div>`}
             </div>
           `;
     })}
@@ -1546,7 +1623,7 @@ let _ = class extends I {
   }
   _renderSheet() {
     const e = this._selected;
-    return e ? u`
+    return e ? p`
       <div class="scrim" @click=${() => this._closeSheet()}>
         <div
           class="sheet"
@@ -1563,8 +1640,8 @@ let _ = class extends I {
             <span class="dot" style="background:${this._colorFor(e.entity)}"></span>
             ${this._nameFor(e.entity)}
           </div>
-          ${e.location ? u`<div class="sh-row">${e.location}</div>` : f}
-          ${e.description ? u`<div class="sh-row">${e.description}</div>` : f}
+          ${e.location ? p`<div class="sh-row">${e.location}</div>` : f}
+          ${e.description ? p`<div class="sh-row">${e.description}</div>` : f}
         </div>
       </div>
     ` : f;
@@ -1579,7 +1656,7 @@ let _ = class extends I {
    * without touching the global setting.
    */
   get _hour12() {
-    const e = this._config?.time_format ?? x.time_format;
+    const e = this._config?.time_format ?? $.time_format;
     if (e === "12") return !0;
     if (e === "24") return !1;
     const t = this.hass?.locale?.time_format;
@@ -1591,11 +1668,11 @@ let _ = class extends I {
       hour: "numeric",
       minute: "2-digit",
       hour12: !0
-    }).format(e) : `${e.getHours()}:${Pt(e.getMinutes())}`;
+    }).format(e) : `${e.getHours()}:${Mt(e.getMinutes())}`;
   }
   _fmtHour(e) {
     const t = Math.floor(e / 60) % 24;
-    if (!this._hour12) return `${t}:${Pt(e % 60)}`;
+    if (!this._hour12) return `${t}:${Mt(e % 60)}`;
     const s = new Date(2e3, 0, 1, t, e % 60);
     return new Intl.DateTimeFormat(this._lang, { hour: "numeric", hour12: !0 }).format(s);
   }
@@ -1671,6 +1748,7 @@ _.styles = Zt`
     }
 
     .head {
+      position: relative;
       display: flex;
       align-items: flex-start;
       gap: 12px;
@@ -1684,6 +1762,25 @@ _.styles = Zt`
       align-items: flex-end;
       gap: 8px;
       flex: 0 0 auto;
+    }
+    /* Centred on the CARD, not between its neighbours. As a flex item the
+       group would sit wherever the title happened to end, and forcing it with
+       equal flex bases on the side groups squashes a long calendar name.
+       Taken out of flow it lands on the centre line whatever the sides do. */
+    .mode-toggles {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* On = the non-default setting, so a glance says the view has been
+       reshaped from what the YAML asked for. Same inversion as today's cell. */
+    .btn.on {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
     }
     /* Narrow chrome. The phone LAYOUT is still undesigned, but the header must
        not visibly break while it waits: the title has to fit, and the week pill
@@ -2614,6 +2711,9 @@ v([
 ], _.prototype, "_activeIdx", 2);
 v([
   w()
+], _.prototype, "_modeOverride", 2);
+v([
+  w()
 ], _.prototype, "_pickerOpen", 2);
 v([
   w()
@@ -2639,7 +2739,7 @@ function W(e, t) {
 function Ve(e) {
   return e.replace(/(^|\s)(\p{L})/gu, (t, s, i) => s + i.toUpperCase());
 }
-function Pt(e) {
+function Mt(e) {
   return String(e).padStart(2, "0");
 }
 const Xe = { one: "st", two: "nd", few: "rd", other: "th" };
@@ -2651,7 +2751,7 @@ function Ze(e, t) {
     return "";
   }
 }
-function Mt(e, t) {
+function Pt(e, t) {
   return e.getFullYear() === t.getFullYear() && e.getMonth() === t.getMonth() && e.getDate() === t.getDate();
 }
 function zt(e, t) {

@@ -21,9 +21,11 @@ import {
   weekWindow,
 } from './data/week';
 import type {
+  CalendarMode,
   CalendarSourceConfig,
   ScheduleEvent,
   SimpleScheduleCardConfig,
+  ViewWidthMode,
 } from './types';
 
 /**
@@ -62,6 +64,7 @@ const DEFAULTS = {
   time_format: 'auto' as const,
   min_contrast: 4.5,
   show_refresh: true,
+  show_mode_toggles: true,
   layout: 'auto' as const,
   layout_breakpoint: 560,
 };
@@ -139,6 +142,8 @@ export class SimpleScheduleCard extends LitElement {
   @state() private _selected?: ScheduleEvent;
   @state() private _navDir: 'none' | 'fwd' | 'back' = 'none';
   @state() private _activeIdx = 0;
+  /** entity_id -> mode overrides set from the header toggles. Session only. */
+  @state() private _modeOverride: Record<string, Partial<CalendarSourceConfig>> = {};
   @state() private _pickerOpen = false;
   /**
    * Bumped when the calendar menu closes, to REPLAY the entry cascade.
@@ -365,8 +370,54 @@ export class SimpleScheduleCard extends LitElement {
     return titleCase(this.hass?.states?.[entity]?.attributes?.friendly_name ?? entity);
   }
 
+  /**
+   * The active calendar, with any header-toggle override folded in. Every read
+   * of calendar_mode and view_width_mode goes through here, so overriding at
+   * this one point reaches the axis, the lane packing and both renderers
+   * without any of them knowing the modes can be changed at runtime.
+   */
   private get _active(): CalendarSourceConfig {
-    return this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+    const src = this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+    if (!src) return src;
+    const over = this._modeOverride[src.entity];
+    return over ? { ...src, ...over } : src;
+  }
+
+  /** The active calendar's mode, override first, then config, then default. */
+  private get _calendarMode(): CalendarMode {
+    return this._active?.calendar_mode === 'full' ? 'full' : 'focused';
+  }
+
+  private get _widthMode(): ViewWidthMode {
+    return this._active?.view_width_mode === 'adaptive' ? 'adaptive' : 'fixed';
+  }
+
+  /**
+   * Flip one mode for the active calendar only. Keyed by entity so each
+   * calendar remembers its own shape while the card is open - a timetable and
+   * a household calendar want different ones, which is why these are per
+   * calendar in config to begin with. Deliberately NOT persisted: the YAML
+   * stays the source of truth and a reload returns to it.
+   */
+  private _toggleMode(key: 'calendar_mode' | 'view_width_mode'): void {
+    const src = this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+    if (!src) return;
+    const cur = this._active;
+    const next =
+      key === 'calendar_mode'
+        ? { calendar_mode: (cur.calendar_mode === 'full' ? 'focused' : 'full') as CalendarMode }
+        : {
+            view_width_mode: (cur.view_width_mode === 'adaptive'
+              ? 'fixed'
+              : 'adaptive') as ViewWidthMode,
+          };
+    this._modeOverride = {
+      ...this._modeOverride,
+      [src.entity]: { ...this._modeOverride[src.entity], ...next },
+    };
+    // The grid reflows completely, so replay the entry cascade rather than
+    // letting the blocks jump to their new places.
+    this._animEpoch++;
   }
 
   /** The person's picture, if one is configured and set. */
@@ -595,6 +646,7 @@ export class SimpleScheduleCard extends LitElement {
     return html`
       <div class="head">
         <div class="titles">${this._renderPicker()}</div>
+        ${this._renderModeToggles()}
         <div class="head-right">
           <div class="tools">
           ${failed.length
@@ -631,6 +683,58 @@ export class SimpleScheduleCard extends LitElement {
               : nothing}
           </div>
         </div>
+      </div>
+    `;
+  }
+
+  /**
+   * The two mode toggles, centred in the header.
+   *
+   * Each shows the mode it is CURRENTLY in rather than the one it would switch
+   * to - a toggle that displays its own destination reads backwards the moment
+   * you stop looking at it - and is highlighted when it is on the non-default
+   * setting, so a glance says whether the view has been reshaped.
+   *
+   * Only offered where they mean something: the list layout has no time axis at
+   * all, and view_width_mode has nothing to fit unless the days run as rows.
+   */
+  private _renderModeToggles(): unknown {
+    const cfg = this._config!;
+    if (!(cfg.show_mode_toggles ?? DEFAULTS.show_mode_toggles)) return nothing;
+    if (this._mode !== 'grid') return nothing;
+
+    const full = this._calendarMode === 'full';
+    const adaptive = this._widthMode === 'adaptive';
+    const rows = this._orientation === 'days-as-rows';
+
+    return html`
+      <div class="mode-toggles">
+        <button
+          class="btn ${full ? 'on' : ''}"
+          @click=${() => this._toggleMode('calendar_mode')}
+          title=${full ? 'Whole day - tap to fit the events' : 'Fitted to the events - tap for the whole day'}
+          aria-pressed=${full ? 'true' : 'false'}
+          aria-label="Time span"
+        >
+          <ha-icon
+            icon=${full ? 'mdi:arrow-expand-horizontal' : 'mdi:arrow-collapse-horizontal'}
+          ></ha-icon>
+        </button>
+        ${rows
+          ? html`<button
+              class="btn ${adaptive ? 'on' : ''}"
+              @click=${() => this._toggleMode('view_width_mode')}
+              title=${adaptive
+                ? 'Fitted to the card - tap for a fixed scale'
+                : 'Fixed scale, scrolls - tap to fit the card'}
+              aria-pressed=${adaptive ? 'true' : 'false'}
+              aria-label="Width"
+            >
+              <ha-icon
+                icon=${adaptive ? 'mdi:fit-to-screen-outline' : 'mdi:pan-horizontal'}
+              ></ha-icon>
+            </button>`
+          : nothing}
       </div>
     `;
   }
@@ -741,7 +845,7 @@ export class SimpleScheduleCard extends LitElement {
 
     // `full` draws the whole day; `focused` (the default) fits the axis to this
     // calendar's own events, which is everything the school grid depends on.
-    const fullDay = this._active?.calendar_mode === 'full';
+    const fullDay = this._calendarMode === 'full';
     const spanStart = fullDay ? 0 : axis.start;
     const spanEnd = fullDay ? 24 * 60 : axis.end;
     const span = spanEnd - spanStart;
@@ -751,7 +855,7 @@ export class SimpleScheduleCard extends LitElement {
     // keeps a constant pixels-per-hour and lets the grid overflow into the
     // scroller. Everything below is written in terms of pos() + unit so the two
     // paths share one code path rather than forking the renderer.
-    const adaptive = this._active?.view_width_mode === 'adaptive';
+    const adaptive = this._widthMode === 'adaptive';
     const axisW = Math.round((span / 60) * hourW);
     const unit = adaptive ? '%' : 'px';
     /** The far end of the axis in whatever unit pos() speaks. */
@@ -908,7 +1012,7 @@ export class SimpleScheduleCard extends LitElement {
     // This orientation has no scroller, so `full` simply means a taller card.
     // Reassigned rather than handled in render(), which feeds both renderers:
     // the rows one needs the true event bounds to know where to scroll to.
-    if (this._active?.calendar_mode === 'full') axis = { start: 0, end: 24 * 60 };
+    if (this._calendarMode === 'full') axis = { start: 0, end: 24 * 60 };
     const cfg = this._config!;
     const hourH = cfg.hour_height ?? DEFAULTS.hour_height;
     const span = axis.end - axis.start;
@@ -1238,6 +1342,7 @@ export class SimpleScheduleCard extends LitElement {
     }
 
     .head {
+      position: relative;
       display: flex;
       align-items: flex-start;
       gap: 12px;
@@ -1251,6 +1356,25 @@ export class SimpleScheduleCard extends LitElement {
       align-items: flex-end;
       gap: 8px;
       flex: 0 0 auto;
+    }
+    /* Centred on the CARD, not between its neighbours. As a flex item the
+       group would sit wherever the title happened to end, and forcing it with
+       equal flex bases on the side groups squashes a long calendar name.
+       Taken out of flow it lands on the centre line whatever the sides do. */
+    .mode-toggles {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* On = the non-default setting, so a glance says the view has been
+       reshaped from what the YAML asked for. Same inversion as today's cell. */
+    .btn.on {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
     }
     /* Narrow chrome. The phone LAYOUT is still undesigned, but the header must
        not visibly break while it waits: the title has to fit, and the week pill
