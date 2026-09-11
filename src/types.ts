@@ -41,6 +41,14 @@ export interface CalendarSourceConfig {
  * an event. The full week is always fetched either way; this only decides what
  * is drawn.
  */
+/**
+ * Which icons the two header mode toggles use. All four say the same thing;
+ * they differ in metaphor, and in how easily the two controls are told apart
+ * at 40px. `arrows` gives both controls the same horizontal-arrow language,
+ * which is the one combination that reads as a matched pair of the same thing.
+ */
+export type ModeToggleIcons = 'crop' | 'timeline' | 'calendar' | 'arrows';
+
 export type DaysOption = 'mon-fri' | 'mon-sun' | 'auto';
 export type LaneMode = 'by_source' | 'packed';
 export type LayoutOption = 'auto' | 'grid' | 'list';
@@ -91,6 +99,8 @@ export interface SimpleScheduleCardConfig {
    * should be reshaping.
    */
   show_mode_toggles?: boolean;
+  /** Which icon set the mode toggles use. Purely cosmetic. */
+  mode_toggle_icons?: ModeToggleIcons;
   layout?: LayoutOption;
   layout_breakpoint?: number;
   /**

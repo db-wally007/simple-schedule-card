@@ -22,6 +22,7 @@ import {
 } from './data/week';
 import type {
   CalendarMode,
+  ModeToggleIcons,
   CalendarSourceConfig,
   ScheduleEvent,
   SimpleScheduleCardConfig,
@@ -65,6 +66,7 @@ const DEFAULTS = {
   min_contrast: 4.5,
   show_refresh: true,
   show_mode_toggles: true,
+  mode_toggle_icons: 'crop' as const,
   layout: 'auto' as const,
   layout_breakpoint: 560,
 };
@@ -120,6 +122,47 @@ const FOCUS_LEAD_MIN = 20;
 /** Must track --rday-w and the panel padding in the stylesheet. */
 const RDAY_W = 172;
 const PANEL_PAD = 18;
+/**
+ * Icons for the two header mode toggles, keyed by the mode each button is
+ * currently IN. Four sets of the same two controls, differing only in metaphor:
+ *   crop      - the axis is cropped to the lessons, or uncropped
+ *   timeline  - the most literal word for what the axis is
+ *   calendar  - a bounded range, or the expanded day
+ *   arrows    - plain collapse/expand; note both controls then speak the same
+ *               horizontal-arrow language and blur together at 40px
+ * The width half is shared by three of them because fit-to-screen against
+ * pan is already the clearest pair for "does this scroll".
+ */
+const TOGGLE_ICONS: Record<
+  ModeToggleIcons,
+  { focused: string; full: string; fixed: string; adaptive: string }
+> = {
+  crop: {
+    focused: 'mdi:crop',
+    full: 'mdi:crop-free',
+    fixed: 'mdi:pan-horizontal',
+    adaptive: 'mdi:fit-to-screen-outline',
+  },
+  timeline: {
+    focused: 'mdi:timeline-clock-outline',
+    full: 'mdi:timeline-outline',
+    fixed: 'mdi:pan-horizontal',
+    adaptive: 'mdi:overscan',
+  },
+  calendar: {
+    focused: 'mdi:calendar-range',
+    full: 'mdi:calendar-expand-horizontal',
+    fixed: 'mdi:pan-horizontal',
+    adaptive: 'mdi:fit-to-screen-outline',
+  },
+  arrows: {
+    focused: 'mdi:arrow-collapse-horizontal',
+    full: 'mdi:arrow-expand-horizontal',
+    fixed: 'mdi:pan-horizontal',
+    adaptive: 'mdi:fit-to-screen-outline',
+  },
+};
+
 /** How long the refresh spinner is held even when the answer comes back at once. */
 const SPIN_MIN_MS = 600;
 /** Give up waiting for a push and stop the spinner. */
@@ -706,6 +749,9 @@ export class SimpleScheduleCard extends LitElement {
     const full = this._calendarMode === 'full';
     const adaptive = this._widthMode === 'adaptive';
     const rows = this._orientation === 'days-as-rows';
+    const ic =
+      TOGGLE_ICONS[cfg.mode_toggle_icons ?? DEFAULTS.mode_toggle_icons] ??
+      TOGGLE_ICONS[DEFAULTS.mode_toggle_icons];
 
     return html`
       <div class="mode-toggles">
@@ -716,9 +762,7 @@ export class SimpleScheduleCard extends LitElement {
           aria-pressed=${full ? 'true' : 'false'}
           aria-label="Time span"
         >
-          <ha-icon
-            icon=${full ? 'mdi:arrow-expand-horizontal' : 'mdi:arrow-collapse-horizontal'}
-          ></ha-icon>
+          <ha-icon icon=${full ? ic.full : ic.focused}></ha-icon>
         </button>
         ${rows
           ? html`<button
@@ -730,9 +774,7 @@ export class SimpleScheduleCard extends LitElement {
               aria-pressed=${adaptive ? 'true' : 'false'}
               aria-label="Width"
             >
-              <ha-icon
-                icon=${adaptive ? 'mdi:fit-to-screen-outline' : 'mdi:pan-horizontal'}
-              ></ha-icon>
+              <ha-icon icon=${adaptive ? ic.adaptive : ic.fixed}></ha-icon>
             </button>`
           : nothing}
       </div>
