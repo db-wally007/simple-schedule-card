@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+
+# dist/ is NOT ignored: it is committed so the repo installs as a HACS custom
+# (Dashboard) repository with no build step. CI rebuilds it on every push that
+# touches the source — see .github/workflows/build.yml.

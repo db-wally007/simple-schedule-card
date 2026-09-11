@@ -1,0 +1,33 @@
+{
+  "name": "simple-schedule-card",
+  "version": "1.0.0",
+  "description": "Home Assistant Lovelace card: a whole week of calendar events as a proportional time grid — hours down the left, days across the top",
+  "type": "module",
+  "private": true,
+  "main": "dist/simple-schedule-card.js",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "calendar",
+    "schedule",
+    "timetable",
+    "card"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "lit": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vitest": "^1.5.0"
+  }
+}

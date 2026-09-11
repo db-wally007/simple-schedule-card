@@ -1,0 +1,33 @@
+name: Build
+
+# VERIFY ONLY — this workflow must not commit dist/. A different esbuild version
+# on the runner reflows the minified output by several hundred lines on every
+# push, for no functional change; the committed bundle is built locally and the
+# job only warns when the two diverge.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Warn if the committed bundle is stale
+        run: |
+          if git diff --quiet -- dist; then
+            echo "dist/ matches a fresh build of the source."
+          else
+            echo "::warning::dist/ differs from a fresh build. Rebuild locally and commit."
+            git diff --stat -- dist
+          fi
