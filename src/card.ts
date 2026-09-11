@@ -1489,14 +1489,23 @@ export class SimpleScheduleCard extends LitElement {
     /* inline-block so the picker is only as wide as its own contents. As a
        block it filled .titles, and the menu's min-width:100% then stretched to
        the whole card. */
+    /* inline-block so the menu's min-width:100% measures the BUTTON and not the
+       whole header - see the menu rules below. max-width lets it shrink inside
+       .titles: without it the picker kept its natural width on a phone, spilled
+       out of its flex item and painted over the week-nav buttons (measured as a
+       9px overlap on the mobile Schedules view at a 404px card). */
     .picker {
       position: relative;
       display: inline-block;
+      max-width: 100%;
+      min-width: 0;
     }
     .pick-btn,
     .pick-item {
       display: flex;
       align-items: center;
+      min-width: 0;
+      max-width: 100%;
       gap: 12px;
       padding: 4px 8px 4px 4px;
       border: none;
@@ -1511,9 +1520,15 @@ export class SimpleScheduleCard extends LitElement {
     .pick-item:hover {
       background: rgba(255, 255, 255, 0.1);
     }
+    /* The name is the part that gives way when the header runs out of room:
+       the avatar and chevron stay whole and a long calendar name ellipsises,
+       which beats either overlapping the buttons or wrapping the header. */
     .pick-name {
       font-weight: 700;
       white-space: nowrap;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     /* The heading. There is no separate card title, so this carries that role —
        and matches Home Assistant's own card header exactly, tokens included, so
