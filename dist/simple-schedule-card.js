@@ -1783,7 +1783,7 @@ _.styles = Jt`
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      gap: 8px;
+      gap: 14px;
       flex: 0 0 auto;
     }
     /* Centred on the CARD, not between its neighbours. As a flex item the
@@ -1797,7 +1797,7 @@ _.styles = Jt`
       transform: translateX(-50%);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 15px;
     }
     /* On = the non-default setting, so a glance says the view has been
        reshaped from what the YAML asked for. Same inversion as today's cell. */
@@ -1830,11 +1830,11 @@ _.styles = Jt`
       gap: 7px;
     }
     .narrow .btn {
-      width: 34px;
-      height: 34px;
+      width: 37px;
+      height: 37px;
     }
     .narrow .btn ha-icon {
-      --mdc-icon-size: 20px;
+      --mdc-icon-size: 22px;
     }
     .titles {
       min-width: 0;
@@ -1982,14 +1982,14 @@ _.styles = Jt`
     .tools {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 15px;
       flex: 0 0 auto;
     }
     .btn {
       display: grid;
       place-items: center;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       padding: 0;
       border: none;
       border-radius: 0;
@@ -2010,7 +2010,7 @@ _.styles = Jt`
       pointer-events: none;
     }
     .btn ha-icon {
-      --mdc-icon-size: 23px;
+      --mdc-icon-size: 25px;
     }
     .btn.spin ha-icon {
       animation: spin 850ms linear infinite;
@@ -2313,8 +2313,11 @@ _.styles = Jt`
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    /* 13px, not 12: measured on the tablet as the hardest thing on the card
+       to read at arm's length. One pixel is the whole budget - the block is
+       only 72px tall and has to hold the name above this. */
     .ev.rev .ev-time {
-      font-size: 12px;
+      font-size: 13px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
