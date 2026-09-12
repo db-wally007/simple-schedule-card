@@ -1454,9 +1454,16 @@ export class SimpleScheduleCard extends LitElement {
     .narrow .titles {
       flex: 1 1 100%;
     }
+    /* Left-aligned once wrapped. Right-aligning a full-width second row put
+       the week nav on the opposite side of the card from the calendar name it
+       belongs to, with a gap between them; under the name it reads as one
+       header block. */
     .narrow .head-right {
       flex: 1 1 100%;
-      align-items: flex-end;
+      align-items: flex-start;
+    }
+    .narrow .head-right .range {
+      justify-content: flex-start;
     }
     .narrow .pick-btn .pick-name {
       font-size: 20px;
