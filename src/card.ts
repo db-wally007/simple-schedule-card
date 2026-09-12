@@ -1,5 +1,5 @@
 import { LitElement, html, css, nothing, type PropertyValues, type TemplateResult } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property, query, state } from 'lit/decorators.js';
 
 import { CalendarSubscriptions } from './data/calendar-source';
 import {
@@ -180,9 +180,29 @@ const TOGGLE_ICONS: Record<
   },
 };
 
-/** A week-swipe has to travel this far, this fast, to count as one. */
-const SWIPE_MIN_PX = 60;
-const SWIPE_MAX_MS = 800;
+/*
+ * Week swiping, list layout only.
+ *
+ * There is deliberately NO axis heuristic. touch-action:pan-y hands the
+ * VERTICAL axis to the browser and keeps the horizontal one, so the browser
+ * itself decides: if it starts scrolling it fires pointercancel and we bail,
+ * and if it does not, the gesture is horizontal and it is ours. The list has
+ * nothing else to do with a horizontal drag. An earlier version guessed the
+ * axis from a dx/dy ratio and a time limit, and rejected perfectly good
+ * swipes whose finger drifted vertically.
+ */
+/** Movement before a drag is considered started, so a tap is still a tap. */
+const SWIPE_START_PX = 6;
+/** Fraction of the width to pass, or the flick speed to beat, to change week. */
+const SWIPE_COMMIT_FRACTION = 0.22;
+const SWIPE_COMMIT_MIN_PX = 48;
+const SWIPE_FLICK_VELOCITY = 0.45; // px per ms
+/** The drag follows the finger 1:1 up to this, then gets progressively stiffer. */
+const SWIPE_RUBBER_FROM = 0.4;
+const SWIPE_OUT_MS = 190;
+const SWIPE_IN_MS = 300;
+const SWIPE_SPRING_MS = 340;
+const SWIPE_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
 /** How long the refresh spinner is held even when the answer comes back at once. */
 const SPIN_MIN_MS = 600;
@@ -206,8 +226,20 @@ export class SimpleScheduleCard extends LitElement {
   @state() private _selected?: ScheduleEvent;
   @state() private _navDir: 'none' | 'fwd' | 'back' = 'none';
   @state() private _activeIdx = 0;
-  /** Horizontal-swipe gesture start, for the list layout's week navigation. */
-  private _swipe: { x: number; y: number; t: number } | null = null;
+  @query('.list') private _listEl?: HTMLElement;
+
+  /** Live horizontal-drag state for the list layout's week navigation. */
+  private _swipe: {
+    x: number;
+    w: number;
+    dragging: boolean;
+    lastX: number;
+    lastT: number;
+    v: number;
+  } | null = null;
+
+  /** Set between committing a swipe and the new week animating in. */
+  private _swipeIn: -1 | 0 | 1 = 0;
 
   /** entity_id -> mode overrides set from the header toggles. Session only. */
   @state() private _modeOverride: Record<string, Partial<CalendarSourceConfig>> = {};
@@ -298,8 +330,28 @@ export class SimpleScheduleCard extends LitElement {
     this._subs.stop();
   }
 
+  /** The arriving half of a committed swipe. */
+  private _runSwipeIn(): void {
+    const dir = this._swipeIn;
+    const el = this._listEl;
+    this._swipeIn = 0;
+    if (!el) return;
+    const w = el.clientWidth || 1;
+    el.style.transform = '';
+    el.style.opacity = '';
+    if (this._reducedMotion) return;
+    el.animate(
+      [
+        { transform: 'translateX(' + -dir * w * 0.55 + 'px)', opacity: '0' },
+        { transform: 'translateX(0px)', opacity: '1' },
+      ],
+      { duration: SWIPE_IN_MS, easing: SWIPE_EASE },
+    );
+  }
+
   protected updated(changed: PropertyValues): void {
     super.updated(changed);
+    if (this._swipeIn !== 0) this._runSwipeIn();
     if (!this.hass || !this._config) return;
     if (this._orientation === 'days-as-rows') {
       this._measureScrollbar();
@@ -537,28 +589,113 @@ export class SimpleScheduleCard extends LitElement {
   }
 
   /**
-   * Week navigation by swipe, for the list layout, where the two week arrows
-   * are hidden - four buttons is too much chrome for a narrow header.
+   * Week navigation by drag, for the list layout, where the two week arrows are
+   * hidden. The content tracks the finger and only changes week once the drag
+   * passes a threshold or is flicked, which is what makes the gesture feel
+   * committed rather than guessed at.
    *
-   * Deliberately NOT pointer-captured: capture throws NotFoundError for a
-   * made-up pointerId, which makes the gesture unscriptable in tests for no
-   * gain here, since the gesture is resolved entirely on pointerup.
+   * Driven by direct style writes rather than reactive state: a Lit re-render
+   * per pointermove would rebuild every row of the list sixty times a second.
    */
-  private _swipeStart(e: PointerEvent): void {
-    this._swipe = { x: e.clientX, y: e.clientY, t: Date.now() };
+  private get _reducedMotion(): boolean {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }
 
+  private _rubber(dx: number, w: number): number {
+    const soft = w * SWIPE_RUBBER_FROM;
+    const a = Math.abs(dx);
+    if (a <= soft) return dx;
+    // Beyond the soft limit each further pixel of finger buys less travel, so
+    // the surface feels attached to something rather than free.
+    const over = a - soft;
+    return Math.sign(dx) * (soft + over / (1 + over / (w * 0.45)));
+  }
+
+  private _swipeStart(e: PointerEvent): void {
+    const el = this._listEl;
+    if (!el || this._mode !== 'list' || this._swipeIn !== 0) return;
+    el.getAnimations().forEach((a) => a.cancel());
+    el.style.transition = 'none';
+    this._swipe = { x: e.clientX, w: el.clientWidth || 1, dragging: false, lastX: e.clientX, lastT: performance.now(), v: 0 };
+  }
+
+  private _swipeMove(e: PointerEvent): void {
+    const s = this._swipe;
+    const el = this._listEl;
+    if (!s || !el) return;
+    const dx = e.clientX - s.x;
+    if (!s.dragging) {
+      if (Math.abs(dx) < SWIPE_START_PX) return;
+      s.dragging = true;
+    }
+    const now = performance.now();
+    const dt = now - s.lastT;
+    if (dt > 0) s.v = (e.clientX - s.lastX) / dt;
+    s.lastX = e.clientX;
+    s.lastT = now;
+    const shift = this._rubber(dx, s.w);
+    el.style.transform = 'translateX(' + shift + 'px)';
+    el.style.opacity = String(1 - Math.min(0.3, Math.abs(shift) / s.w));
+  }
+
+  /** Finger lifted: either carry the week over, or spring back to where it was. */
   private _swipeEnd(e: PointerEvent): void {
-    const start = this._swipe;
+    const s = this._swipe;
+    const el = this._listEl;
     this._swipe = null;
-    if (!start) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    // Must be decisively horizontal and quick, or a diagonal drag during a
-    // vertical scroll would jump the week under the reader.
-    if (Date.now() - start.t > SWIPE_MAX_MS) return;
-    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    this._goWeek(dx > 0 ? 1 : -1);
+    if (!s || !el || !s.dragging) return;
+    const dx = e.clientX - s.x;
+    const threshold = Math.max(SWIPE_COMMIT_MIN_PX, s.w * SWIPE_COMMIT_FRACTION);
+    const flicked = Math.abs(s.v) > SWIPE_FLICK_VELOCITY && Math.abs(dx) > SWIPE_START_PX * 2;
+    if (Math.abs(dx) >= threshold || flicked) this._swipeCommit(dx > 0 ? 1 : -1, s.w);
+    else this._swipeRelease();
+  }
+
+  /** Nothing committed - ease back to rest. */
+  private _swipeRelease(): void {
+    const el = this._listEl;
+    if (!el) return;
+    if (!this._reducedMotion) {
+      el.animate(
+        [{ transform: el.style.transform || 'translateX(0px)', opacity: el.style.opacity || '1' }, { transform: 'translateX(0px)', opacity: '1' }],
+        { duration: SWIPE_SPRING_MS, easing: SWIPE_EASE },
+      );
+    }
+    el.style.transform = '';
+    el.style.opacity = '';
+  }
+
+  /**
+   * Carry the content the rest of the way out, change the week, then bring the
+   * new one in from the other side. Two halves rather than one cross-fade: the
+   * week that is leaving and the week arriving are the same element, so they
+   * cannot occupy it at once.
+   */
+  private _swipeCommit(dir: 1 | -1, w: number): void {
+    const el = this._listEl;
+    if (!el) return;
+    if (this._reducedMotion) {
+      el.style.transform = '';
+      el.style.opacity = '';
+      this._navDir = 'none';
+      this._weekOffset += dir;
+      this._selected = undefined;
+      return;
+    }
+    const from = el.style.transform || 'translateX(0px)';
+    const out = el.animate(
+      [{ transform: from, opacity: el.style.opacity || '1' }, { transform: 'translateX(' + dir * w * 0.55 + 'px)', opacity: '0' }],
+      { duration: SWIPE_OUT_MS, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' },
+    );
+    void out.finished
+      .then(() => {
+        // _navDir drives the CSS week animation, which would fight this one.
+        this._swipeIn = dir;
+        this._navDir = 'none';
+        this._weekOffset += dir;
+        this._selected = undefined;
+      })
+      .catch(() => undefined);
   }
 
   private _goWeek(delta: number): void {
@@ -1263,8 +1400,14 @@ export class SimpleScheduleCard extends LitElement {
       <div
         class="list ${this._receded ? 'dimmed' : ''} dir-${this._navDir}"
         @pointerdown=${(e: PointerEvent) => this._swipeStart(e)}
+        @pointermove=${(e: PointerEvent) => this._swipeMove(e)}
         @pointerup=${(e: PointerEvent) => this._swipeEnd(e)}
-        @pointercancel=${() => (this._swipe = null)}
+        @pointercancel=${() => {
+          // The browser took the gesture for a vertical scroll. That is the
+          // ONLY axis test - see the SWIPE_ constants.
+          if (this._swipe?.dragging) this._swipeRelease();
+          this._swipe = null;
+        }}
         @animationend=${() => {
           this._navDir = 'none';
         }}
@@ -1486,6 +1629,10 @@ export class SimpleScheduleCard extends LitElement {
        line. */
     .narrow {
       padding: 13px 13px 14px;
+      /* The week drag moves the list sideways by up to half the card. Without
+         clipping here that travel becomes page-wide horizontal overflow and
+         the phone grows a scrollbar along the bottom mid-gesture. */
+      overflow-x: hidden;
     }
     /* The phone header WRAPS: the calendar name takes the first row and the
        week nav sits under it. On one row, four 44px buttons leave about 69px
@@ -2293,11 +2440,35 @@ export class SimpleScheduleCard extends LitElement {
       }
     }
 
+    /* The shared week animation is a 28px nudge, which is invisible across a
+       full-width list - it was reported as "super fast and almost
+       undetectable". The list gets its own, a real slide, without disturbing
+       the grid that shares inFromRight/inFromLeft. */
+    .list.dir-fwd {
+      animation: listInRight var(--ssc-week-dur) var(--ssc-week-ease) both;
+    }
+    .list.dir-back {
+      animation: listInLeft var(--ssc-week-dur) var(--ssc-week-ease) both;
+    }
+    @keyframes listInRight {
+      from {
+        opacity: 0;
+        transform: translateX(38%);
+      }
+    }
+    @keyframes listInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-38%);
+      }
+    }
+
     /* pan-y hands vertical scrolling back to the browser while leaving the
        horizontal axis to the week-swipe handler. Without it the browser claims
        both axes and the swipe never fires. */
     .list {
       touch-action: pan-y;
+      will-change: transform;
       display: flex;
       flex-direction: column;
       /* The whole gap between one day's last event and the next day's heading
