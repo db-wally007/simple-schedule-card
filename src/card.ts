@@ -197,8 +197,14 @@ const SWIPE_START_PX = 6;
 const SWIPE_COMMIT_FRACTION = 0.22;
 const SWIPE_COMMIT_MIN_PX = 48;
 const SWIPE_FLICK_VELOCITY = 0.45; // px per ms
-/** The drag follows the finger 1:1 up to this, then gets progressively stiffer. */
-const SWIPE_RUBBER_FROM = 0.4;
+/*
+ * The drag follows the finger 1:1 up to this fraction of the width, then gets
+ * progressively stiffer. At 0.4 the soft limit sat at 158px on a phone - past
+ * the commit threshold - so an ordinary swipe never reached it and the
+ * resistance was never felt at all. 0.18 puts it around 70px, just before the
+ * commit point, so the drag stiffens in the moment you are deciding.
+ */
+const SWIPE_RUBBER_FROM = 0.18;
 const SWIPE_OUT_MS = 190;
 const SWIPE_IN_MS = 300;
 const SWIPE_SPRING_MS = 340;
@@ -336,6 +342,11 @@ export class SimpleScheduleCard extends LitElement {
     const el = this._listEl;
     this._swipeIn = 0;
     if (!el) return;
+    // The out-animation is fill:forwards and is STILL holding opacity 0 on this
+    // element - the week changed, but it is the same DOM node. Without this
+    // cancel the new week fades in, then vanishes again the moment the
+    // in-animation ends and the filled one takes back over.
+    el.getAnimations().forEach((a) => a.cancel());
     const w = el.clientWidth || 1;
     el.style.transform = '';
     el.style.opacity = '';
@@ -608,7 +619,7 @@ export class SimpleScheduleCard extends LitElement {
     // Beyond the soft limit each further pixel of finger buys less travel, so
     // the surface feels attached to something rather than free.
     const over = a - soft;
-    return Math.sign(dx) * (soft + over / (1 + over / (w * 0.45)));
+    return Math.sign(dx) * (soft + over / (1 + over / (w * 0.32)));
   }
 
   private _swipeStart(e: PointerEvent): void {
@@ -616,6 +627,15 @@ export class SimpleScheduleCard extends LitElement {
     if (!el || this._mode !== 'list' || this._swipeIn !== 0) return;
     el.getAnimations().forEach((a) => a.cancel());
     el.style.transition = 'none';
+    // Capture so the drag survives the finger leaving the element - without it
+    // a swipe that strays over the header or off the card edge simply stops
+    // reporting and the gesture dies half way. Wrapped because capture throws
+    // NotFoundError for a synthetic pointerId, which would break scripted tests.
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {
+      /* synthetic pointer in a test - the gesture still works without capture */
+    }
     this._swipe = { x: e.clientX, w: el.clientWidth || 1, dragging: false, lastX: e.clientX, lastT: performance.now(), v: 0 };
   }
 

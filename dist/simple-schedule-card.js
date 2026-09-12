@@ -938,7 +938,7 @@ const Wt = "0.1.0", y = {
     fixed: "mdi:pan-horizontal",
     adaptive: "mdi:fit-to-screen-outline"
   }
-}, Pe = 6, Zt = 0.22, Jt = 48, Qt = 0.45, es = 0.4, ts = 190, ss = 300, is = 340, Ie = "cubic-bezier(0.32, 0.72, 0, 1)", ns = 600, rs = 12e3, os = 2200;
+}, Pe = 6, Zt = 0.22, Jt = 48, Qt = 0.45, es = 0.18, ts = 190, ss = 300, is = 340, Ie = "cubic-bezier(0.32, 0.72, 0, 1)", ns = 600, rs = 12e3, os = 2200;
 let _ = class extends z {
   constructor() {
     super(...arguments), this._sources = [], this._colors = {}, this._eventColors = null, this._weekOffset = 0, this._now = /* @__PURE__ */ new Date(), this._hostWidth = 0, this._refreshing = !1, this._navDir = "none", this._activeIdx = 0, this._swipe = null, this._swipeIn = 0, this._modeOverride = {}, this._pickerOpen = !1, this._animEpoch = 0, this._hThumb = null, this._revision = 0, this._subs = new Pt(() => {
@@ -990,6 +990,7 @@ let _ = class extends z {
   _runSwipeIn() {
     const t = this._swipeIn, e = this._listEl;
     if (this._swipeIn = 0, !e) return;
+    e.getAnimations().forEach((i) => i.cancel());
     const s = e.clientWidth || 1;
     e.style.transform = "", e.style.opacity = "", !this._reducedMotion && e.animate(
       [
@@ -1170,11 +1171,18 @@ let _ = class extends z {
     const s = e * es, i = Math.abs(t);
     if (i <= s) return t;
     const n = i - s;
-    return Math.sign(t) * (s + n / (1 + n / (e * 0.45)));
+    return Math.sign(t) * (s + n / (1 + n / (e * 0.32)));
   }
   _swipeStart(t) {
     const e = this._listEl;
-    !e || this._mode !== "list" || this._swipeIn !== 0 || (e.getAnimations().forEach((s) => s.cancel()), e.style.transition = "none", this._swipe = { x: t.clientX, w: e.clientWidth || 1, dragging: !1, lastX: t.clientX, lastT: performance.now(), v: 0 });
+    if (!(!e || this._mode !== "list" || this._swipeIn !== 0)) {
+      e.getAnimations().forEach((s) => s.cancel()), e.style.transition = "none";
+      try {
+        e.setPointerCapture(t.pointerId);
+      } catch {
+      }
+      this._swipe = { x: t.clientX, w: e.clientWidth || 1, dragging: !1, lastX: t.clientX, lastT: performance.now(), v: 0 };
+    }
   }
   _swipeMove(t) {
     const e = this._swipe, s = this._listEl;
