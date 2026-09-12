@@ -180,6 +180,10 @@ const TOGGLE_ICONS: Record<
   },
 };
 
+/** A week-swipe has to travel this far, this fast, to count as one. */
+const SWIPE_MIN_PX = 60;
+const SWIPE_MAX_MS = 800;
+
 /** How long the refresh spinner is held even when the answer comes back at once. */
 const SPIN_MIN_MS = 600;
 /** Give up waiting for a push and stop the spinner. */
@@ -202,6 +206,9 @@ export class SimpleScheduleCard extends LitElement {
   @state() private _selected?: ScheduleEvent;
   @state() private _navDir: 'none' | 'fwd' | 'back' = 'none';
   @state() private _activeIdx = 0;
+  /** Horizontal-swipe gesture start, for the list layout's week navigation. */
+  private _swipe: { x: number; y: number; t: number } | null = null;
+
   /** entity_id -> mode overrides set from the header toggles. Session only. */
   @state() private _modeOverride: Record<string, Partial<CalendarSourceConfig>> = {};
   @state() private _pickerOpen = false;
@@ -529,6 +536,31 @@ export class SimpleScheduleCard extends LitElement {
     this._selected = undefined;
   }
 
+  /**
+   * Week navigation by swipe, for the list layout, where the two week arrows
+   * are hidden - four buttons is too much chrome for a narrow header.
+   *
+   * Deliberately NOT pointer-captured: capture throws NotFoundError for a
+   * made-up pointerId, which makes the gesture unscriptable in tests for no
+   * gain here, since the gesture is resolved entirely on pointerup.
+   */
+  private _swipeStart(e: PointerEvent): void {
+    this._swipe = { x: e.clientX, y: e.clientY, t: Date.now() };
+  }
+
+  private _swipeEnd(e: PointerEvent): void {
+    const start = this._swipe;
+    this._swipe = null;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    // Must be decisively horizontal and quick, or a diagonal drag during a
+    // vertical scroll would jump the week under the reader.
+    if (Date.now() - start.t > SWIPE_MAX_MS) return;
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    this._goWeek(dx > 0 ? 1 : -1);
+  }
+
   private _goWeek(delta: number): void {
     this._navDir = delta > 0 ? 'fwd' : 'back';
     this._weekOffset += delta;
@@ -699,6 +731,7 @@ export class SimpleScheduleCard extends LitElement {
 
   private _renderHead(days: Date[]): TemplateResult {
     const cfg = this._config!;
+    const list = this._mode === 'list';
     const failed = this._subs.failed;
     const range = days.length
       ? `${this._fmtDate(days[0])} – ${this._fmtDate(days[days.length - 1])}`
@@ -714,9 +747,15 @@ export class SimpleScheduleCard extends LitElement {
                 <ha-icon icon="mdi:alert-circle-outline"></ha-icon>
               </div>`
             : nothing}
-          <button class="btn" @click=${() => this._goWeek(-1)} aria-label="Previous week">
-            <ha-icon icon="mdi:chevron-left"></ha-icon>
-          </button>
+          ${list
+            ? nothing
+            : html`<button
+                class="btn"
+                @click=${() => this._goWeek(-1)}
+                aria-label="Previous week"
+              >
+                <ha-icon icon="mdi:chevron-left"></ha-icon>
+              </button>`}
           <button
             class="btn today ${this._weekOffset === 0 ? 'off' : ''}"
             @click=${() => this._goToday()}
@@ -724,9 +763,11 @@ export class SimpleScheduleCard extends LitElement {
           >
             <ha-icon icon="mdi:calendar-today"></ha-icon>
           </button>
-          <button class="btn" @click=${() => this._goWeek(1)} aria-label="Next week">
-            <ha-icon icon="mdi:chevron-right"></ha-icon>
-          </button>
+          ${list
+            ? nothing
+            : html`<button class="btn" @click=${() => this._goWeek(1)} aria-label="Next week">
+                <ha-icon icon="mdi:chevron-right"></ha-icon>
+              </button>`}
           ${(cfg.show_refresh ?? DEFAULTS.show_refresh)
             ? html`<button
                 class="btn ${this._refreshing ? 'spin' : ''}"
@@ -1221,6 +1262,9 @@ export class SimpleScheduleCard extends LitElement {
     return html`
       <div
         class="list ${this._receded ? 'dimmed' : ''} dir-${this._navDir}"
+        @pointerdown=${(e: PointerEvent) => this._swipeStart(e)}
+        @pointerup=${(e: PointerEvent) => this._swipeEnd(e)}
+        @pointercancel=${() => (this._swipe = null)}
         @animationend=${() => {
           this._navDir = 'none';
         }}
@@ -1477,15 +1521,19 @@ export class SimpleScheduleCard extends LitElement {
       white-space: nowrap;
     }
     .narrow .pill {
-      display: none;
+      font-size: 12px;
     }
-    /* The header chrome is deliberately NOT shrunk on a phone. It used to be -
-       37px buttons with a 7px gap - which quietly undid the tablet sizing pass:
-       .narrow .tools overrode the wider gap, so the extra air never reached the
-       list layout at all and the buttons read noticeably smaller than the same
-       controls on the tablet. A phone is the device most likely to be used at
-       arm's length with a thumb, so it gets the full 44px target and the same
-       15px of air; the calendar NAME absorbs the difference by ellipsising. */
+    /* 10% under the grid's 44px. The phone had been at 37px with a 7px gap,
+       which was too small; the full 44px with two week arrows removed is too
+       much chrome for a narrow header. 40px keeps a comfortable thumb target
+       while giving the row back some air. The gap stays at the shared 15px. */
+    .narrow .btn {
+      width: 40px;
+      height: 40px;
+    }
+    .narrow .btn ha-icon {
+      --mdc-icon-size: 23px;
+    }
     .titles {
       min-width: 0;
       flex: 1 1 auto;
@@ -1635,8 +1683,11 @@ export class SimpleScheduleCard extends LitElement {
       background: rgba(255, 255, 255, 0.13);
     }
 
+    /* One below the date beside it - 15px range, 14px pill - in the grid, and
+       13/12 in the list. It was a flat 12px, which read as a footnote next to
+       the date rather than as the label for the week being shown. */
     .pill {
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 700;
       letter-spacing: 0.3px;
       padding: 3px 9px;
@@ -2242,7 +2293,11 @@ export class SimpleScheduleCard extends LitElement {
       }
     }
 
+    /* pan-y hands vertical scrolling back to the browser while leaving the
+       horizontal axis to the week-swipe handler. Without it the browser claims
+       both axes and the swipe never fires. */
     .list {
+      touch-action: pan-y;
       display: flex;
       flex-direction: column;
       /* The whole gap between one day's last event and the next day's heading
