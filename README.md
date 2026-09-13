@@ -181,7 +181,12 @@ wall display first: a timetable that can be changed by a stray tap is worse than
 one that cannot be changed at all. Turning it on takes two deliberate actions and
 the header says so, in red, for as long as it lasts.
 
-**Adding one** works two ways, both only in edit mode:
+![Edit mode, holding an empty slot to create an event](screenshots/edit-mode.png)
+
+*Edit mode: the red pill, the + beside it, and an empty slot filling in under a
+press-and-hold on Monday morning.*
+
+**Adding one** works three ways, all only in edit mode:
 
 - **Press and hold an empty part of the timeline.** After about half a second
   the slot you are holding fills in, and the new-event form opens already set to
@@ -241,6 +246,8 @@ For a recurring event the form asks what the change applies to:
 | **This event** | only the occurrence you opened. The default. |
 | **This and future** | this one and every later one; earlier ones are left alone. |
 | **All events** | every occurrence, including ones already past. |
+
+<img src="screenshots/edit-sheet.png" width="620" alt="The edit form, with the recurrence scope">
 
 Delete takes two presses — the second one is irreversible, and typing anything in
 the form disarms it again.
