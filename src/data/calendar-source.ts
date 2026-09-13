@@ -35,17 +35,50 @@ interface EventsPush {
 
 export class CalendarSubscriptions {
   private _unsubs: Array<() => void> = [];
+  /**
+   * Every event seen so far, per entity — NOT just the current window's.
+   *
+   * A push is authoritative only for the window it was asked about, so it
+   * replaces what is cached INSIDE that window and leaves everything outside it
+   * alone. Deletions and edits within the window are therefore honoured, while
+   * weeks fetched earlier stay drawable.
+   *
+   * That is what stops a week arriving empty. Stepping the window re-subscribes,
+   * and until the new push lands there is nothing to draw for any week the old
+   * window did not cover — which is why clicking through weeks quickly used to
+   * show one or two seconds of blank calendar before the events snapped in.
+   */
   private _byEntity = new Map<string, ScheduleEvent[]>();
   private _failed = new Set<string>();
   private _key = '';
 
   constructor(private readonly _onChange: () => void) {}
 
-  /** Every subscribed calendar's events, flattened. */
+  /** Every calendar's cached events, flattened. */
   get events(): ScheduleEvent[] {
     const all: ScheduleEvent[] = [];
     for (const list of this._byEntity.values()) all.push(...list);
     return all;
+  }
+
+  /**
+   * Fold a window's worth of pushed events into the cache for one entity.
+   *
+   * Anything cached that overlaps [start, end) is dropped first: the push is the
+   * complete truth for that span, so an event it no longer contains is gone.
+   */
+  private _merge(entity: string, events: ScheduleEvent[], start: Date, end: Date): void {
+    const from = start.getTime();
+    const to = end.getTime();
+    const kept = (this._byEntity.get(entity) ?? []).filter(
+      (e) => e.start.getTime() >= to || e.end.getTime() <= from,
+    );
+    this._byEntity.set(entity, [...kept, ...events]);
+  }
+
+  /** Forget everything cached. Used when a refresh must not show stale events. */
+  clear(): void {
+    this._byEntity.clear();
   }
 
   /** Calendars whose last push was an error. */
@@ -85,15 +118,19 @@ export class CalendarSubscriptions {
             // otherwise write events for the wrong week.
             if (this._key !== key) return;
             if (!msg || msg.events === null) {
+              // A failed push says nothing about the calendar, so the cache is
+              // left alone rather than emptied - the last good answer is still
+              // the best one available, and the warning icon says it is stale.
               this._failed.add(entity);
-              this._byEntity.set(entity, []);
             } else {
               this._failed.delete(entity);
-              this._byEntity.set(
+              this._merge(
                 entity,
                 msg.events
                   .map((raw, i) => toScheduleEvent(raw, entity, i))
                   .filter((e): e is ScheduleEvent => e !== null),
+                start,
+                end,
               );
             }
             this._onChange();
@@ -111,9 +148,9 @@ export class CalendarSubscriptions {
         }
         this._unsubs.push(unsub);
       } catch {
-        // One bad calendar must not take the others down with it.
+        // One bad calendar must not take the others down with it. As above, what
+        // was already cached for it is kept.
         this._failed.add(entity);
-        this._byEntity.set(entity, []);
         this._onChange();
       }
     }

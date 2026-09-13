@@ -49,6 +49,8 @@ export interface CalendarSourceConfig {
  */
 export type ModeToggleIcons = 'crop' | 'timeline' | 'calendar' | 'arrows';
 
+export type AnimationMode = 'auto' | 'always' | 'off';
+
 export type DaysOption = 'mon-fri' | 'mon-sun' | 'auto';
 export type LaneMode = 'by_source' | 'packed';
 export type LayoutOption = 'auto' | 'grid' | 'list';
@@ -101,6 +103,15 @@ export interface SimpleScheduleCardConfig {
   show_mode_toggles?: boolean;
   /** Which icon set the mode toggles use. Purely cosmetic. */
   mode_toggle_icons?: ModeToggleIcons;
+  /**
+   * Whether the card animates.
+   *
+   * `auto` follows the operating system's "reduce motion" setting, which is the
+   * right default and the accessible one. `always` animates regardless — for a
+   * machine whose OS has animations switched off system-wide but where this card
+   * is a display rather than something being worked at. `off` never animates.
+   */
+  animations?: AnimationMode;
   layout?: LayoutOption;
   layout_breakpoint?: number;
   /**

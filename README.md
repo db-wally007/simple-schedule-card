@@ -32,7 +32,10 @@ On a narrow screen it falls back to a day-grouped list:
 - **Push updates.** Events arrive over `calendar/event/subscribe`, so the grid reflects a
   change as soon as Home Assistant knows about it. Nothing polls.
 - A detail sheet on tap.
-- **Read-only.** Creating and editing events is not implemented.
+- **Read-only until you say otherwise.** An explicit [edit mode](#editing-events) — behind a
+  menu, announced in red while it lasts — lets you change, delete and create events, set a
+  repeat rule and a colour, and pick a location off a map. Off, the card behaves exactly as it
+  did before it could write.
 
 ## Requirements
 
@@ -41,6 +44,8 @@ On a narrow screen it falls back to a day-grouped list:
 | Home Assistant | 2024.4 or newer (`calendar/event/subscribe`) |
 | Calendar | Any `calendar.*` entity — Google, Local Calendar, CalDAV, … |
 | Per-calendar colour | HA 2026.2+ stores one automatically for calendars registered after that release. Older ones fall back to a built-in palette. |
+| Editing (optional) | [pyscript](https://github.com/custom-components/pyscript) plus `pyscript/simple_schedule_edit.py` from this repo, and a Google config entry in `calendar_access: read_write`. Without it the card is read-only, exactly as v1 was. |
+| Per-event colour (optional) | pyscript plus `pyscript/simple_schedule_colors.py`. |
 
 ## Install
 
@@ -97,6 +102,7 @@ time_format: '24'
 | `show_refresh` | boolean | `true` | Show the refresh button. |
 | `show_mode_toggles` | boolean | `true` | Show the two mode toggles in the middle of the header — see below. Turn them off for a kiosk nobody should be reshaping. |
 | `mode_toggle_icons` | `crop` \| `timeline` \| `calendar` \| `arrows` | `crop` | Which icons those toggles use. Purely cosmetic; all four say the same thing. |
+| `animations` | `auto` \| `always` \| `off` | `auto` | `auto` follows the operating system's reduce-motion setting. `always` animates regardless — see below. `off` never animates. |
 | `layout` | `auto` \| `grid` \| `list` | `auto` | `auto` picks by the card's own measured width. |
 | `layout_breakpoint` | number | `560` | Width in px below which `auto` uses the list. |
 | `event_colors` | map | `{}` | Colour by event title, e.g. `Lunch: '#f4c542'`. Matched case-insensitively on the whole summary. An explicit override that beats everything, including the colour helper. |
@@ -162,6 +168,161 @@ Note that `full` + `adaptive` squeezes twenty-four hours into the card, which pu
 lesson at about 36px. That is the combination working as intended — `full` was meant for a
 sparse calendar whose empty hours are worth seeing — but for a dense timetable `full` wants
 `fixed`, so the hours stay legible and the grid scrolls.
+
+### Editing events
+
+The card is read-only until you put it into **edit mode**, from the ⋯ menu in the
+header (which also holds Refresh). While it is on, a red **Edit Mode** pill sits
+beside the calendar name, and tapping an event opens it for editing instead of
+just showing it.
+
+It is a mode rather than an edit button on every event because this card is a
+wall display first: a timetable that can be changed by a stray tap is worse than
+one that cannot be changed at all. Turning it on takes two deliberate actions and
+the header says so, in red, for as long as it lasts.
+
+**Adding one** works two ways, both only in edit mode:
+
+- **Press and hold an empty part of the timeline.** After about half a second
+  the slot you are holding fills in, and the new-event form opens already set to
+  that day and time — rounded down to the nearest quarter hour, half an hour
+  long. Let go early, or slide your finger, and nothing happens: the grid is
+  also what a tablet gets held by. Holding an existing event does nothing
+  either; that is a tap to open.
+- **Press and hold a day's own cell** — the label down the left of the
+  transposed grid, or across the top of the other one. Only that cell lights up,
+  and you get that day at the current time. It is the same gesture the list
+  offers on its day headings, so a day label means the same thing in all three
+  layouts.
+- **The + beside the Edit Mode pill**, which starts at today and the next
+  quarter hour.
+
+In the list layout — the phone — there is no timeline to press against, so the
+day heading and the + are the only two ways in.
+
+**A press into a gap fills exactly that gap.** A timetable is mostly five- and
+fifteen-minute gaps between lessons, so the new event is cut short at whatever
+starts next, and held back to whatever ended last — press between a lesson
+ending at 10:15 and one starting at 10:20 and you get 10:15–10:20, not half an
+hour lying across the next lesson. With nothing in the way it is the full half
+hour.
+
+The new event lands on the calendar currently on screen, and its form is the
+edit form minus the things that do not apply yet: no Delete, no recurrence
+scope — it is not a series until you say so, which is the next row.
+
+**Repeat** folds away under the times, and offers Google's own list, generated
+from the event's own date: *Does not repeat*, *Daily*, *Weekly on Tuesday*,
+*Monthly on the second Tuesday*, *Annually on September 8*, *Every weekday
+(Monday to Friday)*, and **Custom…**.
+
+Custom is Google's dialog in this card's furniture: repeat every N
+days/weeks/months/years, and which weekdays for a weekly rule. **Ends** folds
+away under its own chevron — most rules never end — showing what is set when it
+is shut, and opening onto *Never*, *On* a date, or *After* a count. Tap anywhere
+on those rows, not just the dot. It says the rule back to you in words at the
+bottom — *"Every 2 weeks on Monday and Wednesday, until 8 Dec 2026"* — because
+that sentence is the thing that will still be true in a year. Nothing is written
+until **Done**, and the days run Monday-first like the rest of the card rather
+than Sunday-first like Google.
+
+Whatever is live wears the calendar's colour: the chosen unit, the chosen days,
+and the numbers themselves. A count under an unselected row stays plain, because
+nothing is using it.
+
+Repeat is offered when **creating** only. Changing the rule on a series that
+already exists is a different operation, tangled up with the scope question
+above it, and the form hides the row rather than showing one that lies.
+
+For a recurring event the form asks what the change applies to:
+
+| | |
+|---|---|
+| **This event** | only the occurrence you opened. The default. |
+| **This and future** | this one and every later one; earlier ones are left alone. |
+| **All events** | every occurrence, including ones already past. |
+
+Delete takes two presses — the second one is irreversible, and typing anything in
+the form disarms it again.
+
+On a phone the form owns the gesture whether or not it has anything to scroll:
+drag one that fits on screen and it gives a little and springs back, rather than
+quietly scrolling the week behind it.
+
+Saving and deleting hold the form open, still saying so, until the week behind it
+has actually caught up — usually under two seconds. A write travels Google → Home
+Assistant → card, and closing the moment Google said yes handed you back the
+unchanged week for a few seconds, which reads as a failed edit.
+
+The date and time fields are the card's own, not the browser's: a month grid with
+40px days, and a scrolling drum for the time with 44px rows. They follow
+`time_format`, so a card set to 24-hour shows 24-hour. Moving the start carries
+the end along with it, keeping the event the same length. The time drum takes a
+mouse as well as a thumb: click a number to go to it, or use the scroll wheel —
+hours if you are hovering over hours, minutes if over minutes. Stepping the month
+brings the new one in from the side it came from, a row at a time, and the panel
+collapses on the way out instead of blinking away.
+
+**Colour** sets Google's per-event colour, from its eleven-colour palette, plus
+an empty slot meaning "whatever colour the calendar is". Note that event colour
+is per Google *account* — see the section below — so this sets it for the account
+Home Assistant is signed in as, which is the one the card reads back.
+
+**Location** searches as you type and offers real addresses, biased towards
+`zone.home` so a club down the road outranks one in another country. Picking one
+fills the field and opens a map underneath.
+
+The map button opens a **full-screen picker**: pan and zoom it, then **tap
+anywhere to pick that spot** — the pin moves there and the address goes straight
+into the field behind. Drag the pin to adjust, and **Done** closes it. So a place
+with no useful address — a pitch, a car park, a side entrance — can be chosen by
+pointing at it.
+
+**Open in Maps** hands the place to the device's own maps app, which is also the
+way to see it in Google's detail: the card's own tiles are Esri's keyless
+topographic map, which names streets and draws buildings but has no house
+numbers or business names.
+
+The map borrows Home Assistant's own Leaflet, loaded on first use. If that is
+ever unavailable it falls back to a still image of the same tiles: you lose the
+panning, not the map.
+
+Both halves are keyless. Home Assistant has no geocoder — nothing in core turns
+text into a place, and the HACS `places` integration goes the other way, from
+coordinates to an address — so the search is [Photon](https://photon.komoot.io),
+which is built for type-ahead and allows browser requests. Google's own Places
+Autocomplete would need a second API key with billing attached; the token the
+calendar integration holds is scoped to Calendar and will not authenticate it.
+The map tiles are Esri Canvas, because Home Assistant's own map card uses CARTO
+and every CARTO basemap now returns tiles stamped "API KEY REQUIRED".
+
+**Location and notes** sit last and stay folded away until there is something in
+them. A school lesson has neither, and on the common event those two rows were
+most of the form's height and all of it blank.
+
+**This needs the pyscript helper** (`pyscript/simple_schedule_edit.py`). Home
+Assistant cannot change a Google event on its own: the integration declares
+create and delete only, so the helper talks to Google directly using the
+credentials the integration already holds. Without it installed the card still
+works; edit mode will simply report that the service is missing.
+
+Recolouring a single occurrence with **This event** leaves the rest of the
+series alone, as it should — but note this needs the colour helper at v1.1 or
+later. Before that it mapped colours by event uid, which every occurrence of a
+series shares, so one recoloured Monday repainted every Monday in the card. The
+write to Google was always correct; only the display was wrong.
+
+### If nothing animates
+
+The card holds still when the operating system asks it to, and that setting is
+easy to have on without knowing it — Windows' *Settings → Accessibility → Visual
+effects → Animation effects* and macOS' *Reduce Motion* are both reported to the
+browser as `prefers-reduced-motion`. The symptom is total: no week transition at
+all, and a refresh button whose spinner sits motionless while it works. The same
+dashboard on another machine animates fine.
+
+That is correct behaviour for something being worked at and wrong for a kiosk on
+a wall, so `animations: always` overrules it; `off` forces the opposite.
 
 ### `lane_mode`
 

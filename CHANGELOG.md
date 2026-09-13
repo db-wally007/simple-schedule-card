@@ -4,6 +4,104 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-13
+
+The card can now **write**. v1.0.0 was read-only by decision; v2.0.0 adds an explicit edit mode
+that can change, delete and create events, with a repeat rule, a colour, and a location picked
+off a map.
+
+It is a **mode**, not an edit button on every block, because this card is a wall display first:
+a timetable that can be changed by a stray tap is worse than one that cannot be changed at all.
+Turning it on takes two deliberate actions and the header says so, in red, for as long as it
+lasts.
+
+Major because editing needs a helper Home Assistant cannot replace. `pyscript/simple_schedule_edit.py`
+talks to the Google API directly — the `google` integration declares CREATE and DELETE only and
+has no `async_update_event` at all, so core's `calendar/event/update` refuses; the service
+that does exist has no rrule field and nothing in core can set a colour. Without the helper the
+card still works exactly as it did; edit mode simply reports that the service is missing.
+
+### Added — edit mode
+
+- The refresh button became a **⋯ menu** holding Refresh and Enter Edit Mode. Refresh moved into
+  it rather than sitting beside it: the header already carries four buttons on a phone, and a
+  fifth for something used occasionally would have cost the calendar name the width it needs.
+- A red **Edit Mode** pill beside the calendar name, and a wash of red across the whole card on
+  the way in and a different one on the way out. The pill alone is a small thing in a corner, and
+  this is the one state where a tap changes somebody's timetable.
+- Tapping an event opens it for **editing**. For a recurring event the form asks what the change
+  applies to — this event, this and future, or all events — and Delete takes two presses.
+- **Date and time pickers built for a finger**: a month grid with 40px days and a two-column drum
+  with 44px rows, opened inline under the row. `<input type="date">` and `<input type="time">`
+  were the first cut: they are keyboard-shaped controls that follow the BROWSER's locale, so a
+  card configured for 24-hour showed `09:00 AM`. The drum takes a mouse too — click a number to
+  go to it, or use the scroll wheel over whichever column you are pointing at.
+- **Colour**, from Google's own eleven-colour palette plus "the calendar's colour".
+- **Location** with address search as you type, biased towards `zone.home`, and a full-screen map
+  picker: pan and zoom, tap anywhere to pick that spot, drag the pin to adjust. Both halves are
+  keyless — Home Assistant has no geocoder, and the OAuth token the calendar integration holds is
+  scoped to Calendar and will not authenticate Google Places.
+
+### Added — creating events
+
+- **Press and hold empty timeline** for about half a second: the slot fills in under your finger
+  and the form opens set to that day and time. A press into a gap fills exactly that gap — a
+  timetable is mostly five- and fifteen-minute gaps between lessons, so the new event is cut short
+  at whatever starts next and held back to whatever ended last.
+- **Press and hold a day's own cell** — the label down the left of the transposed grid, across the
+  top of the other one, or a day heading in the list — for that day at the current time. Only that
+  cell lights up.
+- **A + beside the Edit Mode pill**, for today at the next quarter hour. In the list layout there
+  is no timeline to press against, so the + and the day headings are the two ways in there.
+- **Repeat**, folded away under the times, offering Google's own list generated from the event's
+  own date — Daily, Weekly on Tuesday, Monthly on the second Tuesday, Annually on September 8,
+  Every weekday — plus a **Custom recurrence** window: every N days/weeks/months/years, which
+  weekdays, and an end that is never, on a date, or after a count. It says the rule back to you in
+  words, because that sentence is the part still true in a year.
+
+### Added — elsewhere
+
+- `animations: always | auto | off`. A machine whose OS has animations switched off system-wide
+  reports `prefers-reduced-motion` and lost every transition here with no way to opt back in.
+- The horizontal scrollbar is a real control: drag the thumb, click the track. It had been an
+  indicator you could not touch, which on a desktop is a scrollbar that does not work.
+- Three weeks are cached rather than one, so stepping through weeks quickly never lands on an
+  empty grid while the next push arrives.
+- The week pill always names the week — "This Week", "In 3 Weeks", "In 2 Months", "1 Year Ago" —
+  coarsening as the distance grows. It used to go blank past one week either side, which left the
+  list layout with nothing at all naming the week.
+
+### Fixed
+
+- **Recolouring one occurrence repainted the whole series.** The colour helper mapped colours by
+  event uid, and every occurrence of a recurring event shares one — so "this event only" set the
+  uid entry and every other occurrence fell through to it. An exception now lives only under its
+  own recurrence id. The write to Google was correct throughout; only the display was wrong.
+- **Saving or deleting handed back the unchanged week** for three or four seconds while the change
+  travelled Google → Home Assistant → card, which reads as a failed edit. The form now stays up,
+  still saying so, until the week behind it has actually caught up.
+- **A dialog that fits the screen no longer scrolls the page behind it.** A box with nothing to
+  scroll is not a scroll container, so the drag went straight through; the same drag did nothing
+  once the form was tall enough to scroll. It now takes the gesture and answers with resistance.
+- The last hour label could hang past the end of the axis, giving the card a scrollbar in the mode
+  whose whole job is to fit.
+- The calendar picker overlapped the week navigation on a phone, and the phone never received the
+  larger buttons or the extra air the tablet pass added.
+
+### Changed
+
+- **The week gesture is buttons, not swipe.** An interactive swipe was built and removed: on a
+  wall tablet it competed with the horizontal scroll of the grid itself, and the result read as
+  unfinished rather than as fluid. The arrows are unambiguous and do not fight the axis.
+
+### Notes for anyone upgrading
+
+- Nothing in an existing config changes meaning, and the card stays read-only until edit mode is
+  turned on.
+- Editing needs `pyscript/simple_schedule_edit.py` installed and the Google config entry in
+  `calendar_access: read_write`. Per-event colour also needs `pyscript/simple_schedule_colors.py`,
+  as it did in v1.
+
 ## [1.0.0] - 2026-09-11
 
 First stable release. The transposed grid began as an experiment for side-by-side comparison

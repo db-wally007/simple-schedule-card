@@ -228,15 +228,25 @@ def _extract(data, palette, by_uid, by_recurrence_id):
                 hex_color = palette.get(str(color_id))
                 if not hex_color:
                     continue
-                uid = event.get("ical_uuid")
-                if uid:
-                    by_uid[uid] = hex_color
                 # A singly-modified occurrence of a recurring series carries its
                 # own colour and its own id. The card sees that id as
                 # `recurrence_id` and checks this map first, so the exception
                 # beats the series it belongs to.
-                if event.get("recurring_event_id") and event.get("id"):
-                    by_recurrence_id[event["id"]] = hex_color
+                #
+                # It must go in THAT MAP ONLY. Every occurrence of a series
+                # shares one ical_uuid, so writing an exception's colour under
+                # the uid as well repainted the entire series with it: recolour
+                # one Monday and every Monday changed, which is precisely what
+                # "this event only" promises not to do. by_uid carries
+                # SERIES-level colour — the master, which has no
+                # recurring_event_id — and one-off events, nothing else.
+                if event.get("recurring_event_id"):
+                    if event.get("id"):
+                        by_recurrence_id[event["id"]] = hex_color
+                    continue
+                uid = event.get("ical_uuid")
+                if uid:
+                    by_uid[uid] = hex_color
     return seen
 
 
