@@ -45,6 +45,55 @@ export function weekWindow(ref: Date, weekOffset: number, dayCount: number): Wee
   return { start, end, days };
 }
 
+/**
+ * The lattice a month grid draws: whole weeks, and no more than it needs.
+ *
+ * Exactly the weeks the month touches — five for most, six when a long month
+ * starts late in the week, four for a February that begins on a Monday. An
+ * earlier version always drew six, which left September showing a whole week of
+ * October below it. The rows SHARE the card's height, so drawing fewer makes
+ * each one taller rather than leaving the card short: nothing jumps.
+ *
+ * `start` is the Monday on or before the 1st, so the window covers every cell
+ * the grid shows and the subscription never has to ask twice.
+ */
+export function monthWindow(ref: Date, monthOffset: number): WeekWindow {
+  const first = new Date(ref.getFullYear(), ref.getMonth() + monthOffset, 1);
+  const start = startOfWeek(first);
+  const cells = monthRows(ref, monthOffset) * 7;
+  const end = new Date(start);
+  end.setDate(end.getDate() + cells);
+
+  const days: Date[] = [];
+  for (let i = 0; i < cells; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+  return { start, end, days };
+}
+
+/** How many whole weeks a month spans, counting from the Monday before it. */
+export function monthRows(ref: Date, monthOffset: number): number {
+  const year = ref.getFullYear();
+  const month = ref.getMonth() + monthOffset;
+  const first = new Date(year, month, 1);
+  // Days of the leading week that belong to the month before.
+  const lead = (first.getDay() + 6) % 7;
+  const length = new Date(year, month + 1, 0).getDate();
+  return Math.ceil((lead + length) / 7);
+}
+
+/** The month a grid is OF, which is not the month its first cell falls in. */
+export function monthOf(ref: Date, monthOffset: number): Date {
+  return new Date(ref.getFullYear(), ref.getMonth() + monthOffset, 1);
+}
+
+/** Whole months between two dates, sign included. Used for the week pill. */
+export function monthsBetween(from: Date, to: Date): number {
+  return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+}
+
 /** Minutes since local midnight. */
 export function minutesOfDay(d: Date): number {
   return d.getHours() * 60 + d.getMinutes();
@@ -125,6 +174,7 @@ export function toScheduleEvent(
     entity,
     uid: raw.uid ?? undefined,
     recurrenceId: raw.recurrence_id ?? undefined,
+    rrule: raw.rrule ?? undefined,
     summary: (raw.summary ?? '').trim() || '(no title)',
     description: raw.description ?? undefined,
     location: raw.location ?? undefined,

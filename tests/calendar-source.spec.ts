@@ -115,3 +115,68 @@ describe('CalendarSubscriptions cache', () => {
     expect(subs.events).toHaveLength(0);
   });
 });
+
+/**
+ * Re-entrancy. The card calls sync() from `updated()`, which Home Assistant
+ * triggers on every state change in the house, so sync() is routinely re-entered
+ * while an earlier one is still awaiting its subscribes. Every spurious round
+ * asks HA to expand months of recurrences for every calendar, on the same event
+ * loop that feeds the websocket - which is how the frontend ends up starved.
+ */
+describe('CalendarSubscriptions re-entrancy', () => {
+  /** A hass whose subscribeMessage resolves only when the test lets it. */
+  function slowHass() {
+    const calls: string[] = [];
+    let release: (() => void) | null = null;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    return {
+      calls,
+      release: () => release!(),
+      hass: {
+        connection: {
+          subscribeMessage: async (cb: (msg: unknown) => void, msg: Record<string, unknown>) => {
+            calls.push(msg.entity_id as string);
+            await gate;
+            cb({ events: [] });
+            return () => undefined;
+          },
+        },
+        callService: async () => undefined,
+      },
+    };
+  }
+
+  it('does not start a second round while the first is still in flight', async () => {
+    const { hass, calls, release } = slowHass();
+    const subs = new CalendarSubscriptions(() => undefined);
+    const ids = ['calendar.a', 'calendar.b', 'calendar.c'];
+
+    // One real call, then nine re-entrant ones for the SAME window, exactly as
+    // a burst of re-renders produces.
+    const first = subs.sync(hass as never, ids, WEEK1, at(WEEK1, 7));
+    for (let i = 0; i < 9; i++) void subs.sync(hass as never, ids, WEEK1, at(WEEK1, 7));
+    release();
+    await first;
+
+    // Three subscriptions - one per calendar - not thirty.
+    expect(calls).toHaveLength(3);
+  });
+
+  it('still re-subscribes when the window genuinely moves', async () => {
+    const { hass, calls } = fakeHass({});
+    const subs = new CalendarSubscriptions(() => undefined);
+    await subs.sync(hass as never, ['calendar.a'], WEEK1, at(WEEK1, 7));
+    await subs.sync(hass as never, ['calendar.a'], WEEK2, at(WEEK2, 7));
+    expect(calls).toHaveLength(2);
+  });
+
+  it('honours force even when the key is unchanged', async () => {
+    const { hass, calls } = fakeHass({});
+    const subs = new CalendarSubscriptions(() => undefined);
+    await subs.sync(hass as never, ['calendar.a'], WEEK1, at(WEEK1, 7));
+    await subs.sync(hass as never, ['calendar.a'], WEEK1, at(WEEK1, 7), true);
+    expect(calls).toHaveLength(2);
+  });
+});

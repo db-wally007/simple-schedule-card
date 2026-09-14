@@ -4,6 +4,65 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-09-15
+
+A **month grid**. v1 drew a week, v2 let you change it; v3 adds a second SHAPE, for calendars
+whose events are dates rather than appointments — bin collections, birthdays, term dates. A time
+axis for those is an empty grid with a few marks in it.
+
+Major because `calendar_mode` gained a third value that is not another zoom level on a time axis
+but a different layout entirely, and because two sizing options were **removed** rather than
+retuned (see Removed). Nothing about a week grid changes; a card that does not ask for `monthly`
+behaves exactly as it did.
+
+### Added — month mode
+
+- `calendar_mode: monthly`, per calendar, alongside `focused` and `full`. Seven columns divide
+  the card so a month never scrolls sideways — the one deliberate departure from
+  `view_width_mode: fixed`, because a month you have to scroll to finish is not a month.
+- **Only the weeks a month actually touches**: four, five or six. An earlier cut always drew six,
+  which left September carrying a whole week of October under it. The rows share a fixed total,
+  so a five-row month has taller cells rather than a shorter card and nothing jumps as you page.
+- A cell prints **as many events as fit** and folds the rest into "N more" — measured from the
+  rendered cell rather than configured, and clamped between a one-event and a three-event height.
+  On a short window a cell hands back its breathing room when that buys a whole extra event.
+- **A tap anywhere in a cell opens that day**, in a panel that prints each event's start AND end
+  time — one more thing than Google's own version of it, because "4am" says nothing useful about
+  a collection that runs until 10. The panel stays open behind the detail sheet, so a second
+  event from the same day does not mean finding the cell again.
+- `month_mode_show_times`, per calendar: a timetable's 08:30 is the point, while bin day is always
+  04:00 and saying so four times a month is noise.
+- The header's mode toggle now cycles **focused → full → monthly**, and in a month the arrows step
+  months, the pill counts in months, and the period moves to the middle of the header at 24px —
+  it is the answer to "which month am I in", and it was the smallest thing on screen.
+- The detail sheet has a **close button**, in every view and mode. The scrim always closed it, but
+  nothing said so.
+
+### Fixed
+
+- **Two freezes, and one of them took Home Assistant down with it.** `sync()`'s early-out tested a
+  key that is set several awaits before the first subscription lands, so re-entry during that gap
+  restarted the whole round — and the card calls it from `updated()`, which fires on every state
+  change in the house. Ten re-entrant calls produced **30 subscriptions instead of 3**, each asking
+  HA to expand months of recurrences on the event loop that also serves the websocket. Paging a
+  month now waits for the paging to settle, and only the window landed on is ever asked for.
+- **A frozen tab with no network traffic to explain it**: the month measurement was reading
+  geometry *through* the entry animation, which scales cells as they arrive, so every frame
+  produced a different answer and every answer was another render. It now waits for the animation
+  to finish. A second, related loop — deriving available height from a position the grid's own
+  height moves — is bounded by remembering the heights already tried.
+- `animations: off` never actually stopped the block, list and cell cascades. Those elements carry
+  `animation-name` inline, which outranks any selector; the reduce rules needed `!important`.
+- The "today" button was permanently greyed out in a month: it tested the week offset, which never
+  moves there.
+
+### Removed
+
+- `month_mode_max_events` and `month_mode_cell_height`. Both asked the YAML to state a number only
+  the rendered card can know — the same calendar has 110px cells in a six-week August and 161px
+  cells in a four-week February, and any fixed count is wrong in one of them. The fit is measured
+  instead. Month mode now has no size configuration at all.
+
 ## [2.0.0] - 2026-09-13
 
 The card can now **write**. v1.0.0 was read-only by decision; v2.0.0 adds an explicit edit mode

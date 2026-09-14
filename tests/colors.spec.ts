@@ -57,11 +57,11 @@ describe('fetchRegistryColors', () => {
 });
 
 describe('eventColor', () => {
-  const map = { Lunch: '#f4c542', 'TV Velka': '#5ac8fa' };
+  const map = { Lunch: '#f4c542', 'PE (Hall)': '#5ac8fa' };
 
   it('matches an event title exactly', () => {
     expect(eventColor('Lunch', map)).toBe('#f4c542');
-    expect(eventColor('TV Velka', map)).toBe('#5ac8fa');
+    expect(eventColor('PE (Hall)', map)).toBe('#5ac8fa');
   });
 
   it('ignores case and surrounding space', () => {
@@ -70,7 +70,7 @@ describe('eventColor', () => {
   });
 
   it('returns undefined for an unlisted title, so the calendar colour wins', () => {
-    expect(eventColor('CJ', map)).toBeUndefined();
+    expect(eventColor('Maths', map)).toBeUndefined();
     expect(eventColor('Lunch', undefined)).toBeUndefined();
   });
 

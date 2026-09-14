@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   axisBounds,
   eventsForDay,
+  monthOf,
+  monthRows,
+  monthWindow,
+  monthsBetween,
   parseHM,
   startOfWeek,
   toScheduleEvent,
@@ -173,5 +177,78 @@ describe('weekendHasEvents', () => {
 
   it('ignores a weekend event from a DIFFERENT week', () => {
     expect(weekendHasEvents([ev(new Date(2026, 8, 19, 10, 0), new Date(2026, 8, 19, 11, 0))], week)).toBe(false);
+  });
+});
+
+describe('monthWindow', () => {
+  it('draws only the weeks the month actually touches', () => {
+    // September 2026 starts on a Tuesday and runs 30 days: five rows. Drawing
+    // six put a whole week of October under it.
+    expect(monthRows(new Date(2026, 8, 15), 0)).toBe(5);
+    expect(monthWindow(new Date(2026, 8, 15), 0).days).toHaveLength(35);
+  });
+
+  it('uses six only when a long month starts late in the week', () => {
+    // August 2026 begins on a Saturday and runs 31 days: 6 lead + 31 = 37.
+    expect(monthRows(new Date(2026, 7, 15), 0)).toBe(6);
+    expect(monthWindow(new Date(2026, 7, 15), 0).days).toHaveLength(42);
+  });
+
+  it('uses four for a February that begins on a Monday', () => {
+    // 1 February 2027 is a Monday and the month is 28 days: exactly four weeks,
+    // and padding it out would be inventing rows nothing falls in.
+    expect(monthRows(new Date(2027, 1, 10), 0)).toBe(4);
+    expect(monthWindow(new Date(2027, 1, 10), 0).days).toHaveLength(28);
+  });
+
+  it('never leaves a day of the month off the grid', () => {
+    // The property that matters, checked across four years of months.
+    for (let i = -24; i <= 24; i++) {
+      const w = monthWindow(new Date(2026, 8, 15), i);
+      const subject = monthOf(new Date(2026, 8, 15), i);
+      const length = new Date(subject.getFullYear(), subject.getMonth() + 1, 0).getDate();
+      const seen = new Set(w.days.map((d) => d.toDateString()));
+      for (let day = 1; day <= length; day++) {
+        const want = new Date(subject.getFullYear(), subject.getMonth(), day);
+        expect(seen.has(want.toDateString()), want.toDateString()).toBe(true);
+      }
+      // And never a whole row that belongs to neither neighbour's month.
+      expect(w.days.length % 7).toBe(0);
+    }
+  });
+
+  it('starts on the Monday on or before the 1st', () => {
+    // 1 September 2026 is a Tuesday, so the grid opens on Monday 31 August.
+    const w = monthWindow(new Date(2026, 8, 15), 0);
+    expect(w.days[0].getDay()).toBe(1);
+    expect(w.days[0].toDateString()).toBe(new Date(2026, 7, 31).toDateString());
+  });
+
+  it('opens on the 1st itself when that IS a Monday', () => {
+    // 1 February 2027 is a Monday: no leading days from January.
+    const w = monthWindow(new Date(2027, 1, 10), 0);
+    expect(w.days[0].toDateString()).toBe(new Date(2027, 1, 1).toDateString());
+  });
+
+  it('steps by whole months, across a year end', () => {
+    const ref = new Date(2026, 11, 15);
+    expect(monthOf(ref, 1).getMonth()).toBe(0);
+    expect(monthOf(ref, 1).getFullYear()).toBe(2027);
+    expect(monthOf(ref, -12).getFullYear()).toBe(2025);
+    // The 31st of a long month must not skid into the month after next.
+    expect(monthOf(new Date(2026, 0, 31), 1).getMonth()).toBe(1);
+  });
+
+  it('has a window that contains every cell it drew', () => {
+    const w = monthWindow(new Date(2026, 8, 15), 0);
+    expect(w.start.getTime()).toBeLessThanOrEqual(w.days[0].getTime());
+    expect(w.end.getTime()).toBeGreaterThan(w.days[w.days.length - 1].getTime());
+  });
+
+  it('counts whole months between dates for the pill', () => {
+    expect(monthsBetween(new Date(2026, 8, 1), new Date(2026, 8, 30))).toBe(0);
+    expect(monthsBetween(new Date(2026, 8, 1), new Date(2026, 9, 1))).toBe(1);
+    expect(monthsBetween(new Date(2026, 11, 1), new Date(2027, 0, 1))).toBe(1);
+    expect(monthsBetween(new Date(2026, 8, 1), new Date(2025, 8, 1))).toBe(-12);
   });
 });

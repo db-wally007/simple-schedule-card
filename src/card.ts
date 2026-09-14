@@ -16,10 +16,13 @@ import { placeWeek } from './data/lanes';
 import {
   describe as describeRepeat,
   matchPreset,
+  parseRRule,
   presets as repeatPresets,
+  sameRecurrence,
   toRRule,
   RFC_DAYS,
   WEEK_ORDER,
+  weekdayPosition,
   type Freq,
   type Recurrence,
 } from './data/recurrence';
@@ -38,6 +41,8 @@ import {
 import {
   axisBounds,
   eventsForDay,
+  monthOf,
+  monthWindow,
   startOfDay,
   weekendHasEvents,
   weekWindow,
@@ -70,7 +75,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '2.0.0';
+const CARD_VERSION = '3.0.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -92,6 +97,7 @@ const DEFAULTS = {
   animations: 'auto' as const,
   layout: 'auto' as const,
   layout_breakpoint: 560,
+  month_mode_show_times: true,
 };
 
 /**
@@ -230,10 +236,29 @@ interface EventDraft {
   location: string;
   description: string;
   allDay: boolean;
-  /** Google palette id, or '' for "whatever colour the calendar is". */
+  /** Google palette id, or '' for "no colour of its own". */
   colorId: string;
-  /** The repeat rule, or null for a one-off. New events only — see _renderEditor. */
+  /**
+   * The colour the form opened with, so a change can be told from a redraw.
+   *
+   * Remembered rather than re-derived at save time: _colorIdFor reads the
+   * helper's map, which the helper republishes on its own schedule, so asking
+   * it again later can answer differently for reasons that have nothing to do
+   * with the user.
+   */
+  colorIdWas: string;
+  /** The repeat rule, or null for a one-off. */
   repeat: Recurrence | null;
+  /** The rule the form opened with, so a change can be told from a reload. */
+  repeatWas: Recurrence | null;
+  /**
+   * Whether the Repeat row is offered at all.
+   *
+   * False when the event HAS a rule this card cannot state in words — an
+   * interval on a day of the month, a BYSETPOS. Showing "Does not repeat" there
+   * would be a lie, and saving it would clobber a rule the user never saw.
+   */
+  canRepeat: boolean;
 }
 
 /** A Date split the way <input type="date"> and <input type="time"> want it. */
@@ -267,6 +292,93 @@ const PRESS_SLOP_PX = 10;
 /** New events start on this grid, and last this long. Minutes. */
 const NEW_SNAP_MIN = 15;
 const NEW_EVENT_MIN = 30;
+
+/** The ordinal words the monthly control needs, matching recurrence.ts's own. */
+const POS_LABELS: Record<number, string> = {
+  1: 'first', 2: 'second', 3: 'third', 4: 'fourth', [-1]: 'last',
+};
+
+/**
+ * How long a moved window waits before it is subscribed to, in ms.
+ *
+ * Long enough that a run of taps on the arrows lands once, short enough to feel
+ * immediate on a single tap. The events already cached either side of the
+ * window mean the grid is not blank while this waits.
+ */
+const SUB_SETTLE_MS = 220;
+
+/**
+ * How many grid heights `_measureMonth` may try before it stops chasing and
+ * takes the smallest. Convergence normally takes two or three; more than this
+ * means the layout is feeding it, not settling.
+ */
+const MONTH_SETTLE_TRIES = 4;
+
+/** Air under the last row of a month, so it does not sit flush with the edge. */
+const MONTH_BOTTOM_GAP = 18;
+
+/**
+ * Breathing space at the foot of a month cell, in px.
+ *
+ * THE dial for how full a month cell is allowed to get. A cell prints as many
+ * events as fit above this margin and folds the rest into "N more", so the count
+ * follows the cell's height instead of being declared: tall rows in a short
+ * February show six, the squeezed rows of a six-week August show three. Raise it
+ * for a calmer grid that hides more, lower it to pack events in.
+ *
+ * It is BOTH the arithmetic and the visible margin - the cell's own
+ * padding-bottom - so the space the fit calculation reserves is exactly the
+ * space you can see. Deliberately not a config option: it wants looking at, not
+ * declaring, and a number that has to be tuned against real event lists belongs
+ * with the code that draws them.
+ */
+const MONTH_BREATHE_PX = 12;
+
+/**
+ * The bounds on a month cell, expressed in EVENTS rather than pixels.
+ *
+ * A cell grows with the card, but only between these: never so short that a day
+ * cannot show a single event, never so tall that it turns into a list. Three is
+ * the ceiling because past that a month cell stops summarising and starts
+ * competing with the week grids, which is what they are for.
+ *
+ * Both are counts of EVENTS, and a cell that has to say "N more" needs a row for
+ * that too - so the heights they imply are for `n + 1` rows. Pixels are worked
+ * out from the rendered cell in `_measureMonth`, so these stay true through any
+ * font change.
+ */
+const MONTH_FIT_MIN = 1;
+const MONTH_FIT_MAX = 3;
+
+/**
+ * Padding a cell gives back when giving it back buys another event row.
+ *
+ * The date band's lower margin and the cell's own foot are BREATHING ROOM, and
+ * breathing room is a luxury a cramped cell cannot afford. On a short window a
+ * cell floors near 99px, where the roomy layout fits two rows with 11px going
+ * spare - one event and "4 more", with visible air underneath. Trimming these
+ * two paddings frees 16px, which is a whole row, so the same cell shows three
+ * events instead.
+ *
+ * Applied as a class on `.mbody` and taken back out as soon as the card is tall
+ * enough to be generous again. Keep the CSS and these numbers in step: the
+ * arithmetic in `_measureMonth` assumes trimming saves exactly this much.
+ */
+const MONTH_TRIM_FOOT = 8;
+const MONTH_TRIM_DATE = 8;
+const MONTH_TRIM_PX = MONTH_TRIM_FOOT + MONTH_TRIM_DATE;
+
+/**
+ * Row metrics for the first paint, before there is a cell to measure. Only ever
+ * used for one frame; everything after is measured.
+ */
+const MONTH_DATE_H_GUESS = 33;
+const MONTH_ROW_H_GUESS = 18;
+
+/** The day panel's width, and the room it needs below before it must move up. */
+const DAY_PEEK_W = 268;
+/** How close the day panel may come to a window edge. */
+const DAY_PEEK_EDGE = 8;
 
 /** Round minutes down onto the snap grid. Where you pressed is where it starts. */
 function snapMinutes(minutes: number): number {
@@ -335,27 +447,31 @@ const PANEL_PAD = 18;
  */
 const TOGGLE_ICONS: Record<
   ModeToggleIcons,
-  { focused: string; full: string; fixed: string; adaptive: string }
+  { focused: string; full: string; monthly: string; fixed: string; adaptive: string }
 > = {
   crop: {
+    monthly: 'mdi:calendar-month',
     focused: 'mdi:crop',
     full: 'mdi:crop-free',
     fixed: 'mdi:pan-horizontal',
     adaptive: 'mdi:fit-to-screen-outline',
   },
   timeline: {
+    monthly: 'mdi:calendar-month',
     focused: 'mdi:timeline-clock-outline',
     full: 'mdi:timeline-outline',
     fixed: 'mdi:pan-horizontal',
     adaptive: 'mdi:overscan',
   },
   calendar: {
+    monthly: 'mdi:calendar-month',
     focused: 'mdi:calendar-range',
     full: 'mdi:calendar-expand-horizontal',
     fixed: 'mdi:pan-horizontal',
     adaptive: 'mdi:fit-to-screen-outline',
   },
   arrows: {
+    monthly: 'mdi:calendar-month',
     focused: 'mdi:arrow-collapse-horizontal',
     full: 'mdi:arrow-expand-horizontal',
     fixed: 'mdi:pan-horizontal',
@@ -398,6 +514,16 @@ const RUBBER_SOFT_PX = 190;
 
 /** How long to keep asking before giving up and closing anyway. */
 const WRITE_SETTLE_MAX_MS = 6000;
+/**
+ * A colour needs longer, because it travels a longer chain.
+ *
+ * An event change is Google -> Home Assistant -> a push the card is already
+ * subscribed to. A colour change is Google -> Home Assistant's store -> the
+ * pyscript helper's next run -> a JSON file -> a fetch. Measured end to end
+ * after clearing one: about six seconds, which is exactly where the shared
+ * ceiling sat, so whether the form waited long enough was a coin toss.
+ */
+const WRITE_SETTLE_COLOUR_MS = 15000;
 /** Gap between re-fetches. Google is not always immediately consistent. */
 const WRITE_REFETCH_MS = 700;
 /** Gap between looks at what arrived. */
@@ -412,6 +538,8 @@ export class SimpleScheduleCard extends LitElement {
   @state() private _colors: Record<string, string> = {};
   @state() private _eventColors: EventColorMap | null = null;
   @state() private _weekOffset = 0;
+  /** Months from this one, for the month grid. The week offset means nothing there. */
+  @state() private _monthOffset = 0;
   @state() private _now = new Date();
   @state() private _hostWidth = 0;
   @state() private _refreshing = false;
@@ -473,9 +601,48 @@ export class SimpleScheduleCard extends LitElement {
   @state() private _editError: string | null = null;
   /** Delete asks first. Set between the press and the confirmation. */
   @state() private _confirmDelete = false;
+  /**
+   * The day whose full list is open, and where to put the panel.
+   *
+   * Anchored to the cell that was tapped rather than centred: the question it
+   * answers is "what else is on THAT day", so the answer belongs where the eye
+   * already is.
+   */
+  @state() private _dayPeek: { day: Date; left: number; top: number } | null = null;
+  /** Last height handed to the month grid, so it is only rewritten when it moves. */
+  private _monthGridH = 0;
+  /**
+   * Rows that fit in a month cell, measured from the cell rather than declared.
+   * The starting 3 only ever shows on the very first paint, before there is a
+   * cell to measure; see _measureMonthFit.
+   */
+  @state() private _monthFit = 3;
+  /** Cells have given up their breathing room to fit another row. See MONTH_TRIM_PX. */
+  @state() private _monthTight = false;
+  /**
+   * Grid heights proposed since the last real change, to spot the measurement
+   * chasing its own tail rather than converging. See `_measureMonth`. Cleared by
+   * `_resetMonthSettle` on anything that legitimately moves the answer.
+   */
+  private _monthSeen = new Set<number>();
+  /** A measurement is parked until the grid's animation finishes. */
+  private _monthAwaitingAnim = false;
+  /**
+   * The grid shape a good measurement is already held for: `rows|calendar`.
+   *
+   * While this does not match what is being drawn, the grid renders one PROBE
+   * frame - laid out, but hidden and unanimated - so the measurement happens
+   * before the cascade rather than during it. Otherwise the first paint uses a
+   * guessed `_monthFit` and the month visibly reshuffles once the real numbers
+   * arrive: three events per cell, then two and a "5 more", with every cell
+   * changing height. See `_renderMonth`.
+   */
+  @state() private _monthLaidOut = '';
   /** The slot a press-and-hold is claiming: which day, which surface, how to draw it. */
   @state() private _press: { idx: number; kind: 'slot' | 'label'; style: string } | null = null;
   private _pressTimer?: ReturnType<typeof setTimeout>;
+  /** A hold completed on this gesture, so the click closing it is not a tap. */
+  private _pressDid = false;
   private _pressFrom: { x: number; y: number } | null = null;
   /** Which date or time field has its wheel open. One at a time, like iOS. */
   @state() private _openPicker: PickerField = null;
@@ -547,6 +714,9 @@ export class SimpleScheduleCard extends LitElement {
   private _tick?: ReturnType<typeof setInterval>;
   private _spinTimer?: ReturnType<typeof setTimeout>;
   private _hostRo?: ResizeObserver;
+  /** The window `_ensureSubscribed` is waiting to settle on, and its timer. */
+  private _subWanted = '';
+  private _subTimer?: ReturnType<typeof setTimeout>;
   private _colorKey = '';
   private _focusPx = 0;
   private _focusKey = '';
@@ -602,7 +772,32 @@ export class SimpleScheduleCard extends LitElement {
       if (w && w !== this._hostWidth) this._hostWidth = w;
     });
     this._hostRo.observe(this);
+    // The host observer watches WIDTH. A month's row heights come off
+    // window.innerHeight, which a vertical resize changes without the card's
+    // width moving at all - and the measurement no longer rides along on every
+    // hass update, so it needs telling.
+    window.addEventListener('resize', this._onWinResize);
     this._motionQuery.addEventListener('change', this._onMotionChange);
+  }
+
+  private _onWinResize = (): void => {
+    this._resetMonthSettle();
+    // A resize changes the height every cell gets, so the held measurement is
+    // stale even though the shape has not changed: probe again.
+    this._monthLaidOut = '';
+    this._fitDayPeek();
+  };
+
+  /**
+   * Let the grid height be re-derived from scratch.
+   *
+   * Called for the things that genuinely change the answer - a different month
+   * (a different number of rows), a resize, a different calendar or shape. NOT
+   * on a re-render, which is the whole point: between these, a height already
+   * tried is evidence of a cycle rather than of progress.
+   */
+  private _resetMonthSettle(): void {
+    this._monthSeen.clear();
   }
 
   public disconnectedCallback(): void {
@@ -611,8 +806,11 @@ export class SimpleScheduleCard extends LitElement {
     this._tick = undefined;
     if (this._spinTimer) clearTimeout(this._spinTimer);
     this._spinTimer = undefined;
+    if (this._subTimer) clearTimeout(this._subTimer);
+    this._subTimer = undefined;
     this._hostRo?.disconnect();
     this._hostRo = undefined;
+    window.removeEventListener('resize', this._onWinResize);
     this._motionQuery.removeEventListener('change', this._onMotionChange);
     this._setPicker(false);
     this._setMenu(false);
@@ -639,13 +837,23 @@ export class SimpleScheduleCard extends LitElement {
     }
     this._animatePicker();
     this._flipPlay();
+    // NOT on a bare hass update. Home Assistant sets `hass` on every state
+    // change in the house - which on a busy system is many a second - and none
+    // of them move the grid, but both of these read geometry back out of the
+    // DOM and so force a synchronous layout every time they run. Event pushes
+    // arrive as `_revision`, resizes through the listeners above, so nothing
+    // that can actually change the answer is missed.
+    if (changed.size > 1 || !changed.has('hass')) {
+      this._measureMonth();
+      this._fitDayPeek();
+    }
     this._syncLeaflet();
     if (!this.hass || !this._config) return;
     if (this._orientation === 'days-as-rows') {
       this._measureScrollbar();
       this._focusScroller();
     }
-    void this._ensureSubscribed();
+    this._ensureSubscribed();
     void this._ensureColors();
     void this._ensureEventColors();
   }
@@ -656,6 +864,7 @@ export class SimpleScheduleCard extends LitElement {
    * weekend before deciding whether to show it.
    */
   private get _window() {
+    if (this._isMonth) return monthWindow(this._now, this._monthOffset);
     const full = weekWindow(this._now, this._weekOffset, 7);
     const mode = this._config?.days ?? DEFAULTS.days;
     let count = 5;
@@ -687,15 +896,49 @@ export class SimpleScheduleCard extends LitElement {
    * range, so the wider window never widens what is drawn.
    */
   private get _subWindow() {
+    if (this._isMonth) {
+      // A month either side, for the same reason the week grid fetches three:
+      // paging must never land on a grid nothing has been fetched for.
+      return {
+        start: monthWindow(this._now, this._monthOffset - 1).start,
+        end: monthWindow(this._now, this._monthOffset + 1).end,
+      };
+    }
     return {
       start: weekWindow(this._now, this._weekOffset - 1, 7).start,
       end: weekWindow(this._now, this._weekOffset + 1, 7).end,
     };
   }
 
-  private async _ensureSubscribed(): Promise<void> {
+  /**
+   * Subscribe to the window on screen - but not to every window passed through
+   * on the way there.
+   *
+   * Each subscription asks Home Assistant to expand THREE MONTHS of recurrences
+   * for every calendar and push the lot back. Stepping the month ten times in
+   * quick succession fired ten rounds of that, nine of them for windows already
+   * gone by, and the work is done on the event loop that also serves the
+   * websocket - so the frontend stops being fed while the backend grinds through
+   * expansions nobody is waiting for any more.
+   *
+   * So a window CHANGE waits for the paging to settle, and only the window
+   * actually landed on is ever asked for. A steady window still calls straight
+   * through, where `sync` no-ops unless the subscription is genuinely missing.
+   */
+  private _ensureSubscribed(): void {
     const w = this._subWindow;
-    await this._subs.sync(this.hass, this._entityIds, w.start, w.end);
+    const key = `${this._entityIds.join(',')}|${w.start.getTime()}|${w.end.getTime()}`;
+    if (key !== this._subWanted) {
+      this._subWanted = key;
+      if (this._subTimer) clearTimeout(this._subTimer);
+      this._subTimer = setTimeout(() => {
+        this._subTimer = undefined;
+        const now = this._subWindow;
+        void this._subs.sync(this.hass, this._entityIds, now.start, now.end);
+      }, SUB_SETTLE_MS);
+      return;
+    }
+    if (!this._subTimer) void this._subs.sync(this.hass, this._entityIds, w.start, w.end);
   }
 
   /**
@@ -731,6 +974,17 @@ export class SimpleScheduleCard extends LitElement {
   private get _receded(): boolean {
     // _draft on its own means a NEW event, which has no _selected behind it.
     return this._pickerOpen || this._menuOpen || !!this._selected || !!this._draft;
+  }
+
+  /**
+   * Just the sheet — NOT the picker or the tools menu.
+   *
+   * The header recedes with everything else when a sheet opens, but those two
+   * menus live INSIDE the header: dimming it for them would dim the very menu
+   * that was just opened.
+   */
+  private get _sheetOpen(): boolean {
+    return !!this._selected || !!this._draft;
   }
 
   /** Close the detail sheet, replaying the entry cascade as the menu does. */
@@ -832,6 +1086,7 @@ export class SimpleScheduleCard extends LitElement {
     }
     const from = splitLocal(ev.start);
     const to = splitLocal(ev.end);
+    const parsedRule = this._namedDays(parseRRule(this._seriesRule(ev)), ev.start);
     this._draft = {
       key: ev.key,
       entity: ev.entity,
@@ -847,10 +1102,13 @@ export class SimpleScheduleCard extends LitElement {
       description: ev.description ?? '',
       allDay: ev.allDay,
       colorId: this._colorIdFor(ev),
-      // Not offered when editing: changing a rule on a live series is a
-      // different operation from setting one, with the scope question tangled
-      // into it. The form hides the row rather than showing one that lies.
-      repeat: null,
+      colorIdWas: this._colorIdFor(ev),
+      // The series' own rule, read back out of what Home Assistant sent. A rule
+      // this card cannot state in words comes back null, and canRepeat then
+      // hides the row entirely rather than offering to overwrite it.
+      repeat: parsedRule,
+      repeatWas: parsedRule,
+      canRepeat: !this._seriesRule(ev) || !!parsedRule,
     };
     this._openPicker = null;
     this._pickerClosing = null;
@@ -859,6 +1117,9 @@ export class SimpleScheduleCard extends LitElement {
     // form is short for the common case without ever hiding real content.
     this._detailsOpen = !!(ev.location || ev.description);
     this._colorOpen = false;
+    // Reset like the creator does: the fold's state used to leak from whichever
+    // event was opened last, so a tap on a second event found it already open.
+    this._repeatOpen = false;
     this._places = [];
     this._mapOpen = false;
     this._mapPoint = null;
@@ -903,7 +1164,10 @@ export class SimpleScheduleCard extends LitElement {
       description: '',
       allDay: false,
       colorId: '',
+      colorIdWas: '',
       repeat: null,
+      repeatWas: null,
+      canRepeat: true,
     };
     this._openPicker = null;
     this._pickerClosing = null;
@@ -918,6 +1182,357 @@ export class SimpleScheduleCard extends LitElement {
     this._scope = 'instance';
     this._editError = null;
     this._confirmDelete = false;
+  }
+
+  /**
+   * Size the month grid, and work out how much of a day each cell can show.
+   *
+   * One pass, because the two answers are the same arithmetic: a cell's height
+   * decides how many events fit, and how many events fit decides the heights
+   * worth clamping to. Splitting them meant measuring the same four numbers
+   * twice and letting them disagree.
+   *
+   * The card is as tall as its contents, so CSS alone cannot make the rows fill
+   * "the rest of the card" - there is no rest, the rows ARE the card. The height
+   * is measured from the grid's own top to the bottom of the window and handed
+   * back as a custom property, which the rows then share.
+   *
+   * That share is CLAMPED, in events rather than pixels: a cell never shrinks
+   * below one event, and never grows past MONTH_FIT_MAX of them. Filling the
+   * window and capping the cell are in genuine tension - a four-week month on a
+   * tall screen hits the cap and leaves space under the grid - and the cap wins,
+   * because a month cell that grows without limit stops being a summary.
+   *
+   * Every pixel but MONTH_BREATHE_PX is MEASURED off the rendered cell - the
+   * date line, an event row, the gap, the padding - so changing a font size in
+   * the CSS cannot silently start clipping. An event row is measured from a real
+   * one where the month has any, and guessed where it has none, which only
+   * matters for a month with nothing to fit.
+   *
+   * Writes reactive state, so a new month measures on one paint and draws on the
+   * next. Both writes are guarded on the value actually CHANGING; without that
+   * the second render would measure and schedule a third, forever.
+   */
+  private _measureMonth(): void {
+    const body = this.renderRoot?.querySelector('.mbody') as HTMLElement | null;
+    if (!body) {
+      this._monthGridH = 0;
+      return;
+    }
+    /** The shape being drawn — see `_monthLaidOut`. */
+    const shape = `${Math.ceil(body.children.length / 7)}|${this._active?.entity ?? ''}`;
+    /** Nothing to measure: show it rather than leaving the probe frame up for ever. */
+    const giveUp = () => {
+      if (this._monthLaidOut !== shape) this._monthLaidOut = shape;
+    };
+    const cell = body.querySelector('.mcell') as HTMLElement | null;
+    if (!cell) {
+      giveUp();
+      return;
+    }
+
+    /*
+     * NEVER measure through an animation.
+     *
+     * The cascade scales each cell as it arrives, and getBoundingClientRect
+     * reports the TRANSFORMED box - so mid-flight a 33.5px date band measures
+     * 31.8 and an 18.3px row measures 17.3. Every frame then yields a different
+     * `fit`, every `fit` is a re-render, and three taps on the arrow chain the
+     * animations so it never stands still: a tab that spins until the cascade
+     * happens to finish, which on a loaded machine is never.
+     *
+     * Deferring to `finished` rather than reading offsetHeight because the
+     * fitting needs the subpixel truth - rounding a row to 18 where it is 18.3
+     * puts four of them in a cell that holds three and a bit.
+     */
+    const running = body
+      .getAnimations?.({ subtree: true })
+      .filter((a) => a.playState === 'running');
+    if (running?.length) {
+      if (!this._monthAwaitingAnim) {
+        this._monthAwaitingAnim = true;
+        void Promise.allSettled(running.map((a) => a.finished)).then(() => {
+          this._monthAwaitingAnim = false;
+          this._measureMonth();
+          this._fitDayPeek();
+        });
+      }
+      return;
+    }
+
+    const cs = getComputedStyle(cell);
+    const padT = parseFloat(cs.paddingTop) || 0;
+    const padB = parseFloat(cs.paddingBottom) || 0;
+    // The cell is border-box and carries a 1px rule, so its height is a pixel
+    // more than its padding and content. Leaving that out cost exactly one
+    // pixel, which was invisible until the date grew and then clipped 20 of 35
+    // cells at once.
+    const borderY =
+      (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    const gap = parseFloat(cs.rowGap) || 0;
+    const dateH =
+      (cell.querySelector('.mdate') as HTMLElement | null)?.getBoundingClientRect().height ||
+      MONTH_DATE_H_GUESS;
+    const rowH =
+      (body.querySelector('.mev, .mmore') as HTMLElement | null)?.getBoundingClientRect().height ||
+      MONTH_ROW_H_GUESS;
+    if (rowH < 1 || dateH < 1) {
+      giveUp();
+      return;
+    }
+
+    /**
+     * Everything in a cell that is not an event row, as the ROOMY layout.
+     *
+     * Normalised: padB and dateH were measured through whatever the last frame
+     * decided, so the trim is added back before anything reasons about it.
+     * Without that the two layouts each look correct from inside the other and
+     * the grid flips between them every frame.
+     */
+    const overhead = borderY + padT + padB + dateH + gap + (this._monthTight ? MONTH_TRIM_PX : 0);
+
+    /**
+     * The height of a cell holding exactly n event rows.
+     *
+     * CEILED. The parts are subpixel - a row is 18.3px - and a cap that lands
+     * a fraction under what three rows need is a cap that clips all three.
+     */
+    const heightFor = (n: number) => Math.ceil(overhead + n * rowH + (n - 1) * gap);
+    // +1: the "N more" line is a row of its own, and a cell sized for exactly
+    // three events has no room to admit there is a fourth.
+    const minH = heightFor(MONTH_FIT_MIN + 1);
+    const maxH = heightFor(MONTH_FIT_MAX + 1);
+
+    const rows = Math.max(1, Math.ceil(body.children.length / 7));
+    // A little air at the bottom so the last row is not flush with the edge.
+    const room = window.innerHeight - body.getBoundingClientRect().top - MONTH_BOTTOM_GAP;
+    // A whole number of px per cell, so the grid is an exact multiple and the
+    // height each cell actually gets back is the height this reasoned about.
+    const cellH = Math.floor(Math.min(maxH, Math.max(minH, room / rows)));
+
+    let next = cellH * rows;
+    /*
+     * This measurement FEEDS ITSELF: `room` comes off the body's position in the
+     * window, and the body moves when the grid's own height changes - the card
+     * sits in a popup that reflows around it. Observed settling from one paging
+     * burst: 635 - 610 - 488 - 625 - 615 - 625 - 635. It is negative feedback so
+     * it usually converges, but 488 is a two-row cell where 635 is a four-row
+     * one, and a height that keeps landing on a different `fit` re-renders the
+     * card, which measures again, for ever - a frozen tab with no network
+     * traffic at all to explain it.
+     *
+     * So every height proposed since the last real change is remembered. Meeting
+     * one again means a cycle rather than a convergence, and the smallest of
+     * them is taken: the grid is then a little shorter than the ideal, which is
+     * always safe, and never the 488 that would have changed what fits.
+     */
+    let heightMoved = false;
+    if (Math.abs(next - this._monthGridH) >= rows) {
+      if (this._monthSeen.has(next)) {
+        next = Math.min(...this._monthSeen, next);
+      }
+      this._monthSeen.add(next);
+      if (this._monthSeen.size > MONTH_SETTLE_TRIES) next = Math.min(...this._monthSeen);
+      if (next !== this._monthGridH) {
+        this._monthGridH = next;
+        body.style.setProperty('--mgrid-h', `${next}px`);
+        heightMoved = true;
+      }
+    }
+
+    // Off the height the grid IS, not the one just computed: the guard above can
+    // leave the two a pixel apart, and the events are laid out in the real one.
+    const actual = (this._monthGridH || next) / rows;
+    /** Rows that fit under a given overhead. n rows cost n*rowH + (n-1) gaps. */
+    const rowsUnder = (over: number) =>
+      Math.min(
+        MONTH_FIT_MAX + 1,
+        Math.max(MONTH_FIT_MIN + 1, Math.floor((actual - over + gap) / (rowH + gap))),
+      );
+
+    // Trim only when trimming actually buys a row. Giving up the breathing room
+    // for nothing would be a worse cell, not a fuller one.
+    const roomy = rowsUnder(overhead);
+    const trimmed = rowsUnder(overhead - MONTH_TRIM_PX);
+    const tight = trimmed > roomy;
+    const fit = tight ? trimmed : roomy;
+
+    const fitMoved = fit !== this._monthFit;
+    const tightMoved = tight !== this._monthTight;
+    if (tightMoved) this._monthTight = tight;
+    if (fitMoved) this._monthFit = fit;
+
+    /*
+     * Reveal only once a pass changes NOTHING.
+     *
+     * Revealing after a single measurement was not enough: stepping from a five
+     * row month to a six row one measures against the height the old shape left
+     * behind, so the first answer can be a row out - and the correction then
+     * happens in front of you, a cell dropping from two events to one and back.
+     * A pass that moves nothing is the only evidence the numbers agree with the
+     * DOM they were taken from.
+     *
+     * A height change alone does not re-render - it is a style write - so this
+     * asks for the next pass itself. `_monthSeen` caps how many heights may be
+     * tried, so this terminates.
+     */
+    if (!heightMoved && !fitMoved && !tightMoved) {
+      if (this._monthLaidOut !== shape) this._monthLaidOut = shape;
+    } else if (this._monthLaidOut !== shape && !fitMoved && !tightMoved) {
+      this.requestUpdate();
+    }
+  }
+
+  /**
+   * A tap anywhere in a month cell opens that DAY, never one event.
+   *
+   * The rows inside a cell are not links to their events: a month cell is a
+   * summary, the names in it are truncated, and three of seven of them is not a
+   * list you pick from. So the whole cell - the number, an event row, the
+   * "N more" line, the empty space beside them - is one target, and the day
+   * panel is where an event is actually chosen. That panel's rows still open the
+   * detail sheet, so nothing is lost; it just takes the one honest route.
+   *
+   * Empty days open too, deliberately. "Nothing on this day" is an answer, and a
+   * cell that sometimes responds to a tap and sometimes does not is worse.
+   */
+  private _onMonthCellClick(e: Event, day: Date): void {
+    // The press-and-hold that just made an event also ends in a click. Opening
+    // the day on top of the creator would bury the form the hold just opened.
+    if (this._pressDid) return;
+    this._openDayPeek(day, e.currentTarget as HTMLElement);
+  }
+
+  /**
+   * Open the day panel, positioned over the grid near the cell that asked.
+   *
+   * Coordinates are worked out against the GRID, not the viewport, so the panel
+   * travels with the card if the dashboard scrolls under it.
+   *
+   * This only ANCHORS it - centred over the cell, roughly. Keeping it on screen
+   * is `_fitDayPeek`'s job, once the panel exists and its height is a fact
+   * rather than a guess.
+   */
+  private _openDayPeek(day: Date, from: HTMLElement): void {
+    const grid = this.renderRoot?.querySelector('.mgrid') as HTMLElement | null;
+    const cell = from.closest('.mcell') as HTMLElement | null;
+    if (!grid || !cell) return;
+    const g = grid.getBoundingClientRect();
+    const c = cell.getBoundingClientRect();
+    const left = c.left - g.left + c.width / 2 - DAY_PEEK_W / 2;
+    const top = c.top - g.top - 8;
+    this._dayPeek = { day, left: Math.round(left), top: Math.round(top) };
+  }
+
+  /**
+   * Pull the day panel back on screen.
+   *
+   * It has to run AFTER the panel renders, because its height depends on how
+   * many events the day holds, and a cell in the bottom row of a busy month
+   * opened a panel that ran off the bottom of the window - events you could
+   * neither see nor reach. The old code clamped against DAY_PEEK_MIN_H, a
+   * guess, and a seven-event panel is nearly twice that.
+   *
+   * Measured with offsetWidth/offsetHeight rather than getBoundingClientRect,
+   * because the entry animation scales the panel from 0.9 and a transformed rect
+   * would have it correcting against a size it is about to stop being.
+   *
+   * Clamped against the CARD, intersected with the window - not the window
+   * alone. A panel pinned 8px from the left edge of the SCREEN still sits under
+   * Home Assistant's sidebar and is just as unreadable; the same at the right
+   * hung ten pixels past the card. What is visible is the card.
+   */
+  private _fitDayPeek(): void {
+    const peek = this._dayPeek;
+    if (!peek) return;
+    const el = this.renderRoot?.querySelector('.daypeek') as HTMLElement | null;
+    const grid = this.renderRoot?.querySelector('.mgrid') as HTMLElement | null;
+    if (!el || !grid) return;
+    const g = grid.getBoundingClientRect();
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (!w || !h) return;
+
+    // Where the panel sits in the window right now, untransformed.
+    const x = g.left + peek.left;
+    const y = g.top + peek.top;
+    // The visible area: the card, clipped to the window in case the card itself
+    // runs off it.
+    const card = this.getBoundingClientRect();
+    const minX = Math.max(DAY_PEEK_EDGE, card.left + DAY_PEEK_EDGE);
+    const maxX = Math.min(window.innerWidth - DAY_PEEK_EDGE, card.right - DAY_PEEK_EDGE) - w;
+    const minY = Math.max(DAY_PEEK_EDGE, card.top + DAY_PEEK_EDGE);
+    const maxY = Math.min(window.innerHeight - DAY_PEEK_EDGE, card.bottom - DAY_PEEK_EDGE) - h;
+    // Math.max last, so a panel bigger than the space still starts at the near
+    // edge rather than being pushed off it to honour the far margin.
+    const wantX = Math.max(minX, Math.min(x, maxX));
+    const wantY = Math.max(minY, Math.min(y, maxY));
+
+    const left = Math.round(peek.left + (wantX - x));
+    const top = Math.round(peek.top + (wantY - y));
+    // Guarded, or the re-render this causes would measure and move again for ever.
+    if (left === peek.left && top === peek.top) return;
+    this._dayPeek = { ...peek, left, top };
+  }
+
+  private _closeDayPeek(): void {
+    if (this._dayPeek) this._dayPeek = null;
+  }
+
+  /**
+   * Everything on one day, which is what the cell could not fit.
+   *
+   * Shows the END time as well as the start — the one place this deliberately
+   * does more than Google's own version of this panel, because "4am" says
+   * nothing useful about a collection that runs until 10.
+   */
+  private _renderDayPeek(all: ScheduleEvent[]): TemplateResult | typeof nothing {
+    const peek = this._dayPeek;
+    if (!peek) return nothing;
+    const evs = eventsForDay(all, peek.day).sort((a, b) => a.start.getTime() - b.start.getTime());
+    return html`
+      <div class="peek-scrim" @click=${() => this._closeDayPeek()}></div>
+      <div
+        class="daypeek"
+        style="left:${peek.left}px; top:${peek.top}px; width:${DAY_PEEK_W}px"
+        @click=${(e: Event) => e.stopPropagation()}
+      >
+        <div class="dp-title ${sameDay(peek.day, this._now) ? 'today' : ''}">
+          <div class="dp-head">
+            <span class="dp-dow">${this._fmtDowLong(peek.day)},</span>
+            <button class="dp-close" aria-label="Close" @click=${() => this._closeDayPeek()}>
+              <ha-icon icon="mdi:close"></ha-icon>
+            </button>
+          </div>
+          <div class="dp-date">${this._fmtDate(peek.day)}</div>
+        </div>
+        <div class="dp-list">
+          ${evs.map(
+            (ev) => html`
+              <button
+                class="dp-row"
+                @click=${() => {
+                  // The panel STAYS. Closing it here meant every event you
+                  // looked at dropped you back to the month grid, and picking a
+                  // second one from the same day meant finding the cell and
+                  // reopening it. It sits behind the sheet, receding with the
+                  // grid, and is waiting when the sheet closes.
+                  this._pickEvent(ev);
+                }}
+              >
+                <span class="mdot" style="background:${this._colorForEvent(ev)}"></span>
+                <span class="dp-when">
+                  ${ev.allDay
+                    ? 'all day'
+                    : `${this._fmtTime(ev.start)} – ${this._fmtTime(ev.end)}`}
+                </span>
+                <span class="dp-name">${ev.summary}</span>
+              </button>
+            `,
+          )}
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -954,6 +1569,9 @@ export class SimpleScheduleCard extends LitElement {
    */
   private _pressStart(e: PointerEvent, day: Date, idx: number, geom: PressGeom): void {
     this._pressCancel();
+    // Cleared on every pointerdown, set only when a hold actually completes, so
+    // the click that follows a hold can tell itself apart from a plain tap.
+    this._pressDid = false;
     if (!this._editMode || this._draft) return;
     // Right and middle buttons are not a press; touch and pen report button 0.
     if (e.button !== 0) return;
@@ -989,6 +1607,7 @@ export class SimpleScheduleCard extends LitElement {
     this._pressTimer = setTimeout(() => {
       this._pressTimer = undefined;
       this._press = null;
+      this._pressDid = true;
       this._pressCancel();
       this._openCreator(at, minutes);
     }, PRESS_MS);
@@ -1226,7 +1845,8 @@ export class SimpleScheduleCard extends LitElement {
     // returns, so the push has often already landed by the time the write
     // resolves — and a fingerprint that already holds the answer never changes,
     // so this waited out the whole timeout on every save. Measured at 7s.
-    const deadline = Date.now() + WRITE_SETTLE_MAX_MS;
+    const deadline =
+      Date.now() + (colourChanged ? WRITE_SETTLE_COLOUR_MS : WRITE_SETTLE_MAX_MS);
     let nextFetch = 0;
     while (Date.now() < deadline) {
       if (Date.now() >= nextFetch) {
@@ -1321,8 +1941,7 @@ export class SimpleScheduleCard extends LitElement {
 
   /** Whether this save moves the colour, which needs the helper to re-run. */
   private _colourMoved(draft: EventDraft): boolean {
-    const was = this._selected ? this._colorIdFor(this._selected) : '';
-    return draft.colorId !== was;
+    return draft.colorId !== draft.colorIdWas;
   }
 
   private async _saveDraft(): Promise<void> {
@@ -1353,10 +1972,15 @@ export class SimpleScheduleCard extends LitElement {
       all_day: draft.allDay,
       location: draft.location,
       description: draft.description,
-      // Omitted entirely when unset: sending an empty colour is not the same as
-      // not mentioning it, and only one of those leaves the calendar's own
-      // colour alone.
-      ...(draft.colorId ? { color_id: draft.colorId } : {}),
+      // Sent ONLY when it moved — the same rule as the rrule, and for a
+      // sharper reason than tidiness. The form SHOWS the colour an occurrence
+      // inherits from its series, so re-sending it on a save that only touched
+      // the title would pin that inherited colour onto the occurrence as its
+      // own: nothing looks different, and then recolouring the series leaves
+      // that one behind. An empty string is a deliberate CLEAR, which the
+      // service turns into the null that removes the field; omitting it
+      // entirely is "leave the colour alone".
+      ...(this._colourMoved(draft) ? { color_id: draft.colorId } : {}),
     };
     // Taken BEFORE the write — see _settleAfterWrite.
     const before = this._viewFingerprint();
@@ -1373,6 +1997,14 @@ export class SimpleScheduleCard extends LitElement {
             ...fields,
             event_id: draft.eventId,
             scope: this._sendScope,
+            // Sent ONLY when the rule actually moved. The service reads a
+            // present rrule as "set the recurrence" and an empty string as
+            // "clear it" — so sending the unchanged rule on every save would
+            // rewrite the series for a change of title, and sending nothing
+            // when it HAS moved would silently drop the edit.
+            ...(this._repeatMoved
+              ? { rrule: draft.repeat ? toRRule(draft.repeat, draft.allDay) : '' }
+              : {}),
           });
       // The write has landed, but the week has not caught up with it yet. The
       // button goes on saying so until it has.
@@ -1488,7 +2120,34 @@ export class SimpleScheduleCard extends LitElement {
 
   /** The active calendar's mode, override first, then config, then default. */
   private get _calendarMode(): CalendarMode {
-    return this._active?.calendar_mode === 'full' ? 'full' : 'focused';
+    const mode = this._active?.calendar_mode;
+    if (mode === 'full' || mode === 'monthly') return mode;
+    return 'focused';
+  }
+
+  /** A month grid is its own layout, so almost every week-shaped rule bows out. */
+  private get _isMonth(): boolean {
+    return this._calendarMode === 'monthly' && this._mode === 'grid';
+  }
+
+  /**
+   * How far from today the view is, in whatever unit it steps.
+   *
+   * The "today" button greys itself out on this. Reading `_weekOffset` alone
+   * left it permanently grey in a month, where that offset never moves.
+   */
+  private get _navOffset(): number {
+    return this._isMonth ? this._monthOffset : this._weekOffset;
+  }
+
+
+  /** Per calendar, falling back to the card's own setting. See the type. */
+  private get _monthShowTimes(): boolean {
+    return (
+      this._active?.month_mode_show_times ??
+      this._config?.month_mode_show_times ??
+      DEFAULTS.month_mode_show_times
+    );
   }
 
   private get _widthMode(): ViewWidthMode {
@@ -1505,10 +2164,20 @@ export class SimpleScheduleCard extends LitElement {
   private _toggleMode(key: 'calendar_mode' | 'view_width_mode'): void {
     const src = this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
     if (!src) return;
+    this._resetMonthSettle();
     const cur = this._active;
     const next =
       key === 'calendar_mode'
-        ? { calendar_mode: (cur.calendar_mode === 'full' ? 'focused' : 'full') as CalendarMode }
+        ? {
+            // focused -> full -> monthly -> focused. The first two are zoom
+            // levels on a time axis; the third is a different shape entirely,
+            // and it sits last so the two that are alike stay adjacent.
+            calendar_mode: (cur.calendar_mode === 'focused'
+              ? 'full'
+              : cur.calendar_mode === 'full'
+                ? 'monthly'
+                : 'focused') as CalendarMode,
+          }
         : {
             view_width_mode: (cur.view_width_mode === 'adaptive'
               ? 'fixed'
@@ -1563,8 +2232,10 @@ export class SimpleScheduleCard extends LitElement {
   };
 
   private _selectCalendar(idx: number): void {
+    this._closeDayPeek();
     this._setPicker(false);
     if (idx === this._activeIdx) return;
+    this._resetMonthSettle();
     // Same move the week arrows use, direction taken from where the calendar
     // sits in the list, so the motion says which way you moved.
     const dir = idx > this._activeIdx ? 'fwd' : 'back';
@@ -1573,17 +2244,24 @@ export class SimpleScheduleCard extends LitElement {
     });
   }
 
+  /** The arrows step whatever the card is showing: a week, or a month. */
   private _goWeek(delta: number): void {
+    this._closeDayPeek();
+    this._resetMonthSettle();
     this._navigate(delta > 0 ? 'fwd' : 'back', () => {
-      this._weekOffset += delta;
+      if (this._isMonth) this._monthOffset += delta;
+      else this._weekOffset += delta;
     });
   }
 
   private _goToday(): void {
-    if (this._weekOffset === 0) return;
-    const dir = this._weekOffset > 0 ? 'back' : 'fwd';
+    const offset = this._navOffset;
+    if (offset === 0) return;
+    const dir = offset > 0 ? 'back' : 'fwd';
+    this._resetMonthSettle();
     this._navigate(dir, () => {
-      this._weekOffset = 0;
+      if (this._isMonth) this._monthOffset = 0;
+      else this._weekOffset = 0;
     });
   }
 
@@ -1812,6 +2490,7 @@ export class SimpleScheduleCard extends LitElement {
    * months, then years once the month count would reach twelve.
    */
   private get _weekLabel(): string {
+    if (this._isMonth) return this._monthLabel;
     const offset = this._weekOffset;
     if (offset === 0) return 'This Week';
     const ahead = offset > 0;
@@ -1827,6 +2506,29 @@ export class SimpleScheduleCard extends LitElement {
         count = Math.round(weeks / WEEKS_PER_YEAR);
         unit = 'Year';
       }
+    }
+    const amount = `${count} ${unit}${count === 1 ? '' : 's'}`;
+    return ahead ? `In ${amount}` : `${amount} Ago`;
+  }
+
+  /**
+   * The same sentence as the week pill, counted in months.
+   *
+   * Exact rather than derived from weeks: a month grid is paged a month at a
+   * time, so "In 2 Months" is a fact here rather than the rounding the week
+   * pill has to do.
+   */
+  private get _monthLabel(): string {
+    const offset = this._monthOffset;
+    if (offset === 0) return 'This Month';
+    const ahead = offset > 0;
+    const months = Math.abs(offset);
+    if (months === 1) return ahead ? 'Next Month' : 'Last Month';
+    let count = months;
+    let unit = 'Month';
+    if (months >= 12) {
+      count = Math.round(months / 12);
+      unit = 'Year';
     }
     const amount = `${count} ${unit}${count === 1 ? '' : 's'}`;
     return ahead ? `In ${amount}` : `${amount} Ago`;
@@ -1905,9 +2607,23 @@ export class SimpleScheduleCard extends LitElement {
     const range =
       list || !days.length
         ? ''
-        : `${this._fmtDate(days[0])} – ${this._fmtDate(days[days.length - 1])}`;
+        : this._isMonth
+          ? // The month grid spills into its neighbours by design, so a first-to-
+            // last date range would read "Aug 31 - Oct 11" for September. The
+            // month's own name is the only honest label.
+            monthOf(this._now, this._monthOffset).toLocaleDateString(this._lang, {
+              month: 'long',
+              year: 'numeric',
+            })
+          : `${this._fmtDate(days[0])} – ${this._fmtDate(days[days.length - 1])}`;
+    /** One block, two possible homes — see the centre group below. */
+    const rangeBlock = html`
+      <div class="range dir-${this._navDir}">
+        ${range}<span class="pill">${this._weekLabel}</span>
+      </div>
+    `;
     return html`
-      <div class="head">
+      <div class="head ${this._sheetOpen ? 'dimmed' : ''}">
         <div class="titles">
           ${this._renderPicker()}
           <!-- Both only in edit mode, and both in the same breath: the pill says
@@ -1928,7 +2644,16 @@ export class SimpleScheduleCard extends LitElement {
               `
             : nothing}
         </div>
-        ${this._renderModeToggles()}
+        <!-- MONTH MODE ONLY. There the period is the answer to "which month am
+             I in", it changes under you as you page, and at 15px under the
+             arrows on the right - where you go to CHANGE it rather than to read
+             it - it was the smallest thing in the header. A week grid names its
+             days in every column heading and needs no such sign, so it keeps
+             the range where it has always been. -->
+        <div class="head-centre">
+          ${this._renderModeToggles()}
+          ${this._isMonth ? rangeBlock : nothing}
+        </div>
         <div class="head-right">
           <div class="tools">
           ${failed.length
@@ -1936,24 +2661,30 @@ export class SimpleScheduleCard extends LitElement {
                 <ha-icon icon="mdi:alert-circle-outline"></ha-icon>
               </div>`
             : nothing}
-          <button class="btn" @click=${() => this._goWeek(-1)} aria-label="Previous week">
+          <button
+            class="btn"
+            @click=${() => this._goWeek(-1)}
+            aria-label=${this._isMonth ? 'Previous month' : 'Previous week'}
+          >
             <ha-icon icon="mdi:chevron-left"></ha-icon>
           </button>
           <button
-            class="btn today ${this._weekOffset === 0 ? 'off' : ''}"
+            class="btn today ${this._navOffset === 0 ? 'off' : ''}"
             @click=${() => this._goToday()}
-            aria-label="This week"
+            aria-label=${this._isMonth ? 'This month' : 'This week'}
           >
             <ha-icon icon="mdi:calendar-today"></ha-icon>
           </button>
-          <button class="btn" @click=${() => this._goWeek(1)} aria-label="Next week">
+          <button
+            class="btn"
+            @click=${() => this._goWeek(1)}
+            aria-label=${this._isMonth ? 'Next month' : 'Next week'}
+          >
             <ha-icon icon="mdi:chevron-right"></ha-icon>
           </button>
           ${(cfg.show_refresh ?? DEFAULTS.show_refresh) ? this._renderToolsMenu() : nothing}
           </div>
-          <div class="range dir-${this._navDir}">
-            ${range}<span class="pill">${this._weekLabel}</span>
-          </div>
+          ${this._isMonth ? nothing : rangeBlock}
         </div>
       </div>
     `;
@@ -2026,6 +2757,7 @@ export class SimpleScheduleCard extends LitElement {
     const full = this._calendarMode === 'full';
     const adaptive = this._widthMode === 'adaptive';
     const rows = this._orientation === 'days-as-rows';
+    const month = this._isMonth;
     const ic =
       TOGGLE_ICONS[cfg.mode_toggle_icons ?? DEFAULTS.mode_toggle_icons] ??
       TOGGLE_ICONS[DEFAULTS.mode_toggle_icons];
@@ -2033,22 +2765,32 @@ export class SimpleScheduleCard extends LitElement {
     return html`
       <div class="mode-toggles">
         <button
-          class="btn ${full ? 'on' : ''}"
+          class="btn ${full || month ? 'on' : ''}"
           @click=${() => this._toggleMode('calendar_mode')}
-          title=${full ? 'Whole day - tap to fit the events' : 'Fitted to the events - tap for the whole day'}
-          aria-pressed=${full ? 'true' : 'false'}
+          title=${month
+            ? 'The month - tap to go back to the day'
+            : full
+              ? 'Whole day - tap for the month'
+              : 'Fitted to the events - tap for the whole day'}
           aria-label="Time span"
         >
-          <ha-icon icon=${full ? ic.full : ic.focused}></ha-icon>
+          <ha-icon icon=${month ? ic.monthly : full ? ic.full : ic.focused}></ha-icon>
         </button>
+        <!-- Collapsed rather than dropped when the month grid has no width to
+             set. Removing it would make it vanish and reappear with nothing to
+             animate; collapsing lets it slide out and back in. The element is
+             inert while away so it cannot be tabbed to. -->
         ${rows
           ? html`<button
-              class="btn ${adaptive ? 'on' : ''}"
-              @click=${() => this._toggleMode('view_width_mode')}
+              class="btn width-toggle ${adaptive ? 'on' : ''} ${month ? 'gone' : ''}"
+              tabindex=${month ? '-1' : '0'}
+              aria-hidden=${month ? 'true' : 'false'}
+              @click=${() => {
+                if (!month) this._toggleMode('view_width_mode');
+              }}
               title=${adaptive
                 ? 'Fitted to the card - tap for a fixed scale'
                 : 'Fixed scale, scrolls - tap to fit the card'}
-              aria-pressed=${adaptive ? 'true' : 'false'}
               aria-label="Width"
             >
               <ha-icon icon=${adaptive ? ic.adaptive : ic.fixed}></ha-icon>
@@ -2222,9 +2964,120 @@ export class SimpleScheduleCard extends LitElement {
     all: ScheduleEvent[],
     axis: { start: number; end: number },
   ): TemplateResult {
+    // A month is a shape, not an orientation, so it answers before the axis
+    // renderers get a look in.
+    if (this._isMonth) return this._renderMonth(days, all);
     return this._orientation === 'days-as-rows'
       ? this._renderRowsGrid(days, all, axis)
       : this._renderColumnsGrid(days, all, axis);
+  }
+
+  /**
+   * The month grid: whole weeks of seven, weekday names across the top.
+   *
+   * For calendars whose events are DATES rather than appointments — bin
+   * collections, birthdays, term dates. A time axis for those is mostly empty
+   * space with a few marks in it, which is why this exists as its own shape
+   * rather than as a zoom level on the week grid.
+   *
+   * Seven columns divide the card, so a month never scrolls sideways. That is
+   * the one place this deliberately departs from `view_width_mode: fixed`: a
+   * month you have to scroll to see the end of is not a month.
+   */
+  private _renderMonth(days: Date[], all: ScheduleEvent[]): TemplateResult {
+    const fit = this._monthFit;
+    const showTimes = this._monthShowTimes;
+    const subject = monthOf(this._now, this._monthOffset).getMonth();
+
+    // The week grids name a day in full - "Monday" - and this header is the
+    // month's version of that label, so it says the same word in the same face.
+    // The cells underneath carry bare numbers, which is why the day identity has
+    // to live up here and be legible from across a room.
+    const dows: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      // 2024-01-01 was a Monday, which is where this card's weeks start.
+      // No comma, unlike .rday's label: there a date follows it, here nothing
+      // does, and a comma pointing at nothing reads as a typo.
+      dows.push(this._fmtDowLong(new Date(2024, 0, 1 + i)));
+    }
+
+    // Which column today sits in - and -1 when today is not on show at all, so
+    // paging to a distant month does not leave a weekday lit for no reason.
+    // Derived from the drawn days rather than from getDay(), which keeps it
+    // honest about the Monday-first column order.
+    const todayCol = days.findIndex((d) => sameDay(d, this._now)) % 7;
+
+    return html`
+      <div
+        class="mgrid dir-${this._navDir} ${this._receded ? 'dimmed' : ''} ${this._editMode
+          ? 'editing'
+          : ''}"
+        @animationend=${() => {
+          this._navDir = 'none';
+        }}
+      >
+        <div class="mhead">
+          ${dows.map(
+            (d, i) => html`<div class="mdow ${i === todayCol ? 'today' : ''}">${d}</div>`,
+          )}
+        </div>
+        <div
+          class="mbody ${this._monthTight ? 'tight' : ''} ${`${days.length / 7}|${
+            this._active?.entity ?? ''
+          }` !== this._monthLaidOut
+            ? 'probing'
+            : ''}"
+        >
+          ${days.map((day, i) => {
+            const evs = eventsForDay(all, day).sort(
+              (a, b) => a.start.getTime() - b.start.getTime(),
+            );
+            // Two ceilings at once: the rows that physically fit, and
+            // MONTH_FIT_MAX events however tall the cell is. And "N more" costs
+            // a row of its own, so an overflowing cell shows one event fewer -
+            // without that the summary line is what falls off the bottom, which
+            // is the one line that must not.
+            const cap = Math.min(fit, MONTH_FIT_MAX);
+            const shown = evs.slice(0, evs.length > cap ? Math.min(fit - 1, cap) : cap);
+            const hidden = evs.length - shown.length;
+            const outside = day.getMonth() !== subject;
+            // By ROW, so the month arrives a week at a time rather than as
+            // forty-two separate arrivals.
+            const delay = Math.floor(i / 7) * STAGGER_MS;
+            return html`
+              <div
+                class="mcell ${outside ? 'out' : ''} ${sameDay(day, this._now) ? 'today' : ''}"
+                style="animation-name:${this._evAnim}; animation-delay:${delay}ms"
+                @pointerdown=${(e: PointerEvent) =>
+                  this._pressStart(e, day, i, labelPress(this._nowMinutes))}
+                @click=${(e: Event) => this._onMonthCellClick(e, day)}
+                @contextmenu=${(e: Event) => {
+                  if (this._editMode) e.preventDefault();
+                }}
+              >
+                <div class="mdate">${day.getDate()}</div>
+                ${shown.map(
+                  (ev) => html`
+                    <div class="mev">
+                      <span class="mdot" style="background:${this._colorForEvent(ev)}"></span>
+                      ${showTimes && !ev.allDay
+                        ? html`<span class="mtime">${this._fmtTime(ev.start)}</span>`
+                        : nothing}
+                      <span class="mname">${ev.summary}</span>
+                    </div>
+                  `,
+                )}
+                ${hidden > 0 ? html`<div class="mmore">${hidden} more</div>` : nothing}
+                ${this._press?.idx === i && this._press.kind === 'label'
+                  ? html`<div class="press-ghost head" style=${this._press.style}></div>`
+                  : nothing}
+              </div>
+            `;
+          })}
+        </div>
+        ${this._renderDayPeek(all)}
+      </div>
+    `;
   }
 
   /** Days down the left, time across the top — the printed-timetable shape. */
@@ -3255,6 +4108,34 @@ export class SimpleScheduleCard extends LitElement {
       : this._colorFor(d.entity);
   }
 
+  /**
+   * An event's repeat rule in words, or '' when there is nothing to say.
+   *
+   * '' covers three different cases on purpose — a one-off, a rule this card
+   * cannot model, and a malformed one — because the answer on screen is the
+   * same for all three: say nothing rather than something half-true.
+   */
+  private _repeatWords(ev: ScheduleEvent): string {
+    const rule = parseRRule(this._seriesRule(ev));
+    return rule ? describeRepeat(rule, ev.start, this._lang) : '';
+  }
+
+  /**
+   * The repeat rule of the series this event belongs to.
+   *
+   * A singly-modified occurrence is DETACHED from its series, and Home
+   * Assistant sends it with no rule at all — measured, five of thirty-two on a
+   * real school week. The series still has one, and every other occurrence
+   * carries it, so a sibling sharing the uid is asked instead. Without this the
+   * card says "Weekly on Monday" about most of a series and nothing about the
+   * one lesson somebody moved, which reads as that lesson not repeating.
+   */
+  private _seriesRule(ev: ScheduleEvent): string | undefined {
+    if (ev.rrule) return ev.rrule;
+    if (!ev.uid) return undefined;
+    return this._subs.events.find((e) => e.uid === ev.uid && e.rrule)?.rrule;
+  }
+
   /** The draft's start as a Date, which every repeat label is generated from. */
   private get _draftStart(): Date {
     const d = this._draft;
@@ -3283,7 +4164,52 @@ export class SimpleScheduleCard extends LitElement {
 
   private _patchCustom(patch: Partial<Recurrence>): void {
     if (!this._custom) return;
-    this._custom = { ...this._custom, ...patch };
+    // NOT normalised: the working copy remembers the parts a change of unit
+    // does not apply to, so glancing at the monthly options and coming back
+    // does not throw away the weekdays you picked. toRRule and sameRecurrence
+    // both normalise for themselves, so nothing stale can reach Google.
+    this._custom = this._namedDays({ ...this._custom, ...patch }, this._draftStart);
+  }
+
+  /**
+   * A weekly rule always names its days, even when RFC 5545 does not require it.
+   *
+   * FREQ=WEEKLY with no BYDAY means "the day DTSTART falls on", so it is
+   * equivalent to naming that day — but only one of the two survives a trip
+   * through the unit picker, because normalise() clears byDay whenever the
+   * frequency is not weekly. Wandering weeks to months and back therefore
+   * turned BYDAY=MO into nothing, and the form then believed the rule had
+   * changed when the user had put it back exactly as they found it.
+   *
+   * Filling it in at both ends — when the rule is seeded and whenever it is
+   * touched — makes that round trip lossless.
+   */
+  private _namedDays(rule: Recurrence | null, start: Date): Recurrence | null {
+    if (!rule || rule.freq !== 'WEEKLY' || rule.byDay.length) return rule;
+    return { ...rule, byDay: [RFC_DAYS[start.getDay()]] };
+  }
+
+  /**
+   * Whether this edit moves the repeat rule, which is the thing that decides
+   * what scopes are even legal — see _renderEditor.
+   */
+  private get _repeatMoved(): boolean {
+    const d = this._draft;
+    if (!d || d.isNew) return false;
+    return !sameRecurrence(d.repeat, d.repeatWas);
+  }
+
+  /**
+   * Set the repeat rule, moving the scope with it when it has to.
+   *
+   * A repeat rule belongs to the SERIES: Google has no way to give one
+   * occurrence a rule of its own, and a PATCH that tries is rejected. So
+   * changing the rule takes "This event" off the table, and the form moves the
+   * choice to "All events" rather than letting a save fail on it later.
+   */
+  private _setRepeat(rule: Recurrence | null): void {
+    this._patchDraft({ repeat: rule });
+    if (this._repeatMoved && this._scope === 'instance') this._scope = 'series';
   }
 
   /** What the folded Ends row says when it is shut. */
@@ -3317,7 +4243,7 @@ export class SimpleScheduleCard extends LitElement {
       ...repeatPresets(start, this._lang).map((p) => ({
         key: p.key,
         label: p.label,
-        pick: () => this._patchDraft({ repeat: p.rule }),
+        pick: () => this._setRepeat(p.rule),
       })),
       {
         key: 'custom',
@@ -3511,6 +4437,38 @@ export class SimpleScheduleCard extends LitElement {
             </div>
           </div>
 
+          <!-- The one control Google's dialog had that this one did not: a
+               monthly series repeats either on a DATE or on a weekday's
+               position, and the two are different rules. Without it the card
+               could read "the second Monday" but never set or clear it. -->
+          <div class="rec-days ${r.freq === 'MONTHLY' ? 'open' : ''}">
+            <div class="rec-days-in">
+              <div class="ed-head">Repeat on</div>
+              <div class="seg month">
+                <button
+                  class="seg-btn ${r.byPos ? '' : 'on'}"
+                  @click=${() =>
+                    this._patchCustom({ byPos: undefined, byMonthDay: start.getDate() })}
+                >
+                  ${`day ${r.byMonthDay ?? start.getDate()}`}
+                </button>
+                <button
+                  class="seg-btn ${r.byPos ? 'on' : ''}"
+                  @click=${() =>
+                    this._patchCustom({
+                      byMonthDay: undefined,
+                      byPos: { pos: weekdayPosition(start), day: RFC_DAYS[start.getDay()] },
+                    })}
+                >
+                  ${`the ${POS_LABELS[weekdayPosition(start)]} ${new Intl.DateTimeFormat(
+                    this._lang,
+                    { weekday: 'long' },
+                  ).format(start)}`}
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Folded like Location and Colour. Most rules never end, so the
                three rows that say how one does are two taps away rather than a
                third of the window; the summary carries the answer when they
@@ -3625,7 +4583,7 @@ export class SimpleScheduleCard extends LitElement {
    */
   private _closeCustom(apply: boolean): void {
     if (!this._customOpen) return;
-    if (apply) this._patchDraft({ repeat: this._custom });
+    if (apply) this._setRepeat(this._custom);
     this._customOpen = false;
     this._openPicker = null;
     this._pickerClosing = null;
@@ -3920,9 +4878,12 @@ export class SimpleScheduleCard extends LitElement {
                   ${scopes.map(
                     ([value, label]) => html`
                       <button
-                        class="ed-row scope ${this._scope === value ? 'sel' : ''}"
+                        class="ed-row scope ${this._scope === value ? 'sel' : ''} ${
+                          value === 'instance' && this._repeatMoved ? 'off' : ''
+                        }"
                         role="radio"
                         aria-checked=${this._scope === value ? 'true' : 'false'}
+                        ?disabled=${value === 'instance' && this._repeatMoved}
                         @click=${() => {
                           this._scope = value;
                           this._confirmDelete = false;
@@ -3940,7 +4901,12 @@ export class SimpleScheduleCard extends LitElement {
                        string, so Lit builds a NEW element per scope and the
                        entry animation actually re-runs. Swapping the text inside
                        one element changes nothing a CSS animation can see. -->
-                  ${this._scope === 'instance'
+                  ${this._repeatMoved
+                    ? html`<div class="ed-note">
+                        A repeat rule belongs to the whole series, so this change cannot apply to
+                        one occurrence on its own.
+                      </div>`
+                    : this._scope === 'instance'
                     ? html`<div class="ed-note">Only the occurrence you opened changes.</div>`
                     : this._scope === 'future'
                       ? html`<div class="ed-note">
@@ -3957,8 +4923,9 @@ export class SimpleScheduleCard extends LitElement {
                recurrence options: what a change APPLIES TO is the decision with
                consequences, so it comes before the cosmetic ones. Repeat leads
                the three because it is the one that changes how many events
-               exist, and it is offered only when creating - see _openEditor. -->
-          ${d.isNew
+               exist. Hidden only when the event carries a rule this card cannot
+               state in words - see canRepeat. -->
+          ${d.canRepeat
             ? this._renderFold(
                 'Repeat',
                 describeRepeat(d.repeat, this._draftStart, this._lang),
@@ -3973,7 +4940,12 @@ export class SimpleScheduleCard extends LitElement {
             'Colour',
             d.colorId
               ? (GOOGLE_EVENT_COLORS.find(([id]) => id === d.colorId)?.[2] ?? '')
-              : "Calendar's colour",
+              : // NOT "Calendar's colour". Clearing an occurrence's own colour
+                // makes it inherit its SERIES, which may itself be coloured —
+                // measured: a cleared occurrence of a Basil series comes back
+                // Basil, not the calendar's pink. The old label promised
+                // something the card then visibly did not do.
+                'Default',
             this._colorOpen,
             () => {
               this._colorOpen = !this._colorOpen;
@@ -3984,8 +4956,8 @@ export class SimpleScheduleCard extends LitElement {
               <div class="sw-grid">
                 <button
                   class="sw none ${d.colorId === '' ? 'sel' : ''}"
-                  title="The calendar's own colour"
-                  aria-label="The calendar's own colour"
+                  title="No colour of its own - inherits the series or the calendar"
+                  aria-label="No colour of its own - inherits the series or the calendar"
                   @click=${() => this._patchDraft({ colorId: '' })}
                 >
                   ${d.colorId === '' ? html`<ha-icon icon="mdi:check"></ha-icon>` : nothing}
@@ -4130,6 +5102,12 @@ export class SimpleScheduleCard extends LitElement {
           style="--accent:${this._colorForEvent(ev)}"
           @click=${(e: Event) => e.stopPropagation()}
         >
+          <!-- A way out that is not "tap the dark bit". The scrim has always
+               closed this, but nothing said so, and on a tablet an unmarked
+               dismissal is a guess. -->
+          <button class="sh-close" aria-label="Close" @click=${() => this._closeSheet()}>
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
           <div class="sh-name">${ev.summary}</div>
           <div class="sh-time">
             ${ev.allDay
@@ -4142,6 +5120,17 @@ export class SimpleScheduleCard extends LitElement {
             <span class="dot" style="background:${this._colorFor(ev.entity)}"></span>
             ${this._nameFor(ev.entity)}
           </div>
+          <!-- The repeat rule, which Home Assistant has always sent and this
+               card used to throw away. A lesson that looks identical every week
+               and one that happens once are the same block until this says
+               otherwise. Only for a rule the card can state in words: a raw
+               RRULE on screen would be worse than nothing. -->
+          ${this._repeatWords(ev)
+            ? html`<div class="sh-row repeat">
+                <ha-icon icon="mdi:repeat"></ha-icon>
+                <span>${this._repeatWords(ev)}</span>
+              </div>`
+            : nothing}
           ${ev.location ? html`<div class="sh-row">${ev.location}</div>` : nothing}
           ${ev.description ? html`<div class="sh-row">${ev.description}</div>` : nothing}
         </div>
@@ -4215,6 +5204,9 @@ export class SimpleScheduleCard extends LitElement {
      * white panel on the page background and it came out muddy grey.
      */
     :host {
+      /* The card's own inset. Named because the month grid cancels it to reach
+         the card's edges - see .mgrid - and the two must not drift apart. */
+      --ssc-pad: 18px;
       --ssc-font: system-ui, 'SF Pro Display', 'SF Pro Text', Inter, 'Helvetica Neue', Roboto,
         sans-serif;
       --ssc-fg: var(--primary-text-color, #fff);
@@ -4258,7 +5250,7 @@ export class SimpleScheduleCard extends LitElement {
       position: relative;
     }
     .panel {
-      padding: 18px;
+      padding: var(--ssc-pad);
       box-sizing: border-box;
     }
 
@@ -4268,6 +5260,18 @@ export class SimpleScheduleCard extends LitElement {
       align-items: flex-start;
       gap: 12px;
       margin-bottom: 14px;
+      transition:
+        transform 260ms var(--ssc-glide),
+        opacity 260ms var(--ssc-glide);
+    }
+    /* The header goes back with the schedule. It used to stay at full strength
+       while everything under it receded, which made the sheet look like it had
+       opened over half a card. Opacity is safe here where it is not on the day
+       panel: there is nothing behind the header but the card itself. */
+    .head.dimmed {
+      transform: translateY(calc(var(--ssc-dim-lift, 18px) * -0.5));
+      opacity: 0.22;
+      pointer-events: none;
     }
     /* Buttons and the week range share the right-hand column, the range tucked
        under them, so the heading has the whole left side to itself. */
@@ -4282,14 +5286,41 @@ export class SimpleScheduleCard extends LitElement {
        group would sit wherever the title happened to end, and forcing it with
        equal flex bases on the side groups squashes a long calendar name.
        Taken out of flow it lands on the centre line whatever the sides do. */
-    .mode-toggles {
+    /* Centred on the CARD, and the anchor the range hangs off — see below. */
+    .head-centre {
       position: absolute;
       left: 50%;
       top: 0;
       transform: translateX(-50%);
       display: flex;
       align-items: center;
+    }
+    .mode-toggles {
+      display: flex;
+      align-items: center;
       gap: 15px;
+    }
+    /* The period, read rather than operated: big enough to answer "which month
+       is this" from across a room, and beside the shape controls instead of
+       tucked under the arrows that change it.
+       Taken OUT OF FLOW and hung off the LEFT edge of the toggle group, one
+       button plus a gap along - so it sits beside the mode button itself rather
+       than after the whole group. As a flex sibling its width was part of what
+       got centred, so the button slid left and right by a few px every time the
+       month name changed length. Out of flow it contributes nothing, and the
+       button holds its place whatever the text beside it says. */
+    .head-centre .range {
+      position: absolute;
+      left: calc(44px + 16px);
+      margin-top: 0;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.4px;
+      white-space: nowrap;
+    }
+    .head-centre .range .pill {
+      font-size: 15px;
+      padding: 4px 10px;
     }
     /* Narrow chrome. The phone LAYOUT is still undesigned, but the header must
        not visibly break while it waits: the title has to fit, and the week pill
@@ -5339,8 +6370,8 @@ export class SimpleScheduleCard extends LitElement {
       }
       /* text-align, but NOT align-items: center. As a centred flex item the
          name sizes to its CONTENT, so a long one overflowed the block on both
-         sides and you were left reading its middle - "/ MG" out of
-         "ICT / MGeo". Stretched to the block instead, a short name still
+         sides and you were left reading its middle - "/ Geog" out of
+         "ICT / Geography". Stretched to the block instead, a short name still
          centres and a long one clips from the start with an ellipsis, which
          is the half worth keeping. */
       .ev.rev .ev-in {
@@ -5435,6 +6466,47 @@ export class SimpleScheduleCard extends LitElement {
       transition: opacity 240ms var(--ssc-glide);
     }
     .rgrid.dimmed .ev,
+    /* The weekday row goes back with the cells it heads. It was left out, so a
+       sheet opened over a month whose column titles were still at full strength
+       - the one bright row in an otherwise receded grid. */
+    .mgrid.dimmed .mcell,
+    .mgrid.dimmed .mhead {
+      transform: translateY(var(--ssc-dim-lift, 18px)) scale(var(--ssc-dim-scale, 0.94));
+      opacity: 0.1;
+      transition:
+        transform 260ms var(--ssc-glide),
+        opacity 260ms var(--ssc-glide);
+    }
+    /* The day panel recedes WITH the grid it belongs to. It stays open behind
+       the detail sheet, and at full strength it competed - two lists of the
+       same events, one over the other.
+       Its CONTENTS fade; its surface does not. Two earlier attempts were both
+       wrong in the same place, which is that a panel is not a cell: fading the
+       whole thing (opacity 0.1) let the grid read straight through it, and
+       darkening the whole thing (brightness) turned an already-dark surface
+       into a black hole punched in the card. Keeping the surface at the card's
+       own background and fading only what sits ON it leaves a quiet empty
+       panel - opaque, so nothing shows through, and no darker than its
+       surroundings, so it is not a hole either.
+       !important on the transform because peekIn is a fill:both animation still
+       holding it at none, which a plain rule cannot outrank. */
+    .mgrid.dimmed .daypeek {
+      transform: translateY(var(--ssc-dim-lift, 18px)) scale(var(--ssc-dim-scale, 0.94)) !important;
+      box-shadow: none;
+      border-color: rgba(255, 255, 255, 0.07);
+      transition:
+        transform 260ms var(--ssc-glide),
+        box-shadow 260ms var(--ssc-glide),
+        border-color 260ms var(--ssc-glide);
+      pointer-events: none;
+    }
+    .mgrid.dimmed .daypeek > * {
+      opacity: 0.13;
+      transition: opacity 260ms var(--ssc-glide);
+    }
+    .mgrid.dimmed .peek-scrim {
+      pointer-events: none;
+    }
     .grid.dimmed .ev {
       transform: translateY(var(--ssc-dim-lift, 9px)) scale(var(--ssc-dim-scale, 0.963));
       transition: transform 240ms var(--ssc-glide);
@@ -5458,11 +6530,15 @@ export class SimpleScheduleCard extends LitElement {
        blocks re-run their own stagger on top, so the new week assembles rather
        than snapping. */
     .grid.dir-fwd .body,
-    .grid.dir-fwd .hdr {
+    .grid.dir-fwd .hdr,
+    .mgrid.dir-fwd .mbody,
+    .mgrid.dir-fwd .mhead {
       animation: inFromRight var(--ssc-week-dur) var(--ssc-week-ease) both;
     }
     .grid.dir-back .body,
-    .grid.dir-back .hdr {
+    .grid.dir-back .hdr,
+    .mgrid.dir-back .mbody,
+    .mgrid.dir-back .mhead {
       animation: inFromLeft var(--ssc-week-dur) var(--ssc-week-ease) both;
     }
     /* The fold: the lattice arrives slightly small and settles to size as it
@@ -5562,6 +6638,372 @@ export class SimpleScheduleCard extends LitElement {
     /* Padding and the negative margin are on EVERY heading, not just today's,
        so the text stays on the same left edge whichever day it is and only the
        fill changes. */
+    /* The width toggle sliding away when a month grid gives it nothing to do.
+       Width and margin collapse together so the neighbour closes the gap rather
+       than the button leaving a hole behind it. */
+    .btn.width-toggle {
+      overflow: hidden;
+      transition:
+        width 0.42s var(--ssc-spring),
+        min-width 0.42s var(--ssc-spring),
+        margin 0.42s var(--ssc-spring),
+        opacity 0.24s ease,
+        transform 0.42s var(--ssc-spring);
+    }
+    /* Fades and slides out but KEEPS ITS SLOT. Collapsing the width shrank the
+       group, and because the group is centred that moved the mode button
+       sideways every time the month grid came or went - so the control you had
+       just tapped was no longer under the pointer. The empty slot costs nothing
+       to look at and keeps the button still. */
+    .btn.width-toggle.gone {
+      opacity: 0;
+      transform: translateX(-8px) scale(0.8);
+      pointer-events: none;
+    }
+
+    /* ---- the month grid -------------------------------------------------
+     *
+     * Seven equal columns that divide the card, so a month never scrolls
+     * sideways - the one deliberate departure from view_width_mode: fixed,
+     * because a month you cannot see the end of is not a month. Six rows
+     * always, so the card keeps its height as you page through the year.
+     */
+    /* Out to the card's own edges. A month is furniture that reaches the frame;
+       an 18px gutter down each side of it reads as a mistake rather than as
+       margin, and those are seven columns that would rather have the pixels. */
+    .mgrid {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      margin: 0 calc(-1 * var(--ssc-pad));
+    }
+    /* Banded like the week grid's day column, so the header reads as the same
+       piece of fixed furniture rather than as a line of text above a grid. */
+    .mhead {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom: 2px solid var(--ssc-line-strong);
+      background: var(--ssc-band);
+    }
+    /* .rday, the week grid's day cell, rebuilt here - not just its type.
+       Matching the FACE alone was tried twice and is not the same thing: .rday
+       is a flex column that centres its label in a tall cell with air above and
+       below, and a 16px/700 label crammed against the top of a 26px strip reads
+       as nothing like it however identical the font. So this takes the whole
+       box: the column layout, the centring, the 10px/12px padding, the 1px gap,
+       and a min-height equal to .rday's two-line block (18.4 + 1 + 16.1) so the
+       label has the same room to sit in. */
+    .mdow {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 1px;
+      /* .rday's two-line block (18.4 + 1 + 16.1) plus 5px of air. */
+      min-height: 41px;
+      box-sizing: border-box;
+      padding: 0 12px 0 10px;
+      text-align: left;
+      line-height: 1.15;
+      /* Deliberately the same size, weight and colour as .mdate: the weekday at
+         the top of a column and the number in a cell are one label split in
+         two, and they read as a pair only if nothing distinguishes them but
+         position. Change one, change the other. */
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+    /* Column separators on the same 1px as the cells below, so the header's
+       divisions line up with the month's instead of floating over them. */
+    .mdow:not(:nth-child(7n)) {
+      border-right: 1px solid var(--ssc-line);
+    }
+    /* Today's weekday, inverted like its cell and like .rday.today - so the
+       column you are in is marked at the top as well as in the grid. Only while
+       today is actually on show; see todayCol. */
+    .mdow.today {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
+    }
+    .mbody {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      /* The rows share --mgrid-h, which _measureMonth works out from the window
+         and clamps between a one-event and a three-event cell. The minmax is
+         only a floor for the very first paint, before there is a cell to
+         measure; after that --mgrid-h is exact. */
+      grid-auto-rows: minmax(64px, 1fr);
+      height: var(--mgrid-h, auto);
+    }
+    .mcell {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      /* The padding-bottom is MONTH_BREATHE_PX, and it is doing two jobs at
+         once: it is the air you see under the last event, and it is the room
+         _measureMonthFit holds back when it works out how many events fit. One
+         number, one place - change it and both move together. */
+      gap: 1px;
+      padding: 3px 4px ${MONTH_BREATHE_PX}px;
+      /* The cell IS the target - a tap anywhere in it opens the day. */
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+      border-right: 1px solid var(--ssc-line);
+      border-bottom: 1px solid var(--ssc-line);
+      /* Same fill mode and easing as the week blocks, so switching between the
+         two shapes does not switch how the card moves. */
+      animation: evIn var(--ssc-block-dur) var(--ssc-block-ease) backwards;
+    }
+    .mcell:nth-child(7n) {
+      border-right: none;
+    }
+    /* The probe frame: laid out so it can be measured, but shown to nobody and
+       animating not at all. One frame, then the real render animates in at the
+       right size. Hidden by visibility rather than display, because a grid with
+       no boxes has nothing to measure - and the animation reset needs
+       !important, because the cascade puts animation-name inline where a plain
+       rule cannot reach it. */
+    .mbody.probing {
+      visibility: hidden;
+    }
+    .mbody.probing .mcell {
+      animation: none !important;
+    }
+    /* The cramped layout: the two discretionary paddings handed back so another
+       event fits. _measureMonth turns this on only when it buys a whole row, and
+       the savings here must equal MONTH_TRIM_FOOT and MONTH_TRIM_DATE. */
+    .mbody.tight .mcell {
+      padding-bottom: ${MONTH_BREATHE_PX - MONTH_TRIM_FOOT}px;
+    }
+    .mbody.tight .mdate {
+      padding-bottom: ${9 - MONTH_TRIM_DATE}px;
+    }
+    /* The days either side of the month. Drawn rather than left blank - an
+       empty corner reads as a rendering fault - but clearly not this month. */
+    .mcell.out {
+      background: rgba(0, 0, 0, 0.16);
+    }
+    .mcell.out .mdate {
+      opacity: 0.35;
+    }
+    .mcell.out .mev {
+      opacity: 0.55;
+    }
+    /* A bare number, top right. The day it belongs to is named in full in the
+       header above, so repeating "Sep" in all thirty-five cells was saying the
+       same thing thirty-five times - tried, and it crowded the events out.
+       Larger than a week grid's date line because it is the only thing here
+       carrying the day. */
+    .mdate {
+      flex: 0 0 auto;
+      text-align: right;
+      /* Half again the bare line box - 22px of type given 33px of room - so the
+         number sits in its own band instead of leaning on the first event.
+         _measureMonth reads this height back off the DOM, so the events below
+         lose the space honestly rather than being clipped by it. */
+      padding: 2px 4px 9px;
+      /* Paired with .mdow - same size, same weight, same colour. See there. */
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Today: the WHOLE cell inverted, exactly as the week grid inverts its day
+       cell. An earlier version pilled just the number, which at arm's length
+       was a dot rather than a day. */
+    .mcell.today,
+    .mcell.out.today {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
+    }
+    .mcell.today .mdate {
+      font-weight: 700;
+    }
+    /* Today can fall outside the month on show - 30 September is in October's
+       leading row - and there it is still today, not a dimmed neighbour. */
+    .mcell.out.today .mdate,
+    .mcell.out.today .mev {
+      opacity: 1;
+    }
+    /* Plain rows, NOT controls. They carry no hover and no pointer of their own,
+       because a highlight on one event promises it can be tapped and it cannot -
+       the cell owns the tap. The names here are truncated summaries; picking one
+       happens in the day panel. */
+    .mev,
+    .mmore {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.25;
+      text-align: left;
+    }
+    .mdot {
+      flex: 0 0 auto;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+    .mtime {
+      flex: 0 0 auto;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.85;
+    }
+    .mname {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .mmore {
+      font-weight: 700;
+      opacity: 0.8;
+      padding-left: 18px;
+    }
+
+    /* ---- the day panel ----
+       Google's "N more" popup, plus the END time. "4am" says nothing useful
+       about a collection that runs until 10. */
+    .peek-scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+    }
+    .daypeek {
+      position: absolute;
+      z-index: 6;
+      box-sizing: border-box;
+      padding: 10px 10px 12px;
+      background: var(--ha-card-background, #1c1c1e);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--ssc-line-strong);
+      animation: peekIn 320ms var(--ssc-block-ease) both;
+      transform-origin: top center;
+    }
+    @keyframes peekIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+    /* The name and the date are one block, so today's inversion covers both -
+       and the close button with them. Negative margins cancel .daypeek's own
+       padding so the fill reaches the panel's edges rather than floating in it. */
+    .dp-title {
+      margin: -10px -10px 0;
+      padding: 10px 10px 8px;
+    }
+    .dp-title.today {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
+    }
+    .dp-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    /* The week grid's day cell, at heading scale: name over date, the name the
+       heavier of the two. It was a 12px "THU" kicker over a bare 10, which is
+       the abbreviation a month CELL is forced into - and this panel has room.
+       Full strength, like every other piece of text on this card. */
+    .dp-dow {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .dp-close {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      /* inherit, so the × darkens with the title block on today. */
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dp-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .dp-title.today .dp-close:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    .dp-close ha-icon {
+      --mdc-icon-size: 18px;
+    }
+    .dp-date {
+      font-size: 16px;
+      font-weight: 400;
+      padding: 1px 2px 0;
+    }
+    .dp-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 260px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    /* These rows are now the ONLY way into an event from a month, so they are
+       sized as targets rather than as lines of text: ~36px, near enough a
+       fingertip, where 26px was a row you had to aim at. */
+    .dp-row {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 6px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ssc-fg);
+      font-family: inherit;
+      font-size: 14px;
+      text-align: left;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Zebra. With the times shrink-wrapped rather than in a fixed column, the
+       band is what carries the eye from a time to its name across a gap that
+       changes width every row. */
+    .dp-row:nth-child(even) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .dp-row:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    /* Shrink to the time it holds. A fixed column that aligned every summary on
+       the same x was tried and rejected - it forced the panel wider and left a
+       gutter between each time and its name. */
+    .dp-when {
+      flex: 0 0 auto;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.85;
+    }
+    .dp-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
     .ld-head {
       display: block;
       padding: 6px 10px;
@@ -5649,10 +7091,13 @@ export class SimpleScheduleCard extends LitElement {
       animation: fadeIn 180ms ease both;
     }
     .sheet {
+      position: relative;
       min-width: 240px;
       max-width: 76%;
       background: var(--ha-card-background, #1c1c1e);
-      padding: 18px 20px 20px;
+      /* Room at the top and right for the close button, so the title is not
+         squeezed up against it. */
+      padding: 24px 20px 24px;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
       border-top: 5px solid var(--accent);
       /* BACKWARDS, not both. Both pins the end state after the animation, which
@@ -5660,11 +7105,38 @@ export class SimpleScheduleCard extends LitElement {
          move — the same trap the event blocks hit. */
       animation: sheetIn 460ms var(--ssc-block-ease) backwards;
     }
+    /* Top right, out of the text flow, with the title reserving room for it so
+       a long name wraps before it reaches. Same 28px circle the day panel's
+       close uses, so the two dismissals look like the same control. */
+    .sh-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease;
+    }
+    .sh-close:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .sh-close ha-icon {
+      --mdc-icon-size: 20px;
+    }
     .sh-name {
       font-size: 24px;
       font-weight: 700;
       letter-spacing: -0.4px;
       line-height: 1.18;
+      /* Clear of the close button. */
+      padding-right: 32px;
     }
     .sh-time {
       margin-top: 12px;
@@ -5684,6 +7156,19 @@ export class SimpleScheduleCard extends LitElement {
       font-size: 15px;
       font-weight: 400;
       line-height: 1.4;
+    }
+    /* The repeat rule earns an icon where the other rows do not: location and
+       notes are self-evidently what they say, and "Weekly on Friday" on its own
+       could be read as part of the description above it. */
+    .sh-row.repeat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sh-row.repeat ha-icon {
+      --mdc-icon-size: 18px;
+      flex: 0 0 auto;
+      opacity: 0.85;
     }
 
     /* ---- the edit form -------------------------------------------------
@@ -6488,6 +7973,20 @@ export class SimpleScheduleCard extends LitElement {
       border-color: var(--accent);
       color: var(--ssc-today-cell-fg, #16161a);
     }
+    /* The two monthly shapes are whole phrases, not single words, so this one
+       fills the row rather than sitting at its natural width like the unit
+       picker above it. */
+    .seg.month {
+      display: flex;
+      margin: 0 12px 10px;
+    }
+    .seg.month .seg-btn {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 44px;
+      white-space: normal;
+      line-height: 1.2;
+    }
     .stepper {
       display: inline-flex;
       align-items: center;
@@ -6800,6 +8299,12 @@ export class SimpleScheduleCard extends LitElement {
     .ed-row.scope.sel {
       background: rgba(255, 255, 255, 0.07);
     }
+    /* A scope the current edit has made illegal — see _setRepeat. Dimmed rather
+       than removed: a row that vanishes takes the explanation with it. */
+    .ed-row.scope.off {
+      opacity: 0.35;
+      cursor: default;
+    }
     /* A bar that wipes down the left edge of the chosen row. This is the part
        that carries the change at a glance — a dot 20px wide at the far right of
        a 400px row is not something the eye catches, however well it springs. */
@@ -6974,6 +8479,26 @@ export class SimpleScheduleCard extends LitElement {
     .panel.reduce .lr,
     .panel.reduce .sheet,
     .panel.reduce .scrim,
+    /* !important, and it has to be. These elements carry their animation-name
+       INLINE - the staggered cascade needs a per-element delay and an
+       alternating name - and an inline declaration beats any selector. Without
+       this, animations: off still animated them; measured, the cells reported
+       evInB with reduce on. */
+    .panel.reduce .ev,
+    .panel.reduce .lr,
+    .panel.reduce .mcell,
+    .panel.reduce ~ .scrim .cal-day,
+    .panel.reduce ~ .scrim .cal-month,
+    .panel.reduce .press-ghost {
+      animation: none !important;
+    }
+    .panel.reduce .mcell,
+    .panel.reduce .mgrid.dir-fwd .mbody,
+    .panel.reduce .mgrid.dir-fwd .mhead,
+    .panel.reduce .mgrid.dir-back .mbody,
+    .panel.reduce .mgrid.dir-back .mhead,
+    .panel.reduce ~ .scrim .daypeek,
+    .panel.reduce .daypeek,
     .panel.reduce .grid.dir-fwd .body,
     .panel.reduce .grid.dir-fwd .hdr,
     .panel.reduce .grid.dir-back .body,
@@ -7013,7 +8538,8 @@ export class SimpleScheduleCard extends LitElement {
     .panel.reduce ~ .scrim .ed-fold,
     .panel.reduce ~ .scrim .ed-fold-in,
     .panel.reduce ~ .scrim .ed-chip.time,
-    .panel.reduce .menu-right {
+    .panel.reduce .menu-right,
+    .panel.reduce .btn.width-toggle {
       transition: none;
     }
     .panel.reduce .ev-in {

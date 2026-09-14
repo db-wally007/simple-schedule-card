@@ -7,7 +7,14 @@
  * and whose empty hours are worth seeing — a bin collection at 04:00 says more
  * with the rest of the day around it.
  */
-export type CalendarMode = 'focused' | 'full';
+/**
+ * How much of the calendar a source draws.
+ *
+ * `monthly` is a different SHAPE, not a different zoom: a month grid rather than
+ * a time axis, for calendars whose events are dates rather than appointments —
+ * bin collections, birthdays, term dates.
+ */
+export type CalendarMode = 'focused' | 'full' | 'monthly';
 
 /**
  * `fixed` gives every hour the same pixel width whatever the screen, so a block
@@ -24,6 +31,12 @@ export interface CalendarSourceConfig {
   entity: string;
   calendar_mode?: CalendarMode;
   view_width_mode?: ViewWidthMode;
+  /**
+   * Whether month cells print each event's time. Per calendar, because it is a
+   * per calendar judgement: a timetable's 08:30 is the point, while bin day is
+   * always 04:00 and saying so four times a month is noise.
+   */
+  month_mode_show_times?: boolean;
   /**
    * A `person.*` whose picture becomes the calendar's avatar. The picture lives
    * on the PERSON, not on a Home Assistant user — a person can have one without
@@ -115,6 +128,13 @@ export interface SimpleScheduleCardConfig {
   layout?: LayoutOption;
   layout_breakpoint?: number;
   /**
+   * Month mode has no size settings. A cell fills the card and is clamped
+   * between a one-event and a three-event height, both worked out from the
+   * rendered cell — see `MONTH_FIT_MIN`/`MONTH_FIT_MAX` in `card.ts`.
+   */
+  /** Default for the per-calendar setting of the same name. */
+  month_mode_show_times?: boolean;
+  /**
    * Colour by event title, e.g. `Lunch: '#f4c542'`. An explicit override that
    * beats everything else, including the colour helper. Matched
    * case-insensitively on the exact summary.
@@ -161,6 +181,14 @@ export interface ScheduleEvent {
   uid?: string;
   /** Set only on a singly-modified occurrence, which may carry its own colour. */
   recurrenceId?: string;
+  /**
+   * The series' repeat rule, as Google states it — "FREQ=WEEKLY;BYDAY=FR".
+   *
+   * Every occurrence of a series carries it, so it describes the SERIES rather
+   * than this occurrence. Home Assistant has always sent it; the card simply
+   * dropped it until the detail sheet had something to say about it.
+   */
+  rrule?: string;
   summary: string;
   description?: string;
   location?: string;

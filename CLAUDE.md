@@ -220,6 +220,38 @@ measured.
 `calendar.get_events` returns `recurrence_id` in exactly the shape these services take as
 `event_id`, and the card's `ScheduleEvent.recurrenceId` already carries it.
 
+### Clearing a colour is a THIRD state, not the absence of one
+
+`color_id` has three meanings on the wire and the card must send all three. Set is itself.
+**Cleared is an empty string**, which the service turns into a `colorId: null` that removes the
+field. Untouched is omitted, so editing a title cannot restate somebody's colour as a side
+effect. The first cut had only two — `draft.colorId ? {...} : {}` — so picking the empty swatch
+sent nothing, which Google reads as "leave the colour alone": the form said so, the save reported
+success, and nothing changed anywhere. There was no way to undo a colour at all.
+
+**The colour is sent only when it MOVED**, and for a sharper reason than tidiness. The form shows
+the colour an occurrence INHERITS from its series, so a save that re-sent it would pin that
+inherited colour onto the occurrence as its own: nothing looks different, and then recolouring the
+series quietly leaves that one behind. `colorIdWas` is remembered on the draft rather than
+re-derived at save time, because `_colorIdFor` reads the helper's map and the helper republishes
+on its own schedule — asking it again later can answer differently for reasons that have nothing
+to do with the user.
+
+Title, times, location and notes are still sent on every save, and that is fine: they come
+straight off the event rather than being inferred from something else, so re-sending them is a
+true no-op. Colour and recurrence are the two that are guesses or have legality rules attached.
+
+**Clearing an occurrence's colour does not fall back to the CALENDAR.** It falls back to the
+series, which may itself be coloured — measured: a cleared occurrence of a Basil series comes
+back Basil, not the calendar's pink. The swatch used to be labelled "Calendar's colour", which
+promised something the card then visibly did not do; it says **Default** now.
+
+**A colour change needs a longer settle than a content change**, because it travels a longer
+chain: Google, then Home Assistant's store, then the pyscript helper's next run, then a JSON file,
+then a fetch. Measured after a clear: about six seconds, which is exactly where the shared
+`WRITE_SETTLE_MAX_MS` sat — so whether the form waited long enough was a coin toss, and half the
+time it closed on the old colour. `WRITE_SETTLE_COLOUR_MS` is separate for that reason.
+
 ### A sheet that does not scroll still has to own the gesture
 
 The bug: on a phone, dragging the edit sheet scrolled the WEEK BEHIND IT — but only while the
@@ -281,6 +313,314 @@ that the loop has nothing to see and times out.
 `_callEdit` deliberately does NOT clear `_busy`; the callers own it, because the write landing is
 not the end of the job and dropping the flag in between flicks the button back to Save for a
 frame.
+
+### NEVER measure through an animation — the third freeze, and the real one
+
+The cascade scales each cell as it arrives, and `getBoundingClientRect` reports the **transformed**
+box. Caught in the act: across successive passes the same date band measured
+`31.8 → 32.5 → 33.1 → 33.5` and the same event row `17.3 → 17.7 → 18.0 → 18.3`, with `fit` flipping
+4↔3 and `tight` false↔true as it went. Every frame a different `fit`, every `fit` a re-render, and
+three taps on the arrow chain the animations so it never stands still — a tab that spins until the
+cascade happens to finish, which on a loaded machine is never.
+
+`_measureMonth` now checks `body.getAnimations({subtree: true})` and, if anything is running,
+parks itself on `Promise.allSettled(running.map(a => a.finished))` instead of measuring. Deferring
+rather than reading `offsetHeight` because the fitting needs the subpixel truth: rounding a row to
+18 where it is 18.3 puts four of them in a cell that holds three and a bit.
+
+**Deferring the measurement created a JOLT**, and the cure is the probe frame. With measuring
+postponed until the cascade finished, the first paint used the guessed `_monthFit` of 3 and then
+visibly reshuffled — three events per cell becoming two and a "5 more", every cell changing height.
+So when `_monthLaidOut` does not match the shape being drawn (`rows|calendar`), `.mbody` renders
+one PROBE frame: laid out, `visibility: hidden`, `animation: none !important` (the cascade puts
+`animation-name` inline, where a plain rule cannot reach it). It is measured there, unanimated and
+unseen, and only then revealed to animate in at the right size.
+
+**The probe reveals on a pass that changes NOTHING**, not after a single measurement. Revealing
+after one was not enough: stepping from a five-row month to a six-row one measures against the
+height the old shape left behind, so the first answer can be a row out and the correction happens
+in front of you. A height change alone does not re-render — it is a style write — so `_measureMonth`
+asks for the next pass itself; `_monthSeen` caps how many heights may be tried, so it terminates.
+Verified across six months at 720px: each appears once, with one content, and never corrects
+itself.
+
+**This is the same lesson `_fitDayPeek` already carried** ("the entry animation scales from 0.9 and
+a transformed rect corrects against a size the panel is about to stop being") and it was not
+carried across. If you add ANY measurement to this card, decide first what it does while the thing
+it measures is moving.
+
+Verified at 860px and 720px: every burst — 3 clicks, 20 clicks with no pause, 20 back plus 20
+forward — costs **exactly one** real measurement, yielding one `fit`, one `tight`, one height.
+15 of 16 passes skip as animating. Idle measures zero times.
+
+### `_measureMonth` FEEDS ITSELF — the second freeze
+
+Distinct from the subscribe storm below, and diagnosed by the fact that **Home Assistant was
+perfectly healthy** (sub-millisecond HTTP, no websocket errors) while the browser tab died. No
+network traffic to explain it means the loop is entirely in the frontend.
+
+`room` comes from `body.getBoundingClientRect().top` — but the body MOVES when the grid's own
+height changes, because the card sits in a popup that reflows around it. So the measurement is an
+input to itself. Observed settling from one paging burst:
+
+```
+635 → 610 → 488 → 625 → 615 → 625 → 635     body.top: 208.8 → 206.5 → 204.1 → 204
+```
+
+It is negative feedback so it usually converges — but 488 is a *two-row* cell height where 635 is
+a four-row one. A height that keeps landing on a different `fit` re-renders the card, which
+measures again, for ever.
+
+The fix is `_monthSeen`: every height proposed since the last real change is remembered, and
+meeting one again means a cycle rather than progress, so the **smallest** is taken — always safe,
+never the 488 that would have changed what fits. `_resetMonthSettle()` clears it on the things
+that legitimately move the answer (navigation, resize, calendar switch, mode toggle) and on
+nothing else — that is the whole point. Verified at 860px and at the fragile 720px (where `fit`
+and `tight` both sit on a boundary): 30 rapid clicks settle in ≤13 passes, idle measures **zero**
+times, 0 cells clipped.
+
+**The general rule: never derive a layout input from a position the layout output can move.** If
+you must, bound it by remembering what you have already tried.
+
+### The card CAN take Home Assistant down — through `calendar/event/subscribe`
+
+It happened on 2026-09-14: stepping the month ten times in quick succession wedged HA
+(`python3` pegged, HTTP dead, and the frontend's websocket dropped with
+`Client unable to keep up with pending messages. Reached 4096 pending messages`). The card is
+frontend JavaScript and cannot block HA's event loop directly — but every `sync()` asks HA to
+**expand months of recurrences for every calendar** and push the lot back, and that work runs on
+the same event loop that serves the websocket. Enough of those and the frontend starves.
+
+Two compounding faults, both now fixed and both covered by tests in `calendar-source.spec.ts`:
+
+- **`sync()` was re-entrant.** The early-out tested `key === _key && subscribed`, but `_key` is
+  set several awaits before the first subscription lands in `_unsubs` — so during that gap the
+  guard saw the right key and `subscribed === false` and started the whole round again. The card
+  calls `_ensureSubscribed()` from `updated()`, which fires on every state change in the house, so
+  the gap gets re-entered constantly. **Measured: ten re-entrant calls produced 30 subscriptions
+  instead of 3.** `_syncing` now holds the key for the whole in-flight round.
+- **Every window passed through was subscribed to.** Ten taps on the arrow = ten rounds, nine of
+  them for windows already gone. `_ensureSubscribed` now waits `SUB_SETTLE_MS` for a moved window
+  to settle and subscribes only to the one landed on; an unchanged window still calls straight
+  through to the (now correct) no-op.
+
+**Rules for anything that touches this path:** never call `sync()` from a render hook without a
+guard that survives its own await; treat a subscription as expensive backend work, not a cheap
+client-side registration; and when adding per-render work, remember `updated()` runs on every
+state change in the house, not on user actions.
+
+Related: `_measureMonth`/`_fitDayPeek` no longer run on a bare `hass` update either — they force
+synchronous layout, and none of those updates can move the grid. Window resize is handled by an
+explicit listener, since the host `ResizeObserver` only watches width.
+
+### Month mode is a SHAPE, not a zoom level
+
+`calendar_mode: monthly` sits in the same option as `focused`/`full`, but it is not another
+amount of day — it replaces the time axis with a week lattice. `_isMonth` therefore answers
+BEFORE the orientation renderers, and it also requires `_mode === 'grid'`: below the layout
+breakpoint the list wins, and `_isMonth` going false is what makes every week-shaped rule
+(`_goWeek`, the pill, `_window`) quietly return to week semantics with no special cases.
+
+Decisions that were made deliberately and should not be "tidied":
+
+- **Seven columns divide the card.** This is the one place the card departs from
+  `view_width_mode: fixed`, whose whole point is a constant px-per-hour that scrolls. A month you
+  have to scroll sideways to finish is not a month.
+- **Only the weeks the month touches** — `monthRows` — so four, five or six. An earlier version
+  drew six always, reasoning that a grid changing height as you page makes the card jump. That
+  reasoning was wrong, because of the next point: the rows share a FIXED total, so a five-row
+  September simply has taller cells than a six-row August. Nothing moves; the month just stops
+  showing a week of the next one. Verified live: Sep'26 5 rows / 129px, Aug'26 6 / 110px,
+  Feb'27 4 / 161px, grid 645–660px throughout.
+- **Month mode has NO size config**, and two options were deliberately deleted rather than
+  retuned: `month_mode_max_events` and `month_mode_cell_height`. Both asked the YAML to state a
+  number that only the rendered card knows. `_measureMonth` is the single pass that answers both —
+  it reads the cell's padding, the date line, an event row and the row gap off the DOM, works out
+  what a cell holding *n* rows would be, and derives the grid height and the event count together.
+  Splitting it into two methods meant measuring the same four numbers twice and letting them
+  disagree.
+- **The cell is clamped in EVENTS, not pixels**: `MONTH_FIT_MIN`/`MONTH_FIT_MAX` (1 and 3), and
+  the heights they imply are for **n + 1** rows, because "N more" is a row of its own and a cell
+  sized for exactly three events has no room to admit there is a fourth. Measured live: Sep'26
+  5 rows × 125px (at the cap), Aug'26 6 × 108 (filling, below the cap), Feb'27 4 × 125 (capped).
+- **Filling the window and capping the cell genuinely conflict, and the cap wins.** A four-week
+  month on a tall screen hits 125px a cell and leaves ~170px under the grid. That is the deal:
+  a month cell that grows without limit stops being a summary and starts competing with the week
+  grids. To trade it back, drop the `Math.min(maxH, …)`.
+- **Ceil the per-row heights, floor the per-cell height.** The parts are subpixel — a row is
+  18.3px — and a cap landing a fraction under what three rows need clips all three: that bug
+  showed as 20 of 35 cells overflowing. The fit is then derived from the height the grid *has*
+  (`_monthGridH / rows`), not the one just computed, because the write guard can leave the two a
+  pixel apart and the events are laid out in the real one.
+- `_measureMonth` writes `@state`, so a month measures on one paint and draws on the next. Both
+  writes are guarded on the value CHANGING; without that the second render measures and schedules
+  a third, forever.
+- `MONTH_BREATHE_PX` is the remaining dial: the air held back at the foot of a cell. It is also
+  the cell's `padding-bottom`, so the reserved space and the visible space are one number — do
+  not split them.
+- **A cell carries a bare number, right-aligned, in its own band; the HEADER names the day in
+  full.** `_fmtDate` in the cells — "Sep 14th" in all thirty-five — was tried and rejected: it
+  says the same thing thirty-five times and crowds the events out.
+- **The header is `.rday` REBUILT, box and all** — and getting there took three goes, so do not
+  "simplify" it back. Matching only the face (16px/700/−0.2px, full weekday name, "Monday," with
+  the comma) was rejected twice: measured side by side the type was already byte-identical, and it
+  still looked nothing like the reference, because `.rday` is a flex COLUMN that centres its label
+  in a tall cell with air above and below, while `.mdow` was a 16px label crammed against the top
+  of a 26px strip with `padding-top: 0`. The box is what carries the resemblance. `.mdow` now
+  takes the column layout, the centring, the 10px/12px padding, the 1px gap, a `min-height: 36px`
+  (=`.rday`'s two-line block: 18.4 + 1 + 16.1), the band on `.mhead`, and 1px column rules that
+  line up with the cells. **When a "make it look like X" note keeps coming back, diff the BOX, not
+  the font** — the computed-style dump that settled this is the tool. One thing it does NOT copy:
+  `.rday` writes "Monday," and the header writes "Monday", because there a date follows the comma
+  and here nothing does.
+- **Today is marked in three places, all the same inversion**: the cell, the header column, and
+  the day panel's title block. The header column is found with
+  `days.findIndex(sameDay(d, now)) % 7`, off the DRAWN days rather than `getDay()` — that keeps it
+  honest about Monday-first order and returns -1 when today is not on show, so paging to a distant
+  month does not leave a weekday lit for no reason.
+- The day panel's name and date live in one `.dp-title` wrapper whose negative margins cancel
+  `.daypeek`'s padding, so today's fill reaches the panel edges instead of floating inside them.
+  `.dp-close` takes `color: inherit` for the same reason `.mev` does.
+- **The day panel's list keeps its 260px cap and padded rows.** Sizing it in whole rows — a fixed
+  40px `.dp-row` and a max-height derived from it, so six always fit and seven always scroll — was
+  built and REJECTED on how it looked. (If it is ever revisited: `.dp-row` needs `flex: 0 0 <h>`
+  alongside the height, because flex items shrink by default and seven rows silently squeezed to
+  34px each rather than scrolling.)
+- **The day panel stays open behind the detail sheet, and recedes with the grid.** It used to
+  close, so every event you looked at dropped you back to the month and a second event from the
+  same day meant finding the cell again.
+- **The panel's CONTENTS fade; its surface does not.** Two earlier attempts were wrong in the same
+  place - a panel is not a cell. Fading the whole thing (`opacity: 0.1`) let the grid read straight
+  through it; darkening the whole thing (`filter: brightness`) turned an already-dark surface into
+  a black hole punched in the card - and both were shipped, because the check was a computed-style
+  dump rather than looking at the screenshot. Keeping the surface at the card's own background and
+  fading only `.daypeek > *` leaves a quiet empty panel: opaque, so nothing shows through, and no
+  darker than its surroundings, so it is not a hole. The transform still needs `!important`:
+  `peekIn` is a `fill: both` animation holding it at `none`.
+- **Everything in the grid recedes, including `.mhead`.** The weekday row was left out of the dim
+  rule and stayed at full strength - the one bright row in an otherwise receded month.
+- **The detail sheet has a close button** (`.sh-close`, top right, absolute, with `.sh-name`
+  padded clear of it). The scrim always closed it, but nothing said so.
+- **The header recedes too** (`.head.dimmed`), and on `_sheetOpen` — NOT `_receded`. The picker and
+  the tools menu both set `_receded` and both live inside the header, so using it there would dim
+  the very menu just opened. Opacity is safe for the header where it is not for the panel: there
+  is nothing behind it but the card.
+- **`.btn.width-toggle.gone` keeps its SLOT** — it fades and slides but no longer collapses its
+  width. Collapsing shrank the centred toggle group, which moved the mode button sideways every
+  time the month grid came or went, so the control just tapped was no longer under the pointer.
+  Measured 0px drift across two full focused→full→monthly cycles. The empty slot is invisible and
+  costs nothing.
+- **The period sits in the header's centre in MONTH MODE ONLY** (`_isMonth`), at 24px/600 — it was
+  15px under the arrows on the right, which is where you go to CHANGE it rather than to read it.
+  A week grid names its days in every column heading and needs no such sign, so it keeps the range
+  where it always was; moving it everywhere was rejected.
+- **The range hangs OUT OF FLOW off `.head-centre`'s LEFT edge** (`position: absolute; left: calc(44px + 16px)`
+  — one button plus a gap), so it sits beside the mode button rather than after the whole group.
+  As a flex sibling its width was part of what got centred, so the button slid every time the month
+  name changed length. The goal is not that the button is dead centre — it is that the button does
+  not MOVE, so toggling twice does not require chasing it.
+- **The panel's time column shrinks to its content.** A fixed column that aligned every summary on
+  the same x (plus a 360px panel) was built, shown, and rejected — it left a gutter between each
+  time and its name. 268px and `flex: 0 0 auto`; do not "improve" this again.
+- **A tap anywhere in a month cell opens the DAY, never an event.** The rows inside a cell are not
+  links; the whole cell is one target and the day panel is where an event is chosen. Empty days
+  open too — "nothing on this day" is an answer, and a cell that sometimes responds and sometimes
+  does not is worse. This is why `.dp-row` is ~39px and zebra-striped: those rows are now the only
+  route to an event, so they are sized as tap targets rather than as lines of text, and the band
+  carries the eye from a time to its name across a gap whose width changes every row.
+- Following from that, `.mev`/`.mmore` are `div`s with **no hover and no cursor of their own** —
+  they were buttons, and a highlight on one event promises it can be tapped when it cannot. The
+  pointer and the tap-highlight suppression live on `.mcell`, which is the actual target.
+- `_pressDid` exists because of that: a completed press-and-hold also ends in a click, which would
+  otherwise bury the creator the hold just opened under a day panel. Set when the hold timer fires,
+  cleared on every `_pressStart`.
+- **`_fitDayPeek` keeps the panel on screen, and has to run after render**, because the height
+  depends on the day's event count — a seven-event panel is 343px against the 180px the old code
+  guessed at, so a bottom-row cell opened a panel running off the window with events that could
+  not be reached. It measures `offsetWidth`/`offsetHeight`, NOT `getBoundingClientRect`: the entry
+  animation scales from 0.9 and a transformed rect corrects against a size the panel is about to
+  stop being. Guarded on the position changing.
+- **It clamps to the CARD ∩ window, not the window.** Clamping to the window alone was tried and
+  was still wrong in both directions: 8px from the left edge of the SCREEN is underneath Home
+  Assistant's sidebar, and the right edge overhung the card by ten pixels. What is visible is the
+  card. Verified at eight positions including all four corners.
+- **A cramped cell trims its breathing room — `MONTH_TRIM_PX`.** On a short window a cell floors
+  near 99px, which fits two rows with 11px left over: one event and "4 more", with visible air
+  under it, which read as a bug. The date band's lower margin (8px) and the cell's foot (8px) are
+  handed back when doing so buys a whole row — never merely to be tighter — via a `tight` class on
+  `.mbody`. Measured: 99px goes from 1 event + "4 more" to 2 + "3 more"; at 860px the roomy layout
+  returns. **The measured overhead is NORMALISED back to the roomy figures** (`+ MONTH_TRIM_PX`
+  when already tight) before anything reasons about it; without that each layout looks correct
+  from inside the other and the grid flips every frame. Keep the CSS deltas equal to the constants.
+- **Include the BORDER when fitting a month cell.** `.mcell` is border-box with a 1px rule, so its
+  height is a pixel more than padding + content. Omitting it cost exactly one pixel, invisible
+  until the date font grew by 1px — and then 20 of 35 cells clipped at once. Any change to
+  `.mcell`'s box needs `_measureMonth` re-checked with `scrollHeight > clientHeight`.
+- **The grid bleeds past the panel's inset** via `margin: 0 calc(-1 * var(--ssc-pad))`. That is
+  why `.panel`'s padding is a variable now: the two must not drift apart. The week grids keep the
+  inset; only the month reaches the card's edges.
+- **Today inverts the WHOLE cell**, matching `.rday.today`. It was a pill around the number, which
+  at arm's length is a dot rather than a day. This is why `.mev`/`.mmore` take `color: inherit`
+  rather than `--ssc-fg`: a button does not inherit colour on its own, and the rows inside an
+  inverted cell have to invert with it. The dots keep their own colours. Today can legitimately
+  fall in an `out` cell — 30 September while October is on show — and is not dimmed there.
+- The day panel is anchored to the cell and positioned against the GRID, not the viewport, so it
+  travels with the card when the dashboard scrolls.
+
+**`animations: off` did not work before this**, and the fix is worth knowing: `.ev`, `.lr` and
+`.mcell` all carry `animation-name` INLINE — the staggered cascade needs a per-element delay and
+an alternating name — and an inline declaration beats any selector. The reduce rules for those
+elements need `!important`. Measured before the fix: cells reported `evInB` with reduce on.
+
+### The repeat rule is READ from Home Assistant, not inferred
+
+`CalendarEvent` carries `rrule` and the push has always included it — measured on a live week,
+137 of 146 events. `RawCalendarEvent` declared it and `toScheduleEvent` dropped it on the floor,
+which is why v2.0.0 could set a rule but never show one.
+
+`parseRRule` is the inverse of `toRRule` and is deliberately forgiving in ONE direction: anything
+it does not fully understand comes back **null**, never a half-read rule. That null is
+load-bearing twice over — the detail sheet says nothing rather than something false, and
+`canRepeat` hides the editor row rather than offering to overwrite a rule the user was never
+shown.
+
+**The line for what to refuse is "can Google's own dialog write it".** An earlier cut also
+refused BYMONTHDAY and BYMONTH, which was wrong: Google writes both from its Custom recurrence
+dialog, so perfectly ordinary monthly and yearly series came back null and the card went silent
+about them. They are now read and written back verbatim, kept on the rule rather than normalised
+into the start date, so an unrelated save cannot quietly restate somebody's rule. What stays
+refused is what that dialog cannot produce and which therefore arrives only from imports and
+other clients: BYSETPOS, BYYEARDAY, BYWEEKNO, sub-daily FREQ, a LIST of month-days, and
+multi-positional BYDAY.
+
+The monthly mode control in the custom window exists for the same reason. A monthly series
+repeats on a DATE or on a weekday's POSITION, Google offers both, and without the control the
+card could read "the second Monday" but never set or clear it.
+
+**Normalise at the boundaries, never in the model.** `toRRule` and `sameRecurrence` each
+normalise their own input; `_patchCustom` deliberately does not. The first cut normalised the
+working copy on every touch, which meant glancing at the monthly options and coming back threw
+away the five weekdays you had picked — and then, worse, `_repeatMoved` reported a change that
+had not happened, forced the scope to the whole series, and would have rewritten it. A weekly
+rule is also always given its own day explicitly (`_namedDays`), because bare FREQ=WEEKLY means
+"the day DTSTART falls on" and only one of those two spellings survives a trip through the unit
+picker.
+
+**A singly-modified occurrence is DETACHED and carries no rule at all** — five of thirty-two on a
+real school week. The series still has one and every sibling carries it, so `_seriesRule` falls
+back to another event with the same uid. Without it the card says "Weekly on Monday" about most of
+a series and nothing about the one lesson somebody moved, which reads as that lesson not
+repeating.
+
+**A rule belongs to the SERIES.** Google cannot give one occurrence its own, and a PATCH that
+tries is rejected — so `_setRepeat` moves the scope off `instance` the moment the rule changes,
+and the form greys that row out with a note rather than letting the save fail later. `future`
+stays legal: `_split_series` caps the old series and starts a new one carrying the new rule.
+
+The rrule is sent ONLY when it moved (`_repeatMoved`). Sending the unchanged rule on every save
+would rewrite the series for a change of title; sending nothing when it HAS moved would drop the
+edit silently. An empty string is the service's "clear it", which is what "Does not repeat" means
+on an existing series — it collapses to a single event.
 
 ### Creating an event: one form, two entry points, and an exclusive end
 
@@ -615,11 +955,37 @@ account **owns**:
 | first | `family@…` — the account HA uses | `4` |
 | second | `someone-else@…` | `None` on every event |
 
-`accessRole` is `owner` for both, so this is not a permissions problem. Both calendars' events
-also carry an `eventLabelId`, which is a red herring — the first one's return their colour
-anyway. An
-early diagnosis blamed Google's new event labels and was wrong; the discriminator is the
-**creator**, nothing else.
+`accessRole` is `owner` for both, so this is not a permissions problem.
+
+**`eventLabelId` is NOT a red herring — an earlier version of this note said it was, and that was
+wrong.** Measured on 2026-09-13, on an event the family account created, in the calendar it owns,
+changed from that same account in Google Calendar's own web UI:
+
+```
+eventLabelId   64c465cf-0bf2-41ef-bcd8-f2d6338e59bd     <- the colour that was picked
+colorId        (absent)
+creator        family@...                               <- the account HA uses
+```
+
+Google's current UI writes an event **label** — an opaque UUID — where it used to write the legacy
+`colorId`. The master of that same series still carries `colorId: 4` from before the change, which
+is what made the old "creator" theory look right.
+
+Three consequences, all verified rather than reasoned:
+
+* **`gcal_sync` drops it.** `eventLabelId` appears NOWHERE in `.storage/google.*` — the stored item
+  has the full set of parsed fields and `color_id: None`. The colours helper reads that store, so
+  the label can never reach it.
+* **The UUID cannot be resolved.** `GET /users/me/eventLabels` and
+  `GET /calendars/{id}/eventLabels` both 404 on Calendar API v3. There is no public endpoint that
+  turns a label id into a colour, so even reading it from the API leaves you holding an opaque id.
+* **Writes are unaffected.** A `colorId` written by the card is read back by everything, which is
+  why setting a colour from the card works in both directions while setting one in Google's UI
+  does not come back.
+
+**When probing Google, dump EVERY key.** The first probe of this used a field whitelist and
+reported "no colour on the event", which sent the diagnosis in the wrong direction entirely. A
+whitelist cannot rule out a field it never prints.
 
 Three ways out, in the order worth trying:
 

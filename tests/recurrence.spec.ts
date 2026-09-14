@@ -7,6 +7,8 @@ import { describe as group, expect, it } from 'vitest';
 import {
   describe as words,
   matchPreset,
+  normalise,
+  parseRRule,
   presets,
   sameRecurrence,
   toRRule,
@@ -197,5 +199,172 @@ group('describe', () => {
     expect(words({ freq: 'WEEKLY', interval: 1, byDay: [], end: never }, TUE, 'en-GB')).toBe(
       'Weekly on Tuesday',
     );
+  });
+});
+
+group('parseRRule', () => {
+  it('reads the shape Home Assistant actually sends', () => {
+    // Straight off the live push: 40 of 41 events carried one of these.
+    expect(parseRRule('FREQ=WEEKLY;BYDAY=FR')).toEqual({
+      freq: 'WEEKLY',
+      interval: 1,
+      byDay: ['FR'],
+      end: never,
+    });
+  });
+
+  it('tolerates the RRULE: prefix Google puts on the line', () => {
+    expect(parseRRule('RRULE:FREQ=DAILY')).toEqual({
+      freq: 'DAILY',
+      interval: 1,
+      byDay: [],
+      end: never,
+    });
+  });
+
+  it('round-trips everything this card can build', () => {
+    const start = TUE;
+    for (const p of presets(start, 'en-GB')) {
+      if (!p.rule) continue;
+      expect(parseRRule(toRRule(p.rule))).toEqual(p.rule);
+    }
+    const custom: Recurrence[] = [
+      { freq: 'WEEKLY', interval: 3, byDay: ['MO', 'WE'], end: { kind: 'after', count: 13 } },
+      { freq: 'MONTHLY', interval: 2, byDay: [], byPos: { pos: -1, day: 'TU' }, end: never },
+      { freq: 'YEARLY', interval: 1, byDay: [], end: { kind: 'on', date: '2027-09-08' } },
+    ];
+    for (const rule of custom) {
+      expect(parseRRule(toRRule(rule))).toEqual(rule);
+    }
+  });
+
+  it('reads a COUNT and an UNTIL back', () => {
+    expect(parseRRule('FREQ=WEEKLY;COUNT=3;INTERVAL=3;BYDAY=WE')).toEqual({
+      freq: 'WEEKLY',
+      interval: 3,
+      byDay: ['WE'],
+      end: { kind: 'after', count: 3 },
+    });
+    const capped = parseRRule('FREQ=WEEKLY;UNTIL=20260928T085959Z;BYDAY=MO');
+    expect(capped?.end).toEqual({ kind: 'on', date: '2026-09-28' });
+  });
+
+  it('reads a DATE-form UNTIL, which is what an all-day series carries', () => {
+    expect(parseRRule('FREQ=WEEKLY;UNTIL=20261208')?.end).toEqual({
+      kind: 'on',
+      date: '2026-12-08',
+    });
+  });
+
+  it('orders BYDAY however Google listed it', () => {
+    expect(parseRRule('FREQ=WEEKLY;BYDAY=SU,WE,MO')?.byDay).toEqual(['MO', 'WE', 'SU']);
+  });
+
+  it('returns null rather than half a rule', () => {
+    // Each of these means something this card cannot draw or edit.
+    for (const bad of [
+      '',
+      null,
+      undefined,
+      'FREQ=HOURLY',
+      'FREQ=WEEKLY;INTERVAL=0',
+      'FREQ=WEEKLY;COUNT=3;UNTIL=20261208',
+      'FREQ=MONTHLY;BYDAY=2TU,3WE',
+      'FREQ=WEEKLY;BYDAY=XX',
+      'BYDAY=MO',
+    ]) {
+      expect(parseRRule(bad as never), String(bad)).toBeNull();
+    }
+  });
+
+  it('describes what it parsed, which is the whole point', () => {
+    const rule = parseRRule('FREQ=WEEKLY;BYDAY=FR');
+    expect(words(rule, new Date(2026, 8, 11), 'en-GB')).toBe('Weekly on Friday');
+    expect(words(parseRRule('FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'), TUE, 'en-GB')).toBe(
+      'Every weekday (Monday to Friday)',
+    );
+  });
+});
+
+group('parseRRule: parity with what Google\'s own dialog writes', () => {
+  // Everything below is producible from Google Calendar's Custom recurrence
+  // dialog, so the card has to read all of it — see the note in parseRRule.
+  it('reads a monthly series stated as a day of the month', () => {
+    expect(parseRRule('FREQ=MONTHLY;BYMONTHDAY=14')).toEqual({
+      freq: 'MONTHLY', interval: 1, byDay: [], byMonthDay: 14, end: never,
+    });
+  });
+
+  it('reads a yearly series that restates its month and day', () => {
+    expect(parseRRule('FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=8')).toEqual({
+      freq: 'YEARLY', interval: 1, byDay: [], byMonth: 9, byMonthDay: 8, end: never,
+    });
+  });
+
+  it('round-trips both of those without losing the restatement', () => {
+    for (const line of [
+      'FREQ=MONTHLY;BYMONTHDAY=14',
+      'FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=1',
+      'FREQ=YEARLY;BYMONTH=9;BYMONTHDAY=8',
+    ]) {
+      const rule = parseRRule(line);
+      expect(rule, line).not.toBeNull();
+      expect(parseRRule(toRRule(rule!))).toEqual(rule);
+    }
+  });
+
+  it('says the day the RULE names, not the one the start implies', () => {
+    const rule = parseRRule('FREQ=MONTHLY;BYMONTHDAY=14');
+    // TUE is the 8th; the rule says the 14th, and the rule wins.
+    expect(words(rule, TUE, 'en-GB')).toBe('Monthly on day 14');
+  });
+
+  it('still refuses what that dialog cannot produce', () => {
+    for (const bad of [
+      'FREQ=MONTHLY;BYSETPOS=2;BYDAY=MO,TU',
+      'FREQ=MONTHLY;BYMONTHDAY=1,15',
+      'FREQ=YEARLY;BYYEARDAY=100',
+      'FREQ=WEEKLY;BYWEEKNO=3',
+      'FREQ=MONTHLY;BYMONTHDAY=14;BYDAY=2TU',
+      'FREQ=WEEKLY;BYMONTHDAY=14',
+      'FREQ=MONTHLY;BYMONTHDAY=32',
+    ]) {
+      expect(parseRRule(bad), bad).toBeNull();
+    }
+  });
+
+  it('ignores WKST, which changes nothing this card draws', () => {
+    expect(parseRRule('FREQ=WEEKLY;BYDAY=MO;WKST=SU')).toEqual({
+      freq: 'WEEKLY', interval: 1, byDay: ['MO'], end: never,
+    });
+  });
+});
+
+group('normalise', () => {
+  it('drops the parts a change of unit left behind', () => {
+    // Exactly what the custom dialog produces when you go weekly -> monthly.
+    const stale: Recurrence = {
+      freq: 'MONTHLY', interval: 1, byDay: ['MO'], byPos: { pos: 1, day: 'MO' }, end: never,
+    };
+    expect(normalise(stale).byDay).toEqual([]);
+    expect(toRRule(stale)).toBe('RRULE:FREQ=MONTHLY;BYDAY=1MO');
+  });
+
+  it('makes two rules that emit the same line compare equal', () => {
+    const viaDialog: Recurrence = {
+      freq: 'MONTHLY', interval: 1, byDay: ['TU'], byPos: { pos: 2, day: 'TU' }, end: never,
+    };
+    const viaPreset = presets(TUE)[3].rule!;
+    expect(toRRule(viaDialog)).toBe(toRRule(viaPreset));
+    expect(sameRecurrence(viaDialog, viaPreset)).toBe(true);
+    expect(matchPreset(viaDialog, TUE)).toBe('monthly');
+  });
+
+  it('never leaves a monthly rule on both a weekday and a date', () => {
+    const both: Recurrence = {
+      freq: 'MONTHLY', interval: 1, byDay: [], byPos: { pos: 1, day: 'MO' }, byMonthDay: 7,
+      end: never,
+    };
+    expect(normalise(both).byMonthDay).toBeUndefined();
   });
 });

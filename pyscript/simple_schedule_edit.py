@@ -395,9 +395,16 @@ def _event_body(summary, start, end, all_day, description, location, rrule, colo
         body["recurrence"] = [rrule] if rrule else []
     if color_id is not None:
         key = str(color_id)
-        if key not in COLOR_IDS:
+        if key == "":
+            # An explicit CLEAR, which is a different thing from not mentioning
+            # the colour at all: omitting the field leaves whatever is there,
+            # while null removes it so the event falls back to the calendar's
+            # own colour. Without this there was no way to undo a colour.
+            body["colorId"] = None
+        elif key not in COLOR_IDS:
             raise ValueError(f"color_id must be one of {sorted(COLOR_IDS)}, got {color_id!r}")
-        body["colorId"] = key
+        else:
+            body["colorId"] = key
     return body
 
 
@@ -501,8 +508,9 @@ fields:
       text:
   color_id:
     description: >-
-      Google palette id 1-11. Sets the colour FOR THIS ACCOUNT only — event
-      colour is per Google account.
+      Google palette id 1-11, or an empty string to CLEAR the event's own colour
+      so it falls back to the calendar's. Omitting the field leaves the colour
+      untouched, which is not the same thing.
     selector:
       select:
         options: ["1","2","3","4","5","6","7","8","9","10","11"]
@@ -715,7 +723,7 @@ fields:
 
 
 @service
-async def simple_schedule_event_probe(entity_id=None, event_id=None):
+async def simple_schedule_event_probe(entity_id=None, event_id=None, path=None):
     """yaml
 name: Simple Schedule — probe event
 description: >-
@@ -732,15 +740,26 @@ fields:
     selector:
       text:
 """
-    if not entity_id or not event_id:
-        raise ValueError("entity_id and event_id are both required")
+    if not entity_id:
+        raise ValueError("entity_id is required")
     calendar = await _calendar_id(entity_id)
+    # A raw path, for exploring endpoints the card does not otherwise touch.
+    # Debug-only: this service exists to answer "what does Google actually say".
+    if path:
+        raw = await _api("GET", path.replace("{cal}", urllib.parse.quote(calendar)))
+        log.warning(f"simple_schedule_edit: probe PATH {path} -> {raw}")
+        return raw
+    if not event_id:
+        raise ValueError("event_id is required")
     quoted = urllib.parse.quote(calendar)
     event = await _api("GET", f"/calendars/{quoted}/events/{urllib.parse.quote(event_id)}")
-    keep = ("id", "summary", "status", "colorId", "start", "end", "recurrence",
-            "recurringEventId", "iCalUID", "description", "location")
-    out = {}
-    for key in keep:
-        if key in event:
-            out[key] = event[key]
+    # EVERY key, not a whitelist. A whitelist here once hid the answer: the
+    # question was "where is this event's colour", and a field the list did not
+    # mention cannot be ruled out by a probe that never prints it.
+    out = dict(event)
+    # Logged as well as returned: a pyscript @service is not registered with
+    # supports_response, so a caller over the REST API cannot read the return
+    # value at all. The log is the only way to see what Google actually said.
+    log.warning(f"simple_schedule_edit: probe {event_id} -> {out}")
     return out
+

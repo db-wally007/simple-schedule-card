@@ -3,18 +3,18 @@
  * Copyright 2019 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const ne = globalThis, ye = ne.ShadowRoot && (ne.ShadyCSS === void 0 || ne.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, we = Symbol(), Ae = /* @__PURE__ */ new WeakMap();
-let at = class {
+const ge = globalThis, Ae = ge.ShadowRoot && (ge.ShadyCSS === void 0 || ge.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype, Oe = Symbol(), He = /* @__PURE__ */ new WeakMap();
+let kt = class {
   constructor(t, s, i) {
-    if (this._$cssResult$ = !0, i !== we) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
+    if (this._$cssResult$ = !0, i !== Oe) throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");
     this.cssText = t, this.t = s;
   }
   get styleSheet() {
     let t = this.o;
     const s = this.t;
-    if (ye && t === void 0) {
+    if (Ae && t === void 0) {
       const i = s !== void 0 && s.length === 1;
-      i && (t = Ae.get(s)), t === void 0 && ((this.o = t = new CSSStyleSheet()).replaceSync(this.cssText), i && Ae.set(s, t));
+      i && (t = He.get(s)), t === void 0 && ((this.o = t = new CSSStyleSheet()).replaceSync(this.cssText), i && He.set(s, t));
     }
     return t;
   }
@@ -22,33 +22,33 @@ let at = class {
     return this.cssText;
   }
 };
-const $t = (e) => new at(typeof e == "string" ? e : e + "", void 0, we), Tt = (e, ...t) => {
+const Ft = (e) => new kt(typeof e == "string" ? e : e + "", void 0, Oe), Ht = (e, ...t) => {
   const s = e.length === 1 ? e[0] : t.reduce((i, n, a) => i + ((o) => {
     if (o._$cssResult$ === !0) return o.cssText;
     if (typeof o == "number") return o;
     throw Error("Value passed to 'css' function must be a 'css' function result: " + o + ". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.");
   })(n) + e[a + 1], e[0]);
-  return new at(s, e, we);
-}, Et = (e, t) => {
-  if (ye) e.adoptedStyleSheets = t.map((s) => s instanceof CSSStyleSheet ? s : s.styleSheet);
+  return new kt(s, e, Oe);
+}, Ut = (e, t) => {
+  if (Ae) e.adoptedStyleSheets = t.map((s) => s instanceof CSSStyleSheet ? s : s.styleSheet);
   else for (const s of t) {
-    const i = document.createElement("style"), n = ne.litNonce;
+    const i = document.createElement("style"), n = ge.litNonce;
     n !== void 0 && i.setAttribute("nonce", n), i.textContent = s.cssText, e.appendChild(i);
   }
-}, Ce = ye ? (e) => e : (e) => e instanceof CSSStyleSheet ? ((t) => {
+}, Ue = Ae ? (e) => e : (e) => e instanceof CSSStyleSheet ? ((t) => {
   let s = "";
   for (const i of t.cssRules) s += i.cssText;
-  return $t(s);
+  return Ft(s);
 })(e) : e;
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const { is: Dt, defineProperty: St, getOwnPropertyDescriptor: Mt, getOwnPropertyNames: At, getOwnPropertySymbols: Ct, getPrototypeOf: Ot } = Object, he = globalThis, Oe = he.trustedTypes, Pt = Oe ? Oe.emptyScript : "", Lt = he.reactiveElementPolyfillSupport, j = (e, t) => e, ae = { toAttribute(e, t) {
+const { is: Yt, defineProperty: Bt, getOwnPropertyDescriptor: qt, getOwnPropertyNames: jt, getOwnPropertySymbols: Gt, getPrototypeOf: Kt } = Object, we = globalThis, Ye = we.trustedTypes, Xt = Ye ? Ye.emptyScript : "", Vt = we.reactiveElementPolyfillSupport, ee = (e, t) => e, be = { toAttribute(e, t) {
   switch (t) {
     case Boolean:
-      e = e ? Pt : null;
+      e = e ? Xt : null;
       break;
     case Object:
     case Array:
@@ -73,23 +73,23 @@ const { is: Dt, defineProperty: St, getOwnPropertyDescriptor: Mt, getOwnProperty
       }
   }
   return s;
-} }, ve = (e, t) => !Dt(e, t), Pe = { attribute: !0, type: String, converter: ae, reflect: !1, useDefault: !1, hasChanged: ve };
-Symbol.metadata ??= Symbol("metadata"), he.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
-let z = class extends HTMLElement {
+} }, Pe = (e, t) => !Yt(e, t), Be = { attribute: !0, type: String, converter: be, reflect: !1, useDefault: !1, hasChanged: Pe };
+Symbol.metadata ??= Symbol("metadata"), we.litPropertyMetadata ??= /* @__PURE__ */ new WeakMap();
+let Y = class extends HTMLElement {
   static addInitializer(t) {
     this._$Ei(), (this.l ??= []).push(t);
   }
   static get observedAttributes() {
     return this.finalize(), this._$Eh && [...this._$Eh.keys()];
   }
-  static createProperty(t, s = Pe) {
+  static createProperty(t, s = Be) {
     if (s.state && (s.attribute = !1), this._$Ei(), this.prototype.hasOwnProperty(t) && ((s = Object.create(s)).wrapped = !0), this.elementProperties.set(t, s), !s.noAccessor) {
       const i = Symbol(), n = this.getPropertyDescriptor(t, i, s);
-      n !== void 0 && St(this.prototype, t, n);
+      n !== void 0 && Bt(this.prototype, t, n);
     }
   }
   static getPropertyDescriptor(t, s, i) {
-    const { get: n, set: a } = Mt(this.prototype, t) ?? { get() {
+    const { get: n, set: a } = qt(this.prototype, t) ?? { get() {
       return this[s];
     }, set(o) {
       this[s] = o;
@@ -100,17 +100,17 @@ let z = class extends HTMLElement {
     }, configurable: !0, enumerable: !0 };
   }
   static getPropertyOptions(t) {
-    return this.elementProperties.get(t) ?? Pe;
+    return this.elementProperties.get(t) ?? Be;
   }
   static _$Ei() {
-    if (this.hasOwnProperty(j("elementProperties"))) return;
-    const t = Ot(this);
+    if (this.hasOwnProperty(ee("elementProperties"))) return;
+    const t = Kt(this);
     t.finalize(), t.l !== void 0 && (this.l = [...t.l]), this.elementProperties = new Map(t.elementProperties);
   }
   static finalize() {
-    if (this.hasOwnProperty(j("finalized"))) return;
-    if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(j("properties"))) {
-      const s = this.properties, i = [...At(s), ...Ct(s)];
+    if (this.hasOwnProperty(ee("finalized"))) return;
+    if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(ee("properties"))) {
+      const s = this.properties, i = [...jt(s), ...Gt(s)];
       for (const n of i) this.createProperty(n, s[n]);
     }
     const t = this[Symbol.metadata];
@@ -129,8 +129,8 @@ let z = class extends HTMLElement {
     const s = [];
     if (Array.isArray(t)) {
       const i = new Set(t.flat(1 / 0).reverse());
-      for (const n of i) s.unshift(Ce(n));
-    } else t !== void 0 && s.push(Ce(t));
+      for (const n of i) s.unshift(Ue(n));
+    } else t !== void 0 && s.push(Ue(t));
     return s;
   }
   static _$Eu(t, s) {
@@ -156,7 +156,7 @@ let z = class extends HTMLElement {
   }
   createRenderRoot() {
     const t = this.shadowRoot ?? this.attachShadow(this.constructor.shadowRootOptions);
-    return Et(t, this.constructor.elementStyles), t;
+    return Ut(t, this.constructor.elementStyles), t;
   }
   connectedCallback() {
     this.renderRoot ??= this.createRenderRoot(), this.enableUpdating(!0), this._$EO?.forEach((t) => t.hostConnected?.());
@@ -172,14 +172,14 @@ let z = class extends HTMLElement {
   _$ET(t, s) {
     const i = this.constructor.elementProperties.get(t), n = this.constructor._$Eu(t, i);
     if (n !== void 0 && i.reflect === !0) {
-      const a = (i.converter?.toAttribute !== void 0 ? i.converter : ae).toAttribute(s, i.type);
+      const a = (i.converter?.toAttribute !== void 0 ? i.converter : be).toAttribute(s, i.type);
       this._$Em = t, a == null ? this.removeAttribute(n) : this.setAttribute(n, a), this._$Em = null;
     }
   }
   _$AK(t, s) {
     const i = this.constructor, n = i._$Eh.get(t);
     if (n !== void 0 && this._$Em !== n) {
-      const a = i.getPropertyOptions(n), o = typeof a.converter == "function" ? { fromAttribute: a.converter } : a.converter?.fromAttribute !== void 0 ? a.converter : ae;
+      const a = i.getPropertyOptions(n), o = typeof a.converter == "function" ? { fromAttribute: a.converter } : a.converter?.fromAttribute !== void 0 ? a.converter : be;
       this._$Em = n;
       const l = o.fromAttribute(s, a.type);
       this[n] = l ?? this._$Ej?.get(n) ?? l, this._$Em = null;
@@ -188,7 +188,7 @@ let z = class extends HTMLElement {
   requestUpdate(t, s, i, n = !1, a) {
     if (t !== void 0) {
       const o = this.constructor;
-      if (n === !1 && (a = this[t]), i ??= o.getPropertyOptions(t), !((i.hasChanged ?? ve)(a, s) || i.useDefault && i.reflect && a === this._$Ej?.get(t) && !this.hasAttribute(o._$Eu(t, i)))) return;
+      if (n === !1 && (a = this[t]), i ??= o.getPropertyOptions(t), !((i.hasChanged ?? Pe)(a, s) || i.useDefault && i.reflect && a === this._$Ej?.get(t) && !this.hasAttribute(o._$Eu(t, i)))) return;
       this.C(t, s, i);
     }
     this.isUpdatePending === !1 && (this._$ES = this._$EP());
@@ -256,75 +256,75 @@ let z = class extends HTMLElement {
   firstUpdated(t) {
   }
 };
-z.elementStyles = [], z.shadowRootOptions = { mode: "open" }, z[j("elementProperties")] = /* @__PURE__ */ new Map(), z[j("finalized")] = /* @__PURE__ */ new Map(), Lt?.({ ReactiveElement: z }), (he.reactiveElementVersions ??= []).push("2.1.2");
+Y.elementStyles = [], Y.shadowRootOptions = { mode: "open" }, Y[ee("elementProperties")] = /* @__PURE__ */ new Map(), Y[ee("finalized")] = /* @__PURE__ */ new Map(), Vt?.({ ReactiveElement: Y }), (we.reactiveElementVersions ??= []).push("2.1.2");
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const xe = globalThis, Le = (e) => e, oe = xe.trustedTypes, Ie = oe ? oe.createPolicy("lit-html", { createHTML: (e) => e }) : void 0, ot = "$lit$", E = `lit$${Math.random().toFixed(9).slice(2)}$`, rt = "?" + E, It = `<${rt}>`, C = document, q = () => C.createComment(""), G = (e) => e === null || typeof e != "object" && typeof e != "function", ke = Array.isArray, zt = (e) => ke(e) || typeof e?.[Symbol.iterator] == "function", de = `[ 	
-\f\r]`, H = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, ze = /-->/g, Re = />/g, D = RegExp(`>|${de}(?:([^\\s"'>=/]+)(${de}*=${de}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), Ne = /'/g, We = /"/g, lt = /^(?:script|style|textarea|title)$/i, Rt = (e) => (t, ...s) => ({ _$litType$: e, strings: t, values: s }), c = Rt(1), W = Symbol.for("lit-noChange"), u = Symbol.for("lit-nothing"), Fe = /* @__PURE__ */ new WeakMap(), A = C.createTreeWalker(C, 129);
-function ht(e, t) {
-  if (!ke(e) || !e.hasOwnProperty("raw")) throw Error("invalid template strings array");
-  return Ie !== void 0 ? Ie.createHTML(t) : t;
+const Ce = globalThis, qe = (e) => e, ye = Ce.trustedTypes, je = ye ? ye.createPolicy("lit-html", { createHTML: (e) => e }) : void 0, $t = "$lit$", A = `lit$${Math.random().toFixed(9).slice(2)}$`, Tt = "?" + A, Zt = `<${Tt}>`, I = document, se = () => I.createComment(""), ie = (e) => e === null || typeof e != "object" && typeof e != "function", Le = Array.isArray, Qt = (e) => Le(e) || typeof e?.[Symbol.iterator] == "function", xe = `[ 	
+\f\r]`, Q = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Ge = /-->/g, Ke = />/g, C = RegExp(`>|${xe}(?:([^\\s"'>=/]+)(${xe}*=${xe}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`, "g"), Xe = /'/g, Ve = /"/g, Mt = /^(?:script|style|textarea|title)$/i, Jt = (e) => (t, ...s) => ({ _$litType$: e, strings: t, values: s }), d = Jt(1), q = Symbol.for("lit-noChange"), m = Symbol.for("lit-nothing"), Ze = /* @__PURE__ */ new WeakMap(), N = I.createTreeWalker(I, 129);
+function Dt(e, t) {
+  if (!Le(e) || !e.hasOwnProperty("raw")) throw Error("invalid template strings array");
+  return je !== void 0 ? je.createHTML(t) : t;
 }
-const Nt = (e, t) => {
+const es = (e, t) => {
   const s = e.length - 1, i = [];
-  let n, a = t === 2 ? "<svg>" : t === 3 ? "<math>" : "", o = H;
+  let n, a = t === 2 ? "<svg>" : t === 3 ? "<math>" : "", o = Q;
   for (let l = 0; l < s; l++) {
     const r = e[l];
-    let h, d, p = -1, f = 0;
-    for (; f < r.length && (o.lastIndex = f, d = o.exec(r), d !== null); ) f = o.lastIndex, o === H ? d[1] === "!--" ? o = ze : d[1] !== void 0 ? o = Re : d[2] !== void 0 ? (lt.test(d[2]) && (n = RegExp("</" + d[2], "g")), o = D) : d[3] !== void 0 && (o = D) : o === D ? d[0] === ">" ? (o = n ?? H, p = -1) : d[1] === void 0 ? p = -2 : (p = o.lastIndex - d[2].length, h = d[1], o = d[3] === void 0 ? D : d[3] === '"' ? We : Ne) : o === We || o === Ne ? o = D : o === ze || o === Re ? o = H : (o = D, n = void 0);
-    const v = o === D && e[l + 1].startsWith("/>") ? " " : "";
-    a += o === H ? r + It : p >= 0 ? (i.push(h), r.slice(0, p) + ot + r.slice(p) + E + v) : r + E + (p === -2 ? l : v);
+    let h, c, p = -1, u = 0;
+    for (; u < r.length && (o.lastIndex = u, c = o.exec(r), c !== null); ) u = o.lastIndex, o === Q ? c[1] === "!--" ? o = Ge : c[1] !== void 0 ? o = Ke : c[2] !== void 0 ? (Mt.test(c[2]) && (n = RegExp("</" + c[2], "g")), o = C) : c[3] !== void 0 && (o = C) : o === C ? c[0] === ">" ? (o = n ?? Q, p = -1) : c[1] === void 0 ? p = -2 : (p = o.lastIndex - c[2].length, h = c[1], o = c[3] === void 0 ? C : c[3] === '"' ? Ve : Xe) : o === Ve || o === Xe ? o = C : o === Ge || o === Ke ? o = Q : (o = C, n = void 0);
+    const w = o === C && e[l + 1].startsWith("/>") ? " " : "";
+    a += o === Q ? r + Zt : p >= 0 ? (i.push(h), r.slice(0, p) + $t + r.slice(p) + A + w) : r + A + (p === -2 ? l : w);
   }
-  return [ht(e, a + (e[s] || "<?>") + (t === 2 ? "</svg>" : t === 3 ? "</math>" : "")), i];
+  return [Dt(e, a + (e[s] || "<?>") + (t === 2 ? "</svg>" : t === 3 ? "</math>" : "")), i];
 };
-class K {
+class ne {
   constructor({ strings: t, _$litType$: s }, i) {
     let n;
     this.parts = [];
     let a = 0, o = 0;
-    const l = t.length - 1, r = this.parts, [h, d] = Nt(t, s);
-    if (this.el = K.createElement(h, i), A.currentNode = this.el.content, s === 2 || s === 3) {
+    const l = t.length - 1, r = this.parts, [h, c] = es(t, s);
+    if (this.el = ne.createElement(h, i), N.currentNode = this.el.content, s === 2 || s === 3) {
       const p = this.el.content.firstChild;
       p.replaceWith(...p.childNodes);
     }
-    for (; (n = A.nextNode()) !== null && r.length < l; ) {
+    for (; (n = N.nextNode()) !== null && r.length < l; ) {
       if (n.nodeType === 1) {
-        if (n.hasAttributes()) for (const p of n.getAttributeNames()) if (p.endsWith(ot)) {
-          const f = d[o++], v = n.getAttribute(p).split(E), b = /([.?@])?(.*)/.exec(f);
-          r.push({ type: 1, index: a, name: b[2], strings: v, ctor: b[1] === "." ? Ft : b[1] === "?" ? Ut : b[1] === "@" ? Ht : ce }), n.removeAttribute(p);
-        } else p.startsWith(E) && (r.push({ type: 6, index: a }), n.removeAttribute(p));
-        if (lt.test(n.tagName)) {
-          const p = n.textContent.split(E), f = p.length - 1;
-          if (f > 0) {
-            n.textContent = oe ? oe.emptyScript : "";
-            for (let v = 0; v < f; v++) n.append(p[v], q()), A.nextNode(), r.push({ type: 2, index: ++a });
-            n.append(p[f], q());
+        if (n.hasAttributes()) for (const p of n.getAttributeNames()) if (p.endsWith($t)) {
+          const u = c[o++], w = n.getAttribute(p).split(A), f = /([.?@])?(.*)/.exec(u);
+          r.push({ type: 1, index: a, name: f[2], strings: w, ctor: f[1] === "." ? ss : f[1] === "?" ? is : f[1] === "@" ? ns : ve }), n.removeAttribute(p);
+        } else p.startsWith(A) && (r.push({ type: 6, index: a }), n.removeAttribute(p));
+        if (Mt.test(n.tagName)) {
+          const p = n.textContent.split(A), u = p.length - 1;
+          if (u > 0) {
+            n.textContent = ye ? ye.emptyScript : "";
+            for (let w = 0; w < u; w++) n.append(p[w], se()), N.nextNode(), r.push({ type: 2, index: ++a });
+            n.append(p[u], se());
           }
         }
-      } else if (n.nodeType === 8) if (n.data === rt) r.push({ type: 2, index: a });
+      } else if (n.nodeType === 8) if (n.data === Tt) r.push({ type: 2, index: a });
       else {
         let p = -1;
-        for (; (p = n.data.indexOf(E, p + 1)) !== -1; ) r.push({ type: 7, index: a }), p += E.length - 1;
+        for (; (p = n.data.indexOf(A, p + 1)) !== -1; ) r.push({ type: 7, index: a }), p += A.length - 1;
       }
       a++;
     }
   }
   static createElement(t, s) {
-    const i = C.createElement("template");
+    const i = I.createElement("template");
     return i.innerHTML = t, i;
   }
 }
-function F(e, t, s = e, i) {
-  if (t === W) return t;
+function j(e, t, s = e, i) {
+  if (t === q) return t;
   let n = i !== void 0 ? s._$Co?.[i] : s._$Cl;
-  const a = G(t) ? void 0 : t._$litDirective$;
-  return n?.constructor !== a && (n?._$AO?.(!1), a === void 0 ? n = void 0 : (n = new a(e), n._$AT(e, s, i)), i !== void 0 ? (s._$Co ??= [])[i] = n : s._$Cl = n), n !== void 0 && (t = F(e, n._$AS(e, t.values), n, i)), t;
+  const a = ie(t) ? void 0 : t._$litDirective$;
+  return n?.constructor !== a && (n?._$AO?.(!1), a === void 0 ? n = void 0 : (n = new a(e), n._$AT(e, s, i)), i !== void 0 ? (s._$Co ??= [])[i] = n : s._$Cl = n), n !== void 0 && (t = j(e, n._$AS(e, t.values), n, i)), t;
 }
-class Wt {
+class ts {
   constructor(t, s) {
     this._$AV = [], this._$AN = void 0, this._$AD = t, this._$AM = s;
   }
@@ -335,29 +335,29 @@ class Wt {
     return this._$AM._$AU;
   }
   u(t) {
-    const { el: { content: s }, parts: i } = this._$AD, n = (t?.creationScope ?? C).importNode(s, !0);
-    A.currentNode = n;
-    let a = A.nextNode(), o = 0, l = 0, r = i[0];
+    const { el: { content: s }, parts: i } = this._$AD, n = (t?.creationScope ?? I).importNode(s, !0);
+    N.currentNode = n;
+    let a = N.nextNode(), o = 0, l = 0, r = i[0];
     for (; r !== void 0; ) {
       if (o === r.index) {
         let h;
-        r.type === 2 ? h = new V(a, a.nextSibling, this, t) : r.type === 1 ? h = new r.ctor(a, r.name, r.strings, this, t) : r.type === 6 && (h = new Bt(a, this, t)), this._$AV.push(h), r = i[++l];
+        r.type === 2 ? h = new oe(a, a.nextSibling, this, t) : r.type === 1 ? h = new r.ctor(a, r.name, r.strings, this, t) : r.type === 6 && (h = new as(a, this, t)), this._$AV.push(h), r = i[++l];
       }
-      o !== r?.index && (a = A.nextNode(), o++);
+      o !== r?.index && (a = N.nextNode(), o++);
     }
-    return A.currentNode = C, n;
+    return N.currentNode = I, n;
   }
   p(t) {
     let s = 0;
     for (const i of this._$AV) i !== void 0 && (i.strings !== void 0 ? (i._$AI(t, i, s), s += i.strings.length - 2) : i._$AI(t[s])), s++;
   }
 }
-class V {
+class oe {
   get _$AU() {
     return this._$AM?._$AU ?? this._$Cv;
   }
   constructor(t, s, i, n) {
-    this.type = 2, this._$AH = u, this._$AN = void 0, this._$AA = t, this._$AB = s, this._$AM = i, this.options = n, this._$Cv = n?.isConnected ?? !0;
+    this.type = 2, this._$AH = m, this._$AN = void 0, this._$AA = t, this._$AB = s, this._$AM = i, this.options = n, this._$Cv = n?.isConnected ?? !0;
   }
   get parentNode() {
     let t = this._$AA.parentNode;
@@ -371,7 +371,7 @@ class V {
     return this._$AB;
   }
   _$AI(t, s = this) {
-    t = F(this, t, s), G(t) ? t === u || t == null || t === "" ? (this._$AH !== u && this._$AR(), this._$AH = u) : t !== this._$AH && t !== W && this._(t) : t._$litType$ !== void 0 ? this.$(t) : t.nodeType !== void 0 ? this.T(t) : zt(t) ? this.k(t) : this._(t);
+    t = j(this, t, s), ie(t) ? t === m || t == null || t === "" ? (this._$AH !== m && this._$AR(), this._$AH = m) : t !== this._$AH && t !== q && this._(t) : t._$litType$ !== void 0 ? this.$(t) : t.nodeType !== void 0 ? this.T(t) : Qt(t) ? this.k(t) : this._(t);
   }
   O(t) {
     return this._$AA.parentNode.insertBefore(t, this._$AB);
@@ -380,38 +380,38 @@ class V {
     this._$AH !== t && (this._$AR(), this._$AH = this.O(t));
   }
   _(t) {
-    this._$AH !== u && G(this._$AH) ? this._$AA.nextSibling.data = t : this.T(C.createTextNode(t)), this._$AH = t;
+    this._$AH !== m && ie(this._$AH) ? this._$AA.nextSibling.data = t : this.T(I.createTextNode(t)), this._$AH = t;
   }
   $(t) {
-    const { values: s, _$litType$: i } = t, n = typeof i == "number" ? this._$AC(t) : (i.el === void 0 && (i.el = K.createElement(ht(i.h, i.h[0]), this.options)), i);
+    const { values: s, _$litType$: i } = t, n = typeof i == "number" ? this._$AC(t) : (i.el === void 0 && (i.el = ne.createElement(Dt(i.h, i.h[0]), this.options)), i);
     if (this._$AH?._$AD === n) this._$AH.p(s);
     else {
-      const a = new Wt(n, this), o = a.u(this.options);
+      const a = new ts(n, this), o = a.u(this.options);
       a.p(s), this.T(o), this._$AH = a;
     }
   }
   _$AC(t) {
-    let s = Fe.get(t.strings);
-    return s === void 0 && Fe.set(t.strings, s = new K(t)), s;
+    let s = Ze.get(t.strings);
+    return s === void 0 && Ze.set(t.strings, s = new ne(t)), s;
   }
   k(t) {
-    ke(this._$AH) || (this._$AH = [], this._$AR());
+    Le(this._$AH) || (this._$AH = [], this._$AR());
     const s = this._$AH;
     let i, n = 0;
-    for (const a of t) n === s.length ? s.push(i = new V(this.O(q()), this.O(q()), this, this.options)) : i = s[n], i._$AI(a), n++;
+    for (const a of t) n === s.length ? s.push(i = new oe(this.O(se()), this.O(se()), this, this.options)) : i = s[n], i._$AI(a), n++;
     n < s.length && (this._$AR(i && i._$AB.nextSibling, n), s.length = n);
   }
   _$AR(t = this._$AA.nextSibling, s) {
     for (this._$AP?.(!1, !0, s); t !== this._$AB; ) {
-      const i = Le(t).nextSibling;
-      Le(t).remove(), t = i;
+      const i = qe(t).nextSibling;
+      qe(t).remove(), t = i;
     }
   }
   setConnected(t) {
     this._$AM === void 0 && (this._$Cv = t, this._$AP?.(t));
   }
 }
-class ce {
+class ve {
   get tagName() {
     return this.element.tagName;
   }
@@ -419,53 +419,53 @@ class ce {
     return this._$AM._$AU;
   }
   constructor(t, s, i, n, a) {
-    this.type = 1, this._$AH = u, this._$AN = void 0, this.element = t, this.name = s, this._$AM = n, this.options = a, i.length > 2 || i[0] !== "" || i[1] !== "" ? (this._$AH = Array(i.length - 1).fill(new String()), this.strings = i) : this._$AH = u;
+    this.type = 1, this._$AH = m, this._$AN = void 0, this.element = t, this.name = s, this._$AM = n, this.options = a, i.length > 2 || i[0] !== "" || i[1] !== "" ? (this._$AH = Array(i.length - 1).fill(new String()), this.strings = i) : this._$AH = m;
   }
   _$AI(t, s = this, i, n) {
     const a = this.strings;
     let o = !1;
-    if (a === void 0) t = F(this, t, s, 0), o = !G(t) || t !== this._$AH && t !== W, o && (this._$AH = t);
+    if (a === void 0) t = j(this, t, s, 0), o = !ie(t) || t !== this._$AH && t !== q, o && (this._$AH = t);
     else {
       const l = t;
       let r, h;
-      for (t = a[0], r = 0; r < a.length - 1; r++) h = F(this, l[i + r], s, r), h === W && (h = this._$AH[r]), o ||= !G(h) || h !== this._$AH[r], h === u ? t = u : t !== u && (t += (h ?? "") + a[r + 1]), this._$AH[r] = h;
+      for (t = a[0], r = 0; r < a.length - 1; r++) h = j(this, l[i + r], s, r), h === q && (h = this._$AH[r]), o ||= !ie(h) || h !== this._$AH[r], h === m ? t = m : t !== m && (t += (h ?? "") + a[r + 1]), this._$AH[r] = h;
     }
     o && !n && this.j(t);
   }
   j(t) {
-    t === u ? this.element.removeAttribute(this.name) : this.element.setAttribute(this.name, t ?? "");
+    t === m ? this.element.removeAttribute(this.name) : this.element.setAttribute(this.name, t ?? "");
   }
 }
-class Ft extends ce {
+class ss extends ve {
   constructor() {
     super(...arguments), this.type = 3;
   }
   j(t) {
-    this.element[this.name] = t === u ? void 0 : t;
+    this.element[this.name] = t === m ? void 0 : t;
   }
 }
-class Ut extends ce {
+class is extends ve {
   constructor() {
     super(...arguments), this.type = 4;
   }
   j(t) {
-    this.element.toggleAttribute(this.name, !!t && t !== u);
+    this.element.toggleAttribute(this.name, !!t && t !== m);
   }
 }
-class Ht extends ce {
+class ns extends ve {
   constructor(t, s, i, n, a) {
     super(t, s, i, n, a), this.type = 5;
   }
   _$AI(t, s = this) {
-    if ((t = F(this, t, s, 0) ?? u) === W) return;
-    const i = this._$AH, n = t === u && i !== u || t.capture !== i.capture || t.once !== i.once || t.passive !== i.passive, a = t !== u && (i === u || n);
+    if ((t = j(this, t, s, 0) ?? m) === q) return;
+    const i = this._$AH, n = t === m && i !== m || t.capture !== i.capture || t.once !== i.once || t.passive !== i.passive, a = t !== m && (i === m || n);
     n && this.element.removeEventListener(this.name, this, i), a && this.element.addEventListener(this.name, this, t), this._$AH = t;
   }
   handleEvent(t) {
     typeof this._$AH == "function" ? this._$AH.call(this.options?.host ?? this.element, t) : this._$AH.handleEvent(t);
   }
 }
-class Bt {
+class as {
   constructor(t, s, i) {
     this.element = t, this.type = 6, this._$AN = void 0, this._$AM = s, this.options = i;
   }
@@ -473,17 +473,17 @@ class Bt {
     return this._$AM._$AU;
   }
   _$AI(t) {
-    F(this, t);
+    j(this, t);
   }
 }
-const jt = xe.litHtmlPolyfillSupport;
-jt?.(K, V), (xe.litHtmlVersions ??= []).push("3.3.3");
-const Yt = (e, t, s) => {
+const os = Ce.litHtmlPolyfillSupport;
+os?.(ne, oe), (Ce.litHtmlVersions ??= []).push("3.3.3");
+const rs = (e, t, s) => {
   const i = s?.renderBefore ?? t;
   let n = i._$litPart$;
   if (n === void 0) {
     const a = s?.renderBefore ?? null;
-    i._$litPart$ = n = new V(t.insertBefore(q(), a), a, void 0, s ?? {});
+    i._$litPart$ = n = new oe(t.insertBefore(se(), a), a, void 0, s ?? {});
   }
   return n._$AI(e), n;
 };
@@ -492,8 +492,8 @@ const Yt = (e, t, s) => {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const $e = globalThis;
-class Y extends z {
+const Re = globalThis;
+class te extends Y {
   constructor() {
     super(...arguments), this.renderOptions = { host: this }, this._$Do = void 0;
   }
@@ -503,7 +503,7 @@ class Y extends z {
   }
   update(t) {
     const s = this.render();
-    this.hasUpdated || (this.renderOptions.isConnected = this.isConnected), super.update(t), this._$Do = Yt(s, this.renderRoot, this.renderOptions);
+    this.hasUpdated || (this.renderOptions.isConnected = this.isConnected), super.update(t), this._$Do = rs(s, this.renderRoot, this.renderOptions);
   }
   connectedCallback() {
     super.connectedCallback(), this._$Do?.setConnected(!0);
@@ -512,19 +512,19 @@ class Y extends z {
     super.disconnectedCallback(), this._$Do?.setConnected(!1);
   }
   render() {
-    return W;
+    return q;
   }
 }
-Y._$litElement$ = !0, Y.finalized = !0, $e.litElementHydrateSupport?.({ LitElement: Y });
-const qt = $e.litElementPolyfillSupport;
-qt?.({ LitElement: Y });
-($e.litElementVersions ??= []).push("4.2.2");
+te._$litElement$ = !0, te.finalized = !0, Re.litElementHydrateSupport?.({ LitElement: te });
+const ls = Re.litElementPolyfillSupport;
+ls?.({ LitElement: te });
+(Re.litElementVersions ??= []).push("4.2.2");
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const Gt = (e) => (t, s) => {
+const hs = (e) => (t, s) => {
   s !== void 0 ? s.addInitializer(() => {
     customElements.define(e, t);
   }) : customElements.define(e, t);
@@ -534,7 +534,7 @@ const Gt = (e) => (t, s) => {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const Kt = { attribute: !0, type: String, converter: ae, reflect: !1, hasChanged: ve }, Xt = (e = Kt, t, s) => {
+const ds = { attribute: !0, type: String, converter: be, reflect: !1, hasChanged: Pe }, cs = (e = ds, t, s) => {
   const { kind: i, metadata: n } = s;
   let a = globalThis.litPropertyMetadata.get(n);
   if (a === void 0 && globalThis.litPropertyMetadata.set(n, a = /* @__PURE__ */ new Map()), i === "setter" && ((e = Object.create(e)).wrapped = !0), a.set(s.name, e), i === "accessor") {
@@ -555,8 +555,8 @@ const Kt = { attribute: !0, type: String, converter: ae, reflect: !1, hasChanged
   }
   throw Error("Unsupported decorator location: " + i);
 };
-function ct(e) {
-  return (t, s) => typeof s == "object" ? Xt(e, t, s) : ((i, n, a) => {
+function Et(e) {
+  return (t, s) => typeof s == "object" ? cs(e, t, s) : ((i, n, a) => {
     const o = n.hasOwnProperty(a);
     return n.constructor.createProperty(a, i), o ? Object.getOwnPropertyDescriptor(n, a) : void 0;
   })(e, t, s);
@@ -567,17 +567,17 @@ function ct(e) {
  * SPDX-License-Identifier: BSD-3-Clause
  */
 function _(e) {
-  return ct({ ...e, state: !0, attribute: !1 });
+  return Et({ ...e, state: !0, attribute: !1 });
 }
-function N(e) {
+function B(e) {
   return new Date(e.getFullYear(), e.getMonth(), e.getDate());
 }
-function Vt(e) {
-  const t = N(e), s = (t.getDay() + 6) % 7;
+function St(e) {
+  const t = B(e), s = (t.getDay() + 6) % 7;
   return t.setDate(t.getDate() - s), t;
 }
-function pe(e, t, s) {
-  const i = Vt(e);
+function ke(e, t, s) {
+  const i = St(e);
   i.setDate(i.getDate() + t * 7);
   const n = new Date(i);
   n.setDate(n.getDate() + 7);
@@ -588,40 +588,58 @@ function pe(e, t, s) {
   }
   return { start: i, end: n, days: a };
 }
-function ue(e) {
+function $e(e, t) {
+  const s = new Date(e.getFullYear(), e.getMonth() + t, 1), i = St(s), n = ps(e, t) * 7, a = new Date(i);
+  a.setDate(a.getDate() + n);
+  const o = [];
+  for (let l = 0; l < n; l++) {
+    const r = new Date(i);
+    r.setDate(r.getDate() + l), o.push(r);
+  }
+  return { start: i, end: a, days: o };
+}
+function ps(e, t) {
+  const s = e.getFullYear(), i = e.getMonth() + t, a = (new Date(s, i, 1).getDay() + 6) % 7, o = new Date(s, i + 1, 0).getDate();
+  return Math.ceil((a + o) / 7);
+}
+function Qe(e, t) {
+  return new Date(e.getFullYear(), e.getMonth() + t, 1);
+}
+function Te(e) {
   return e.getHours() * 60 + e.getMinutes();
 }
-function Ue(e) {
+function Je(e) {
   if (!e || e === "auto") return null;
   const t = /^(\d{1,2}):(\d{2})$/.exec(e.trim());
   if (!t) return null;
   const s = Number(t[1]), i = Number(t[2]);
   return s > 24 || i > 59 ? null : s * 60 + i;
 }
-function Zt(e, t, s) {
-  const i = Ue(t), n = Ue(s);
+function us(e, t, s) {
+  const i = Je(t), n = Je(s);
   if (i !== null && n !== null && n > i)
     return { start: i, end: n };
   let a = 1 / 0, o = -1 / 0;
   for (const h of e) {
     if (h.allDay) continue;
-    a = Math.min(a, ue(h.start));
-    const d = ue(h.end) === 0 ? 24 * 60 : ue(h.end);
-    o = Math.max(o, d);
+    a = Math.min(a, Te(h.start));
+    const c = Te(h.end) === 0 ? 24 * 60 : Te(h.end);
+    o = Math.max(o, c);
   }
   (!Number.isFinite(a) || !Number.isFinite(o)) && (a = 8 * 60, o = 16 * 60);
   const l = i !== null ? i : a, r = n !== null ? n : o;
   return r > l ? { start: l, end: r } : { start: l, end: l + 60 };
 }
-function Qt(e, t, s) {
+function ms(e, t, s) {
   if (!e || !e.start || !e.end) return null;
-  const i = e.all_day === !0 || !e.start.includes("T"), n = He(e.start), a = He(e.end);
+  const i = e.all_day === !0 || !e.start.includes("T"), n = et(e.start), a = et(e.end);
   return !n || !a ? null : {
     // recurrence_id is unique per occurrence; uid is not. Index backstops both.
     key: `${t}|${e.recurrence_id ?? e.uid ?? "x"}|${e.start}|${s}`,
     entity: t,
     uid: e.uid ?? void 0,
     recurrenceId: e.recurrence_id ?? void 0,
+    rrule: e.rrule ?? void 0,
     summary: (e.summary ?? "").trim() || "(no title)",
     description: e.description ?? void 0,
     location: e.location ?? void 0,
@@ -630,22 +648,22 @@ function Qt(e, t, s) {
     allDay: i
   };
 }
-function He(e) {
+function et(e) {
   const t = /^(\d{4})-(\d{2})-(\d{2})$/.exec(e);
   if (t) return new Date(Number(t[1]), Number(t[2]) - 1, Number(t[3]));
   const s = new Date(e);
   return Number.isNaN(s.getTime()) ? null : s;
 }
-function Jt(e, t) {
-  return t.filter((s) => s.getDay() === 0 || s.getDay() === 6).some((s) => R(e, s).length > 0);
+function fs(e, t) {
+  return t.filter((s) => s.getDay() === 0 || s.getDay() === 6).some((s) => S(e, s).length > 0);
 }
-function R(e, t) {
-  const s = N(t).getTime(), i = s + 24 * 60 * 60 * 1e3;
+function S(e, t) {
+  const s = B(t).getTime(), i = s + 24 * 60 * 60 * 1e3;
   return e.filter((n) => n.start.getTime() < i && n.end.getTime() > s);
 }
-class es {
+class gs {
   constructor(t) {
-    this._onChange = t, this._unsubs = [], this._byEntity = /* @__PURE__ */ new Map(), this._failed = /* @__PURE__ */ new Set(), this._key = "";
+    this._onChange = t, this._unsubs = [], this._byEntity = /* @__PURE__ */ new Map(), this._failed = /* @__PURE__ */ new Set(), this._key = "", this._syncing = null;
   }
   /** Every calendar's cached events, flattened. */
   get events() {
@@ -683,34 +701,41 @@ class es {
    */
   async sync(t, s, i, n, a = !1) {
     const o = `${s.join(",")}|${i.getTime()}|${n.getTime()}`;
-    if (o === this._key && this.subscribed && !a) return;
-    this._key = o, this.stop();
-    const l = Be(i), r = Be(n);
-    for (const h of s)
+    if (!a && o === this._key && (this.subscribed || this._syncing === o)) return;
+    this._key = o, this._syncing = o, this.stop();
+    const l = tt(i), r = tt(n);
+    try {
+      await this._subscribeAll(t, s, o, i, n, l, r);
+    } finally {
+      this._syncing === o && (this._syncing = null);
+    }
+  }
+  async _subscribeAll(t, s, i, n, a, o, l) {
+    for (const r of s)
       try {
-        const d = await t.connection.subscribeMessage(
-          (p) => {
-            this._key === o && (!p || p.events === null ? this._failed.add(h) : (this._failed.delete(h), this._merge(
-              h,
-              p.events.map((f, v) => Qt(f, h, v)).filter((f) => f !== null),
-              i,
-              n
+        const h = await t.connection.subscribeMessage(
+          (c) => {
+            this._key === i && (!c || c.events === null ? this._failed.add(r) : (this._failed.delete(r), this._merge(
+              r,
+              c.events.map((p, u) => ms(p, r, u)).filter((p) => p !== null),
+              n,
+              a
             )), this._onChange());
           },
           {
             type: "calendar/event/subscribe",
-            entity_id: h,
-            start: l,
-            end: r
+            entity_id: r,
+            start: o,
+            end: l
           }
         );
-        if (this._key !== o) {
-          d();
+        if (this._key !== i) {
+          h();
           return;
         }
-        this._unsubs.push(d);
+        this._unsubs.push(h);
       } catch {
-        this._failed.add(h), this._onChange();
+        this._failed.add(r), this._onChange();
       }
   }
   /**
@@ -755,11 +780,11 @@ class es {
     this._unsubs = [];
   }
 }
-function Be(e) {
+function tt(e) {
   const t = (s) => String(s).padStart(2, "0");
   return `${e.getFullYear()}-${t(e.getMonth() + 1)}-${t(e.getDate())}T${t(e.getHours())}:${t(e.getMinutes())}:${t(e.getSeconds())}`;
 }
-const je = [
+const st = [
   "#0a84ff",
   "#30d158",
   "#ff9f0a",
@@ -769,7 +794,7 @@ const je = [
   "#ffd60a",
   "#5e5ce6"
 ];
-async function ts(e, t) {
+async function bs(e, t) {
   if (!t.length) return {};
   const s = {};
   try {
@@ -785,17 +810,17 @@ async function ts(e, t) {
   }
   return s;
 }
-function ss(e, t, s) {
-  return t[e.entity] ?? je[s % je.length];
+function ys(e, t, s) {
+  return t[e.entity] ?? st[s % st.length];
 }
-function is(e, t) {
+function _s(e, t) {
   if (!t) return;
   const s = e.trim().toLowerCase();
   for (const [i, n] of Object.entries(t))
     if (i.trim().toLowerCase() === s) return n;
 }
-const ns = "/local/simple-schedule-card-data/event-colors.json";
-async function as(e) {
+const ws = "/local/simple-schedule-card-data/event-colors.json";
+async function vs(e) {
   try {
     const t = await fetch(e, { cache: "no-cache" });
     if (!t.ok) return null;
@@ -808,36 +833,36 @@ async function as(e) {
     return null;
   }
 }
-function os(e, t, s) {
+function xs(e, t, s) {
   if (e) {
     if (s && e.by_recurrence_id[s]) return e.by_recurrence_id[s];
     if (t && e.by_uid[t]) return e.by_uid[t];
   }
 }
-function Ye(e, t, s) {
+function it(e, t, s) {
   const i = (n) => {
     const a = n / 255;
     return a <= 0.03928 ? a / 12.92 : ((a + 0.055) / 1.055) ** 2.4;
   };
   return 0.2126 * i(e) + 0.7152 * i(t) + 0.0722 * i(s);
 }
-function qe(e) {
+function nt(e) {
   return 1.05 / (e + 0.05);
 }
-function dt(e, t) {
+function At(e, t) {
   const s = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(e);
   if (!s || !(t > 1)) return e;
   const i = parseInt(s[1], 16), n = parseInt(s[2], 16), a = parseInt(s[3], 16);
-  if (qe(Ye(i, n, a)) >= t) return e;
+  if (nt(it(i, n, a)) >= t) return e;
   let o = 0, l = 1;
-  for (let d = 0; d < 24; d++) {
+  for (let c = 0; c < 24; c++) {
     const p = (o + l) / 2;
-    qe(Ye(i * p, n * p, a * p)) >= t ? o = p : l = p;
+    nt(it(i * p, n * p, a * p)) >= t ? o = p : l = p;
   }
-  const r = o, h = (d) => Math.max(0, Math.min(255, Math.round(d * r))).toString(16).padStart(2, "0");
+  const r = o, h = (c) => Math.max(0, Math.min(255, Math.round(c * r))).toString(16).padStart(2, "0");
   return `#${h(i)}${h(n)}${h(a)}`;
 }
-function Ge(e) {
+function at(e) {
   const t = [...e].sort(
     (n, a) => n.start.getTime() - a.start.getTime() || a.end.getTime() - n.end.getTime() || n.key.localeCompare(a.key)
   ), s = [], i = /* @__PURE__ */ new Map();
@@ -847,31 +872,31 @@ function Ge(e) {
   }
   return i;
 }
-function Ke(e, t, s) {
+function ot(e, t, s) {
   if (t === "packed") {
-    const o = e.map((r) => Ge(r));
+    const o = e.map((r) => at(r));
     let l = 1;
-    for (const r of o) l = Math.max(l, Xe(r) + 1);
+    for (const r of o) l = Math.max(l, rt(r) + 1);
     return {
       columns: l,
       days: e.map(
-        (r, h) => r.map((d) => ({ ev: d, column: o[h].get(d.key) ?? 0 }))
+        (r, h) => r.map((c) => ({ ev: c, column: o[h].get(c.key) ?? 0 }))
       )
     };
   }
   const i = e.map((o) => {
     const l = /* @__PURE__ */ new Map();
     for (const h of o) {
-      const d = l.get(h.entity);
-      d ? d.push(h) : l.set(h.entity, [h]);
+      const c = l.get(h.entity);
+      c ? c.push(h) : l.set(h.entity, [h]);
     }
     const r = /* @__PURE__ */ new Map();
     for (const h of l.values())
-      for (const [d, p] of Ge(h)) r.set(d, p);
+      for (const [c, p] of at(h)) r.set(c, p);
     return r;
   });
   let n = 1;
-  for (const o of i) n = Math.max(n, Xe(o) + 1);
+  for (const o of i) n = Math.max(n, rt(o) + 1);
   const a = s.length ? s : [""];
   return {
     columns: a.length * n,
@@ -883,32 +908,32 @@ function Ke(e, t, s) {
     )
   };
 }
-function Xe(e) {
+function rt(e) {
   let t = -1;
   for (const s of e.values()) t = Math.max(t, s);
   return t;
 }
-const re = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"], X = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"], pt = ["MO", "TU", "WE", "TH", "FR"], ut = {
+const O = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"], ae = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"], Ot = ["MO", "TU", "WE", "TH", "FR"], Ne = {
   1: "first",
   2: "second",
   3: "third",
   4: "fourth",
   [-1]: "last"
 };
-function rs(e) {
+function Ee(e) {
   const t = Math.ceil(e.getDate() / 7);
   return t >= 5 ? -1 : t;
 }
-function ft(e, t) {
+function Pt(e, t) {
   if (e.length !== t.length) return !1;
   const s = [...e].sort(), i = [...t].sort();
   return s.every((n, a) => n === i[a]);
 }
-function mt(e) {
-  return [...e].sort((t, s) => X.indexOf(t) - X.indexOf(s));
+function Ie(e) {
+  return [...e].sort((t, s) => ae.indexOf(t) - ae.indexOf(s));
 }
-function gt(e, t) {
-  const s = re[e.getDay()], i = new Intl.DateTimeFormat(t, { weekday: "long" }).format(e), n = rs(e), a = new Intl.DateTimeFormat(t, { month: "long", day: "numeric" }).format(e), o = { kind: "never" };
+function Ct(e, t) {
+  const s = O[e.getDay()], i = new Intl.DateTimeFormat(t, { weekday: "long" }).format(e), n = Ee(e), a = new Intl.DateTimeFormat(t, { month: "long", day: "numeric" }).format(e), o = { kind: "never" };
   return [
     { key: "none", label: "Does not repeat", rule: null },
     { key: "daily", label: "Daily", rule: { freq: "DAILY", interval: 1, byDay: [], end: o } },
@@ -919,7 +944,7 @@ function gt(e, t) {
     },
     {
       key: "monthly",
-      label: `Monthly on the ${ut[n]} ${i}`,
+      label: `Monthly on the ${Ne[n]} ${i}`,
       rule: {
         freq: "MONTHLY",
         interval: 1,
@@ -936,34 +961,114 @@ function gt(e, t) {
     {
       key: "weekdays",
       label: "Every weekday (Monday to Friday)",
-      rule: { freq: "WEEKLY", interval: 1, byDay: [...pt], end: o }
+      rule: { freq: "WEEKLY", interval: 1, byDay: [...Ot], end: o }
     }
   ];
 }
-function ls(e, t) {
-  return !e || !t ? e === t : e.freq !== t.freq || e.interval !== t.interval || !ft(e.byDay, t.byDay) || !!e.byPos != !!t.byPos || e.byPos && t.byPos && (e.byPos.pos !== t.byPos.pos || e.byPos.day !== t.byPos.day) || e.end.kind !== t.end.kind ? !1 : e.end.kind === "on" && t.end.kind === "on" ? e.end.date === t.end.date : e.end.kind === "after" && t.end.kind === "after" ? e.end.count === t.end.count : !0;
+function Se(e) {
+  const t = { ...e, byDay: e.freq === "WEEKLY" ? e.byDay : [] };
+  return t.freq !== "MONTHLY" && delete t.byPos, t.freq !== "MONTHLY" && t.freq !== "YEARLY" && delete t.byMonthDay, t.freq !== "YEARLY" && delete t.byMonth, t.byPos && delete t.byMonthDay, t;
 }
-function hs(e, t, s) {
-  const i = gt(t, s).find((n) => ls(n.rule, e));
+function Lt(e, t) {
+  if (!e || !t) return e === t;
+  const s = Se(e), i = Se(t);
+  return s.freq !== i.freq || s.interval !== i.interval || !Pt(s.byDay, i.byDay) || !!s.byPos != !!i.byPos || s.byPos && i.byPos && (s.byPos.pos !== i.byPos.pos || s.byPos.day !== i.byPos.day) || (s.byMonthDay ?? null) !== (i.byMonthDay ?? null) || (s.byMonth ?? null) !== (i.byMonth ?? null) || s.end.kind !== i.end.kind ? !1 : s.end.kind === "on" && i.end.kind === "on" ? s.end.date === i.end.date : s.end.kind === "after" && i.end.kind === "after" ? s.end.count === i.end.count : !0;
+}
+function ks(e, t, s) {
+  const i = Ct(t, s).find((n) => Lt(n.rule, e));
   return i ? i.key : "custom";
 }
-function cs(e, t) {
+function $s(e, t) {
   if (t) return e.replace(/-/g, "");
   const s = /* @__PURE__ */ new Date(`${e}T23:59:59`), i = (n) => String(n).padStart(2, "0");
   return `${s.getUTCFullYear()}${i(s.getUTCMonth() + 1)}${i(s.getUTCDate())}T${i(s.getUTCHours())}${i(s.getUTCMinutes())}${i(s.getUTCSeconds())}Z`;
 }
-function ds(e, t = !1) {
-  const s = [`FREQ=${e.freq}`];
-  return e.interval > 1 && s.push(`INTERVAL=${e.interval}`), e.freq === "WEEKLY" && e.byDay.length && s.push(`BYDAY=${mt(e.byDay).join(",")}`), e.freq === "MONTHLY" && e.byPos && s.push(`BYDAY=${e.byPos.pos}${e.byPos.day}`), e.end.kind === "on" && s.push(`UNTIL=${cs(e.end.date, t)}`), e.end.kind === "after" && s.push(`COUNT=${e.end.count}`), `RRULE:${s.join(";")}`;
+function lt(e, t = !1) {
+  const s = Se(e), i = [`FREQ=${s.freq}`];
+  return s.interval > 1 && i.push(`INTERVAL=${s.interval}`), s.freq === "WEEKLY" && s.byDay.length && i.push(`BYDAY=${Ie(s.byDay).join(",")}`), s.freq === "MONTHLY" && s.byPos && i.push(`BYDAY=${s.byPos.pos}${s.byPos.day}`), s.byMonth !== void 0 && i.push(`BYMONTH=${s.byMonth}`), s.byMonthDay !== void 0 && !s.byPos && i.push(`BYMONTHDAY=${s.byMonthDay}`), s.end.kind === "on" && i.push(`UNTIL=${$s(s.end.date, t)}`), s.end.kind === "after" && i.push(`COUNT=${s.end.count}`), `RRULE:${i.join(";")}`;
 }
-function ps(e, t) {
-  const s = mt(e).map((i) => {
-    const n = X.indexOf(i);
+const Ts = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"];
+function ht(e) {
+  if (!e) return null;
+  const t = e.split(/[\r\n]+/).map((w) => w.trim()).find((w) => !w || /^(RRULE[:;])/i.test(w) || /FREQ=/i.test(w));
+  if (!t) return null;
+  const s = t.replace(/^RRULE[:;]/i, ""), i = /* @__PURE__ */ new Map();
+  for (const w of s.split(";")) {
+    const [f, g] = w.split("=");
+    f && g !== void 0 && i.set(f.trim().toUpperCase(), g.trim());
+  }
+  const n = (i.get("FREQ") ?? "").toUpperCase();
+  if (!Ts.includes(n)) return null;
+  for (const w of ["BYSETPOS", "BYYEARDAY", "BYWEEKNO", "BYHOUR", "BYMINUTE"])
+    if (i.has(w)) return null;
+  const a = Number(i.get("INTERVAL") ?? "1");
+  if (!Number.isInteger(a) || a < 1) return null;
+  const o = { freq: n, interval: a, byDay: [], end: { kind: "never" } }, l = i.get("BYDAY");
+  if (l) {
+    const w = l.split(",").map((g) => g.trim().toUpperCase()).filter(Boolean), f = w.filter((g) => /^-?\d/.test(g));
+    if (f.length) {
+      if (n !== "MONTHLY" || w.length !== 1) return null;
+      const g = /^(-?\d+)([A-Z]{2})$/.exec(f[0]);
+      if (!g) return null;
+      const x = Number(g[1]);
+      if (!Ne[x] || !O.includes(g[2])) return null;
+      o.byPos = { pos: x, day: g[2] };
+    } else {
+      if (w.some((g) => !O.includes(g))) return null;
+      o.byDay = Ie(w);
+    }
+  }
+  const r = (w) => {
+    const f = i.get(w);
+    if (f === void 0) return;
+    if (f.includes(",")) return null;
+    const g = Number(f);
+    return Number.isInteger(g) ? g : null;
+  }, h = r("BYMONTHDAY");
+  if (h === null) return null;
+  if (h !== void 0) {
+    if (n !== "MONTHLY" && n !== "YEARLY" || h < 1 || h > 31) return null;
+    o.byMonthDay = h;
+  }
+  const c = r("BYMONTH");
+  if (c === null) return null;
+  if (c !== void 0) {
+    if (n !== "YEARLY" || c < 1 || c > 12) return null;
+    o.byMonth = c;
+  }
+  if (o.byPos && o.byMonthDay !== void 0 || i.has("COUNT") && i.has("UNTIL")) return null;
+  const p = i.get("COUNT");
+  if (p !== void 0) {
+    const w = Number(p);
+    if (!Number.isInteger(w) || w < 1) return null;
+    o.end = { kind: "after", count: w };
+  }
+  const u = i.get("UNTIL");
+  if (u !== void 0) {
+    const w = Ms(u);
+    if (!w) return null;
+    o.end = { kind: "on", date: w };
+  }
+  return o;
+}
+function Ms(e) {
+  const t = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?$/.exec(e.trim());
+  if (!t) return null;
+  const [, s, i, n, a, o, l, r] = t;
+  if (!a) return `${s}-${i}-${n}`;
+  const h = r ? new Date(Date.UTC(+s, +i - 1, +n, +a, +o, +l)) : new Date(+s, +i - 1, +n, +a, +o, +l);
+  if (Number.isNaN(h.getTime())) return null;
+  const c = (p) => String(p).padStart(2, "0");
+  return `${h.getFullYear()}-${c(h.getMonth() + 1)}-${c(h.getDate())}`;
+}
+function Ds(e, t) {
+  const s = Ie(e).map((i) => {
+    const n = ae.indexOf(i);
     return new Intl.DateTimeFormat(t, { weekday: "long" }).format(new Date(2024, 0, 1 + n));
   });
   return s.length < 2 ? s.join("") : `${s.slice(0, -1).join(", ")} and ${s[s.length - 1]}`;
 }
-function fe(e, t, s) {
+function de(e, t, s) {
   if (!e) return "Does not repeat";
   const i = e.interval > 1 ? `Every ${e.interval} ` : "";
   let n;
@@ -972,19 +1077,19 @@ function fe(e, t, s) {
       n = i ? `${i}days` : "Daily";
       break;
     case "WEEKLY": {
-      const a = e.byDay.length ? e.byDay : [re[t.getDay()]];
-      if (!i && ft(a, pt)) {
+      const a = e.byDay.length ? e.byDay : [O[t.getDay()]];
+      if (!i && Pt(a, Ot)) {
         n = "Every weekday (Monday to Friday)";
         break;
       }
-      const o = `on ${ps(a, s)}`;
+      const o = `on ${Ds(a, s)}`;
       n = i ? `${i}weeks ${o}` : `Weekly ${o}`;
       break;
     }
     case "MONTHLY": {
-      const a = e.byPos ? `on the ${ut[e.byPos.pos]} ${new Intl.DateTimeFormat(s, {
+      const a = e.byPos ? `on the ${Ne[e.byPos.pos]} ${new Intl.DateTimeFormat(s, {
         weekday: "long"
-      }).format(new Date(2024, 0, 1 + X.indexOf(e.byPos.day)))}` : `on day ${t.getDate()}`;
+      }).format(new Date(2024, 0, 1 + ae.indexOf(e.byPos.day)))}` : `on day ${e.byMonthDay ?? t.getDate()}`;
       n = i ? `${i}months ${a}` : `Monthly ${a}`;
       break;
     }
@@ -1007,53 +1112,53 @@ function fe(e, t, s) {
   }
   return e.end.kind === "after" ? `${n}, ${e.end.count} time${e.end.count === 1 ? "" : "s"}` : n;
 }
-const us = "https://photon.komoot.io/api/", bt = 3;
-function _t(e) {
+const Es = "https://photon.komoot.io/api/", Rt = 3;
+function Nt(e) {
   const t = [e.street, e.housenumber].filter(Boolean).join(" "), s = [e.postcode, e.city].filter(Boolean).join(" "), i = e.name || t || e.city || e.country || "", n = [];
   e.name && t && n.push(t), s && s !== i && n.push(s), e.district && !s.includes(e.district) && e.district !== i && n.push(e.district), e.country && e.country !== i && n.push(e.country);
   const a = n.join(", ");
   return { name: i, detail: a, label: a ? `${i}, ${a}` : i };
 }
-async function Ve(e, t = {}) {
+async function dt(e, t = {}) {
   const s = e.trim();
-  if (s.length < bt) return [];
+  if (s.length < Rt) return [];
   const i = new URLSearchParams({ q: s, limit: String(t.limit ?? 6) });
   typeof t.lat == "number" && typeof t.lon == "number" && (i.set("lat", String(t.lat)), i.set("lon", String(t.lon))), t.lang && i.set("lang", t.lang);
   try {
-    const n = await fetch(`${us}?${i.toString()}`, { signal: t.signal });
+    const n = await fetch(`${Es}?${i.toString()}`, { signal: t.signal });
     if (!n.ok) return [];
     const a = await n.json(), o = [];
     for (const l of a.features ?? []) {
       const r = l.geometry?.coordinates;
       if (!r || r.length < 2) continue;
-      const { name: h, detail: d, label: p } = _t(l.properties ?? {});
-      p && o.push({ label: p, name: h, detail: d, lat: r[1], lon: r[0] });
+      const { name: h, detail: c, label: p } = Nt(l.properties ?? {});
+      p && o.push({ label: p, name: h, detail: c, lat: r[1], lon: r[0] });
     }
     return o;
   } catch {
     return [];
   }
 }
-const S = 256;
-function fs(e, t, s) {
-  const i = S * 2 ** s, n = (t + 180) / 360 * i, o = Math.max(-85.05112878, Math.min(85.05112878, e)) * Math.PI / 180, l = (1 - Math.log(Math.tan(o) + 1 / Math.cos(o)) / Math.PI) / 2 * i;
+const L = 256;
+function Ss(e, t, s) {
+  const i = L * 2 ** s, n = (t + 180) / 360 * i, o = Math.max(-85.05112878, Math.min(85.05112878, e)) * Math.PI / 180, l = (1 - Math.log(Math.tan(o) + 1 / Math.cos(o)) / Math.PI) / 2 * i;
   return { x: n, y: l };
 }
-function ms(e, t, s, i, n, a = "Dark") {
-  const o = fs(e, t, s), l = o.x - i / 2, r = o.y - n / 2, h = 2 ** s, d = [], p = [], f = Math.floor(l / S), v = Math.floor(r / S), b = Math.floor((l + i) / S), w = Math.floor((r + n) / S);
-  for (let T = v; T <= w; T++)
-    if (!(T < 0 || T >= h))
-      for (let O = f; O <= b; O++) {
-        const Z = (O % h + h) % h, U = O * S - l, Q = T * S - r, J = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
-        d.push({ url: `${J}/World_${a}_Gray_Base/MapServer/tile/${s}/${T}/${Z}`, left: U, top: Q }), p.push({
-          url: `${J}/World_${a}_Gray_Reference/MapServer/tile/${s}/${T}/${Z}`,
-          left: U,
-          top: Q
+function As(e, t, s, i, n, a = "Dark") {
+  const o = Ss(e, t, s), l = o.x - i / 2, r = o.y - n / 2, h = 2 ** s, c = [], p = [], u = Math.floor(l / L), w = Math.floor(r / L), f = Math.floor((l + i) / L), g = Math.floor((r + n) / L);
+  for (let x = w; x <= g; x++)
+    if (!(x < 0 || x >= h))
+      for (let D = u; D <= f; D++) {
+        const G = (D % h + h) % h, M = D * L - l, P = x * L - r, z = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
+        c.push({ url: `${z}/World_${a}_Gray_Base/MapServer/tile/${s}/${x}/${G}`, left: M, top: P }), p.push({
+          url: `${z}/World_${a}_Gray_Reference/MapServer/tile/${s}/${x}/${G}`,
+          left: M,
+          top: P
         });
       }
-  return { base: d, labels: p };
+  return { base: c, labels: p };
 }
-const Ze = {
+const ct = {
   street: {
     // World_TOPO_Map, not World_Street_Map. Compared at zoom 18 over a Czech
     // village, Street draws ONE ROAD LINE and nothing else — no buildings, no
@@ -1069,10 +1174,10 @@ const Ze = {
     maxNativeZoom: 19,
     attribution: "© Esri"
   }
-}, gs = "/static/images/leaflet/leaflet.css";
-let te = null;
-function bs() {
-  return te || (te = (async () => {
+}, Os = "/static/images/leaflet/leaflet.css";
+let ce = null;
+function Ps() {
+  return ce || (ce = (async () => {
     const e = window;
     if (e.L) return e.L;
     if (!e.loadCardHelpers) return null;
@@ -1085,9 +1190,9 @@ function bs() {
     } catch {
       return null;
     }
-  })(), te);
+  })(), ce);
 }
-async function _s(e, t, s = {}) {
+async function Cs(e, t, s = {}) {
   const i = new URLSearchParams({ lat: String(e), lon: String(t) });
   s.lang && i.set("lang", s.lang);
   try {
@@ -1097,29 +1202,29 @@ async function _s(e, t, s = {}) {
     if (!n.ok) return null;
     const o = (await n.json()).features?.[0];
     if (!o) return null;
-    const { name: l, detail: r, label: h } = _t(o.properties ?? {});
+    const { name: l, detail: r, label: h } = Nt(o.properties ?? {});
     if (!h) return null;
-    const d = o.geometry?.coordinates;
+    const c = o.geometry?.coordinates;
     return {
       label: h,
       name: l,
       detail: r,
-      lat: d?.[1] ?? e,
-      lon: d?.[0] ?? t
+      lat: c?.[1] ?? e,
+      lon: c?.[0] ?? t
     };
   } catch {
     return null;
   }
 }
-function ys(e, t, s) {
+function Ls(e, t, s) {
   return typeof t == "number" && typeof s == "number" ? `https://www.google.com/maps/search/?api=1&query=${t},${s}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(e)}`;
 }
-var ws = Object.defineProperty, vs = Object.getOwnPropertyDescriptor, g = (e, t, s, i) => {
-  for (var n = i > 1 ? void 0 : i ? vs(t, s) : t, a = e.length - 1, o; a >= 0; a--)
+var Rs = Object.defineProperty, Ns = Object.getOwnPropertyDescriptor, y = (e, t, s, i) => {
+  for (var n = i > 1 ? void 0 : i ? Ns(t, s) : t, a = e.length - 1, o; a >= 0; a--)
     (o = e[a]) && (n = (i ? o(t, s, n) : o(n)) || n);
-  return i && n && ws(t, s, n), n;
+  return i && n && Rs(t, s, n), n;
 };
-const xs = "2.0.0", k = {
+const Is = "3.0.0", $ = {
   days: "auto",
   day_start: "07:00",
   day_end: "15:00",
@@ -1138,8 +1243,9 @@ const xs = "2.0.0", k = {
   mode_toggle_icons: "crop",
   animations: "auto",
   layout: "auto",
-  layout_breakpoint: 560
-}, Qe = 22, ks = 28, $s = 12, me = 55, Ts = 22, Es = 520, Ds = 8, Ss = 4.345, Ms = 52.18, As = 230, Cs = "cubic-bezier(0.4, 0, 1, 1)", Je = 16, Os = 0.985, se = [
+  layout_breakpoint: 560,
+  month_mode_show_times: !0
+}, pt = 22, zs = 28, Ws = 12, pe = 55, Fs = 22, Hs = 520, Us = 8, Ys = 4.345, Bs = 52.18, qs = 230, js = "cubic-bezier(0.4, 0, 1, 1)", ut = 16, Gs = 0.985, ue = [
   ["1", "#a4bdfc", "Lavender"],
   ["2", "#7ae7bf", "Sage"],
   ["3", "#dbadff", "Grape"],
@@ -1151,65 +1257,77 @@ const xs = "2.0.0", k = {
   ["9", "#5484ed", "Blueberry"],
   ["10", "#51b749", "Basil"],
   ["11", "#dc2127", "Tomato"]
-], B = 44, Ps = 5;
-function M(e) {
+], J = 44, Ks = 5;
+function R(e) {
   const t = (s) => String(s).padStart(2, "0");
   return {
     date: `${e.getFullYear()}-${t(e.getMonth() + 1)}-${t(e.getDate())}`,
     time: `${t(e.getHours())}:${t(e.getMinutes())}`
   };
 }
-function Ls(e) {
+function Xs(e) {
   const t = /* @__PURE__ */ new Date(`${e}T00:00`);
-  return t.setDate(t.getDate() + 1), M(t).date;
+  return t.setDate(t.getDate() + 1), R(t).date;
 }
-const et = 520, tt = 10, le = 15, ge = 30;
-function Is(e) {
-  return Math.max(0, Math.floor(e / le) * le);
+const mt = 520, ft = 10, _e = 15, Me = 30, Vs = {
+  1: "first",
+  2: "second",
+  3: "third",
+  4: "fourth",
+  [-1]: "last"
+}, Zs = 220, Qs = 4, Js = 18, gt = 12, bt = 1, De = 3, It = 8, zt = 8, yt = It + zt, ei = 33, ti = 18, _t = 268, E = 8;
+function si(e) {
+  return Math.max(0, Math.floor(e / _e) * _e);
 }
-function be(e) {
+function me(e) {
   return { axis: "y", start: e, span: 0, kind: "label", ghost: () => "" };
 }
-const zs = 64, Rs = 20, Ns = 172, Ws = 18, st = {
+const ii = 64, ni = 20, ai = 172, oi = 18, wt = {
   crop: {
+    monthly: "mdi:calendar-month",
     focused: "mdi:crop",
     full: "mdi:crop-free",
     fixed: "mdi:pan-horizontal",
     adaptive: "mdi:fit-to-screen-outline"
   },
   timeline: {
+    monthly: "mdi:calendar-month",
     focused: "mdi:timeline-clock-outline",
     full: "mdi:timeline-outline",
     fixed: "mdi:pan-horizontal",
     adaptive: "mdi:overscan"
   },
   calendar: {
+    monthly: "mdi:calendar-month",
     focused: "mdi:calendar-range",
     full: "mdi:calendar-expand-horizontal",
     fixed: "mdi:pan-horizontal",
     adaptive: "mdi:fit-to-screen-outline"
   },
   arrows: {
+    monthly: "mdi:calendar-month",
     focused: "mdi:arrow-collapse-horizontal",
     full: "mdi:arrow-expand-horizontal",
     fixed: "mdi:pan-horizontal",
     adaptive: "mdi:fit-to-screen-outline"
   }
-}, Fs = 600, Us = 12e3, Hs = 2200, Bs = 56, js = 190, Ys = 6e3, qs = 700, Gs = 120;
-let m = class extends Y {
+}, ri = 600, li = 12e3, hi = 2200, di = 56, ci = 190, pi = 6e3, ui = 15e3, mi = 700, fi = 120;
+let b = class extends te {
   constructor() {
-    super(...arguments), this._sources = [], this._colors = {}, this._eventColors = null, this._weekOffset = 0, this._now = /* @__PURE__ */ new Date(), this._hostWidth = 0, this._refreshing = !1, this._navDir = "none", this._activeIdx = 0, this._motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)"), this._onMotionChange = () => {
+    super(...arguments), this._sources = [], this._colors = {}, this._eventColors = null, this._weekOffset = 0, this._monthOffset = 0, this._now = /* @__PURE__ */ new Date(), this._hostWidth = 0, this._refreshing = !1, this._navDir = "none", this._activeIdx = 0, this._motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)"), this._onMotionChange = () => {
       this.requestUpdate();
-    }, this._navAnims = [], this._staleAnims = [], this._modeOverride = {}, this._pickerOpen = !1, this._animEpoch = 0, this._hThumb = null, this._axisPx = 0, this._editMode = !1, this._menuOpen = !1, this._draft = null, this._scope = "instance", this._busy = !1, this._editError = null, this._confirmDelete = !1, this._press = null, this._pressFrom = null, this._openPicker = null, this._pickerMonth = null, this._pickerClosing = null, this._pickerOutField = null, this._flipFrom = null, this._calDir = 0, this._calEpoch = 0, this._detailsOpen = !1, this._colorOpen = !1, this._repeatOpen = !1, this._customOpen = !1, this._custom = null, this._customClosing = !1, this._endsOpen = !1, this._places = [], this._placesBusy = !1, this._mapOpen = !1, this._mapPoint = null, this._baseMap = "street", this._baseLayers = [], this._leafletMap = null, this._leafletMarker = null, this._mapPickSeq = 0, this._mapWanted = !1, this._leaflet = null, this._leafletOk = !1, this._flash = 0, this._flashOut = !1, this._wheelsPending = !1, this._revision = 0, this._subs = new es(() => {
+    }, this._navAnims = [], this._staleAnims = [], this._modeOverride = {}, this._pickerOpen = !1, this._animEpoch = 0, this._hThumb = null, this._axisPx = 0, this._editMode = !1, this._menuOpen = !1, this._draft = null, this._scope = "instance", this._busy = !1, this._editError = null, this._confirmDelete = !1, this._dayPeek = null, this._monthGridH = 0, this._monthFit = 3, this._monthTight = !1, this._monthSeen = /* @__PURE__ */ new Set(), this._monthAwaitingAnim = !1, this._monthLaidOut = "", this._press = null, this._pressDid = !1, this._pressFrom = null, this._openPicker = null, this._pickerMonth = null, this._pickerClosing = null, this._pickerOutField = null, this._flipFrom = null, this._calDir = 0, this._calEpoch = 0, this._detailsOpen = !1, this._colorOpen = !1, this._repeatOpen = !1, this._customOpen = !1, this._custom = null, this._customClosing = !1, this._endsOpen = !1, this._places = [], this._placesBusy = !1, this._mapOpen = !1, this._mapPoint = null, this._baseMap = "street", this._baseLayers = [], this._leafletMap = null, this._leafletMarker = null, this._mapPickSeq = 0, this._mapWanted = !1, this._leaflet = null, this._leafletOk = !1, this._flash = 0, this._flashOut = !1, this._wheelsPending = !1, this._revision = 0, this._subs = new gs(() => {
       this._revision++;
-    }), this._colorKey = "", this._focusPx = 0, this._focusKey = "", this._focusBusy = !1, this._colorsAt = 0, this._eventColorsAt = 0, this._eventColorsPending = !1, this._onMenuOutside = (e) => {
+    }), this._subWanted = "", this._colorKey = "", this._focusPx = 0, this._focusKey = "", this._focusBusy = !1, this._colorsAt = 0, this._eventColorsAt = 0, this._eventColorsPending = !1, this._onWinResize = () => {
+      this._resetMonthSettle(), this._monthLaidOut = "", this._fitDayPeek();
+    }, this._onMenuOutside = (e) => {
       const t = this.renderRoot?.querySelector(".tools-menu-wrap");
       t && e.composedPath().includes(t) || this._setMenu(!1);
     }, this._onMenuKey = (e) => {
       e.key === "Escape" && this._setMenu(!1);
     }, this._onPressMove = (e) => {
       const t = this._pressFrom;
-      t && (Math.abs(e.clientX - t.x) > tt || Math.abs(e.clientY - t.y) > tt) && this._pressCancel();
+      t && (Math.abs(e.clientX - t.x) > ft || Math.abs(e.clientY - t.y) > ft) && this._pressCancel();
     }, this._onPressEnd = () => {
       this._pressCancel();
     }, this._rubberFrom = null, this._rubberAt = 0, this._onOutside = (e) => {
@@ -1221,7 +1339,7 @@ let m = class extends Y {
   }
   setConfig(e) {
     if (!e) throw new Error("simple-schedule-card: invalid configuration");
-    const t = Ks(e);
+    const t = gi(e);
     if (!t.length)
       throw new Error(
         'simple-schedule-card: "entity" (a calendar entity_id) or "entities" is required'
@@ -1241,7 +1359,7 @@ let m = class extends Y {
     return {
       type: "custom:simple-schedule-card",
       entity: "calendar.school",
-      ...k
+      ...$
     };
   }
   connectedCallback() {
@@ -1250,17 +1368,28 @@ let m = class extends Y {
     }, 6e4), this._hostRo = new ResizeObserver((e) => {
       const t = Math.round(e[e.length - 1].contentRect.width);
       t && t !== this._hostWidth && (this._hostWidth = t);
-    }), this._hostRo.observe(this), this._motionQuery.addEventListener("change", this._onMotionChange);
+    }), this._hostRo.observe(this), window.addEventListener("resize", this._onWinResize), this._motionQuery.addEventListener("change", this._onMotionChange);
+  }
+  /**
+   * Let the grid height be re-derived from scratch.
+   *
+   * Called for the things that genuinely change the answer - a different month
+   * (a different number of rows), a resize, a different calendar or shape. NOT
+   * on a re-render, which is the whole point: between these, a height already
+   * tried is evidence of a cycle rather than of progress.
+   */
+  _resetMonthSettle() {
+    this._monthSeen.clear();
   }
   disconnectedCallback() {
-    super.disconnectedCallback(), this._tick && clearInterval(this._tick), this._tick = void 0, this._spinTimer && clearTimeout(this._spinTimer), this._spinTimer = void 0, this._hostRo?.disconnect(), this._hostRo = void 0, this._motionQuery.removeEventListener("change", this._onMotionChange), this._setPicker(!1), this._setMenu(!1), this._pressCancel(), this._subs.stop();
+    super.disconnectedCallback(), this._tick && clearInterval(this._tick), this._tick = void 0, this._spinTimer && clearTimeout(this._spinTimer), this._spinTimer = void 0, this._subTimer && clearTimeout(this._subTimer), this._subTimer = void 0, this._hostRo?.disconnect(), this._hostRo = void 0, window.removeEventListener("resize", this._onWinResize), this._motionQuery.removeEventListener("change", this._onMotionChange), this._setPicker(!1), this._setMenu(!1), this._pressCancel(), this._subs.stop();
   }
   updated(e) {
     if (super.updated(e), this._staleAnims.length) {
       for (const t of this._staleAnims) t.cancel();
       this._staleAnims = [];
     }
-    this._wheelsPending && (this._wheelsPending = !1, this._positionWheels()), this._animatePicker(), this._flipPlay(), this._syncLeaflet(), !(!this.hass || !this._config) && (this._orientation === "days-as-rows" && (this._measureScrollbar(), this._focusScroller()), this._ensureSubscribed(), this._ensureColors(), this._ensureEventColors());
+    this._wheelsPending && (this._wheelsPending = !1, this._positionWheels()), this._animatePicker(), this._flipPlay(), (e.size > 1 || !e.has("hass")) && (this._measureMonth(), this._fitDayPeek()), this._syncLeaflet(), !(!this.hass || !this._config) && (this._orientation === "days-as-rows" && (this._measureScrollbar(), this._focusScroller()), this._ensureSubscribed(), this._ensureColors(), this._ensureEventColors());
   }
   /**
    * The week to draw. The window is ALWAYS the full seven days — that is what is
@@ -1268,9 +1397,10 @@ let m = class extends Y {
    * weekend before deciding whether to show it.
    */
   get _window() {
-    const e = pe(this._now, this._weekOffset, 7), t = this._config?.days ?? k.days;
+    if (this._isMonth) return $e(this._now, this._monthOffset);
+    const e = ke(this._now, this._weekOffset, 7), t = this._config?.days ?? $.days;
     let s = 5;
-    return (t === "mon-sun" || t === "auto" && Jt(this._activeEvents, e.days)) && (s = 7), { start: e.start, end: e.end, days: e.days.slice(0, s) };
+    return (t === "mon-sun" || t === "auto" && fs(this._activeEvents, e.days)) && (s = 7), { start: e.start, end: e.end, days: e.days.slice(0, s) };
   }
   get _entityIds() {
     return this._sources.map((e) => e.entity);
@@ -1293,14 +1423,40 @@ let m = class extends Y {
    * range, so the wider window never widens what is drawn.
    */
   get _subWindow() {
-    return {
-      start: pe(this._now, this._weekOffset - 1, 7).start,
-      end: pe(this._now, this._weekOffset + 1, 7).end
+    return this._isMonth ? {
+      start: $e(this._now, this._monthOffset - 1).start,
+      end: $e(this._now, this._monthOffset + 1).end
+    } : {
+      start: ke(this._now, this._weekOffset - 1, 7).start,
+      end: ke(this._now, this._weekOffset + 1, 7).end
     };
   }
-  async _ensureSubscribed() {
-    const e = this._subWindow;
-    await this._subs.sync(this.hass, this._entityIds, e.start, e.end);
+  /**
+   * Subscribe to the window on screen - but not to every window passed through
+   * on the way there.
+   *
+   * Each subscription asks Home Assistant to expand THREE MONTHS of recurrences
+   * for every calendar and push the lot back. Stepping the month ten times in
+   * quick succession fired ten rounds of that, nine of them for windows already
+   * gone by, and the work is done on the event loop that also serves the
+   * websocket - so the frontend stops being fed while the backend grinds through
+   * expansions nobody is waiting for any more.
+   *
+   * So a window CHANGE waits for the paging to settle, and only the window
+   * actually landed on is ever asked for. A steady window still calls straight
+   * through, where `sync` no-ops unless the subscription is genuinely missing.
+   */
+  _ensureSubscribed() {
+    const e = this._subWindow, t = `${this._entityIds.join(",")}|${e.start.getTime()}|${e.end.getTime()}`;
+    if (t !== this._subWanted) {
+      this._subWanted = t, this._subTimer && clearTimeout(this._subTimer), this._subTimer = setTimeout(() => {
+        this._subTimer = void 0;
+        const s = this._subWindow;
+        this._subs.sync(this.hass, this._entityIds, s.start, s.end);
+      }, Zs);
+      return;
+    }
+    this._subTimer || this._subs.sync(this.hass, this._entityIds, e.start, e.end);
   }
   /**
    * Re-read the calendars' own colours. Refetched on a TTL rather than once,
@@ -1310,7 +1466,7 @@ let m = class extends Y {
    */
   async _ensureColors(e = !1) {
     const t = this._entityIds.join(","), s = Date.now() - this._colorsAt > 10 * 6e4;
-    !e && t === this._colorKey && !s || (this._colorKey = t, this._colorsAt = Date.now(), this._colors = await ts(this.hass, this._entityIds));
+    !e && t === this._colorKey && !s || (this._colorKey = t, this._colorsAt = Date.now(), this._colors = await bs(this.hass, this._entityIds));
   }
   /** The colour of a whole calendar — used by the legend. */
   /**
@@ -1329,6 +1485,16 @@ let m = class extends Y {
    */
   get _receded() {
     return this._pickerOpen || this._menuOpen || !!this._selected || !!this._draft;
+  }
+  /**
+   * Just the sheet — NOT the picker or the tools menu.
+   *
+   * The header recedes with everything else when a sheet opens, but those two
+   * menus live INSIDE the header: dimming it for them would dim the very menu
+   * that was just opened.
+   */
+  get _sheetOpen() {
+    return !!this._selected || !!this._draft;
   }
   /** Close the detail sheet, replaying the entry cascade as the menu does. */
   _closeSheet() {
@@ -1373,7 +1539,7 @@ let m = class extends Y {
     if (!t) return "";
     const s = (e.recurrenceId ? t.by_recurrence_id?.[e.recurrenceId] : void 0) ?? (e.uid ? t.by_uid?.[e.uid] : void 0);
     if (!s) return "";
-    const i = se.find(([, n]) => n.toLowerCase() === s.toLowerCase());
+    const i = ue.find(([, n]) => n.toLowerCase() === s.toLowerCase());
     return i ? i[0] : "";
   }
   /** Build the form from an event. */
@@ -1383,7 +1549,7 @@ let m = class extends Y {
       this._editError = "This event has no id Google would recognise.";
       return;
     }
-    const s = M(e.start), i = M(e.end);
+    const s = R(e.start), i = R(e.end), n = this._namedDays(ht(this._seriesRule(e)), e.start);
     this._draft = {
       key: e.key,
       entity: e.entity,
@@ -1399,11 +1565,14 @@ let m = class extends Y {
       description: e.description ?? "",
       allDay: e.allDay,
       colorId: this._colorIdFor(e),
-      // Not offered when editing: changing a rule on a live series is a
-      // different operation from setting one, with the scope question tangled
-      // into it. The form hides the row rather than showing one that lies.
-      repeat: null
-    }, this._openPicker = null, this._pickerClosing = null, this._pickerMonth = null, this._detailsOpen = !!(e.location || e.description), this._colorOpen = !1, this._places = [], this._mapOpen = !1, this._mapPoint = null, this._scope = "instance", this._editError = null, this._confirmDelete = !1;
+      colorIdWas: this._colorIdFor(e),
+      // The series' own rule, read back out of what Home Assistant sent. A rule
+      // this card cannot state in words comes back null, and canRepeat then
+      // hides the row entirely rather than offering to overwrite it.
+      repeat: n,
+      repeatWas: n,
+      canRepeat: !this._seriesRule(e) || !!n
+    }, this._openPicker = null, this._pickerClosing = null, this._pickerMonth = null, this._detailsOpen = !!(e.location || e.description), this._colorOpen = !1, this._repeatOpen = !1, this._places = [], this._mapOpen = !1, this._mapPoint = null, this._scope = "instance", this._editError = null, this._confirmDelete = !1;
   }
   /**
    * The same form, empty, for an event that does not exist yet.
@@ -1413,10 +1582,10 @@ let m = class extends Y {
    * name — a calendar chooser inside the sheet would be a second picker
    * answering a question the header has already answered.
    */
-  _openCreator(e, t = ge) {
+  _openCreator(e, t = Me) {
     const s = this._active?.entity;
     if (!s) return;
-    const i = M(e), n = M(new Date(e.getTime() + t * 6e4));
+    const i = R(e), n = R(new Date(e.getTime() + t * 6e4));
     this._selected = void 0, this._draft = {
       key: `new:${e.getTime()}`,
       entity: s,
@@ -1435,8 +1604,185 @@ let m = class extends Y {
       description: "",
       allDay: !1,
       colorId: "",
-      repeat: null
+      colorIdWas: "",
+      repeat: null,
+      repeatWas: null,
+      canRepeat: !0
     }, this._openPicker = null, this._pickerClosing = null, this._pickerMonth = null, this._detailsOpen = !1, this._colorOpen = !1, this._repeatOpen = !1, this._cancelCustom(), this._places = [], this._mapOpen = !1, this._mapPoint = null, this._scope = "instance", this._editError = null, this._confirmDelete = !1;
+  }
+  /**
+   * Size the month grid, and work out how much of a day each cell can show.
+   *
+   * One pass, because the two answers are the same arithmetic: a cell's height
+   * decides how many events fit, and how many events fit decides the heights
+   * worth clamping to. Splitting them meant measuring the same four numbers
+   * twice and letting them disagree.
+   *
+   * The card is as tall as its contents, so CSS alone cannot make the rows fill
+   * "the rest of the card" - there is no rest, the rows ARE the card. The height
+   * is measured from the grid's own top to the bottom of the window and handed
+   * back as a custom property, which the rows then share.
+   *
+   * That share is CLAMPED, in events rather than pixels: a cell never shrinks
+   * below one event, and never grows past MONTH_FIT_MAX of them. Filling the
+   * window and capping the cell are in genuine tension - a four-week month on a
+   * tall screen hits the cap and leaves space under the grid - and the cap wins,
+   * because a month cell that grows without limit stops being a summary.
+   *
+   * Every pixel but MONTH_BREATHE_PX is MEASURED off the rendered cell - the
+   * date line, an event row, the gap, the padding - so changing a font size in
+   * the CSS cannot silently start clipping. An event row is measured from a real
+   * one where the month has any, and guessed where it has none, which only
+   * matters for a month with nothing to fit.
+   *
+   * Writes reactive state, so a new month measures on one paint and draws on the
+   * next. Both writes are guarded on the value actually CHANGING; without that
+   * the second render would measure and schedule a third, forever.
+   */
+  _measureMonth() {
+    const e = this.renderRoot?.querySelector(".mbody");
+    if (!e) {
+      this._monthGridH = 0;
+      return;
+    }
+    const t = `${Math.ceil(e.children.length / 7)}|${this._active?.entity ?? ""}`, s = () => {
+      this._monthLaidOut !== t && (this._monthLaidOut = t);
+    }, i = e.querySelector(".mcell");
+    if (!i) {
+      s();
+      return;
+    }
+    const n = e.getAnimations?.({ subtree: !0 }).filter((k) => k.playState === "running");
+    if (n?.length) {
+      this._monthAwaitingAnim || (this._monthAwaitingAnim = !0, Promise.allSettled(n.map((k) => k.finished)).then(() => {
+        this._monthAwaitingAnim = !1, this._measureMonth(), this._fitDayPeek();
+      }));
+      return;
+    }
+    const a = getComputedStyle(i), o = parseFloat(a.paddingTop) || 0, l = parseFloat(a.paddingBottom) || 0, r = (parseFloat(a.borderTopWidth) || 0) + (parseFloat(a.borderBottomWidth) || 0), h = parseFloat(a.rowGap) || 0, c = i.querySelector(".mdate")?.getBoundingClientRect().height || ei, p = e.querySelector(".mev, .mmore")?.getBoundingClientRect().height || ti;
+    if (p < 1 || c < 1) {
+      s();
+      return;
+    }
+    const u = r + o + l + c + h + (this._monthTight ? yt : 0), w = (k) => Math.ceil(u + k * p + (k - 1) * h), f = w(bt + 1), g = w(De + 1), x = Math.max(1, Math.ceil(e.children.length / 7)), D = window.innerHeight - e.getBoundingClientRect().top - Js;
+    let M = Math.floor(Math.min(g, Math.max(f, D / x))) * x, P = !1;
+    Math.abs(M - this._monthGridH) >= x && (this._monthSeen.has(M) && (M = Math.min(...this._monthSeen, M)), this._monthSeen.add(M), this._monthSeen.size > Qs && (M = Math.min(...this._monthSeen)), M !== this._monthGridH && (this._monthGridH = M, e.style.setProperty("--mgrid-h", `${M}px`), P = !0));
+    const z = (this._monthGridH || M) / x, K = (k) => Math.min(
+      De + 1,
+      Math.max(bt + 1, Math.floor((z - k + h) / (p + h)))
+    ), re = K(u), le = K(u - yt), X = le > re, V = X ? le : re, Z = V !== this._monthFit, v = X !== this._monthTight;
+    v && (this._monthTight = X), Z && (this._monthFit = V), !P && !Z && !v ? this._monthLaidOut !== t && (this._monthLaidOut = t) : this._monthLaidOut !== t && !Z && !v && this.requestUpdate();
+  }
+  /**
+   * A tap anywhere in a month cell opens that DAY, never one event.
+   *
+   * The rows inside a cell are not links to their events: a month cell is a
+   * summary, the names in it are truncated, and three of seven of them is not a
+   * list you pick from. So the whole cell - the number, an event row, the
+   * "N more" line, the empty space beside them - is one target, and the day
+   * panel is where an event is actually chosen. That panel's rows still open the
+   * detail sheet, so nothing is lost; it just takes the one honest route.
+   *
+   * Empty days open too, deliberately. "Nothing on this day" is an answer, and a
+   * cell that sometimes responds to a tap and sometimes does not is worse.
+   */
+  _onMonthCellClick(e, t) {
+    this._pressDid || this._openDayPeek(t, e.currentTarget);
+  }
+  /**
+   * Open the day panel, positioned over the grid near the cell that asked.
+   *
+   * Coordinates are worked out against the GRID, not the viewport, so the panel
+   * travels with the card if the dashboard scrolls under it.
+   *
+   * This only ANCHORS it - centred over the cell, roughly. Keeping it on screen
+   * is `_fitDayPeek`'s job, once the panel exists and its height is a fact
+   * rather than a guess.
+   */
+  _openDayPeek(e, t) {
+    const s = this.renderRoot?.querySelector(".mgrid"), i = t.closest(".mcell");
+    if (!s || !i) return;
+    const n = s.getBoundingClientRect(), a = i.getBoundingClientRect(), o = a.left - n.left + a.width / 2 - _t / 2, l = a.top - n.top - 8;
+    this._dayPeek = { day: e, left: Math.round(o), top: Math.round(l) };
+  }
+  /**
+   * Pull the day panel back on screen.
+   *
+   * It has to run AFTER the panel renders, because its height depends on how
+   * many events the day holds, and a cell in the bottom row of a busy month
+   * opened a panel that ran off the bottom of the window - events you could
+   * neither see nor reach. The old code clamped against DAY_PEEK_MIN_H, a
+   * guess, and a seven-event panel is nearly twice that.
+   *
+   * Measured with offsetWidth/offsetHeight rather than getBoundingClientRect,
+   * because the entry animation scales the panel from 0.9 and a transformed rect
+   * would have it correcting against a size it is about to stop being.
+   *
+   * Clamped against the CARD, intersected with the window - not the window
+   * alone. A panel pinned 8px from the left edge of the SCREEN still sits under
+   * Home Assistant's sidebar and is just as unreadable; the same at the right
+   * hung ten pixels past the card. What is visible is the card.
+   */
+  _fitDayPeek() {
+    const e = this._dayPeek;
+    if (!e) return;
+    const t = this.renderRoot?.querySelector(".daypeek"), s = this.renderRoot?.querySelector(".mgrid");
+    if (!t || !s) return;
+    const i = s.getBoundingClientRect(), n = t.offsetWidth, a = t.offsetHeight;
+    if (!n || !a) return;
+    const o = i.left + e.left, l = i.top + e.top, r = this.getBoundingClientRect(), h = Math.max(E, r.left + E), c = Math.min(window.innerWidth - E, r.right - E) - n, p = Math.max(E, r.top + E), u = Math.min(window.innerHeight - E, r.bottom - E) - a, w = Math.max(h, Math.min(o, c)), f = Math.max(p, Math.min(l, u)), g = Math.round(e.left + (w - o)), x = Math.round(e.top + (f - l));
+    g === e.left && x === e.top || (this._dayPeek = { ...e, left: g, top: x });
+  }
+  _closeDayPeek() {
+    this._dayPeek && (this._dayPeek = null);
+  }
+  /**
+   * Everything on one day, which is what the cell could not fit.
+   *
+   * Shows the END time as well as the start — the one place this deliberately
+   * does more than Google's own version of this panel, because "4am" says
+   * nothing useful about a collection that runs until 10.
+   */
+  _renderDayPeek(e) {
+    const t = this._dayPeek;
+    if (!t) return m;
+    const s = S(e, t.day).sort((i, n) => i.start.getTime() - n.start.getTime());
+    return d`
+      <div class="peek-scrim" @click=${() => this._closeDayPeek()}></div>
+      <div
+        class="daypeek"
+        style="left:${t.left}px; top:${t.top}px; width:${_t}px"
+        @click=${(i) => i.stopPropagation()}
+      >
+        <div class="dp-title ${H(t.day, this._now) ? "today" : ""}">
+          <div class="dp-head">
+            <span class="dp-dow">${this._fmtDowLong(t.day)},</span>
+            <button class="dp-close" aria-label="Close" @click=${() => this._closeDayPeek()}>
+              <ha-icon icon="mdi:close"></ha-icon>
+            </button>
+          </div>
+          <div class="dp-date">${this._fmtDate(t.day)}</div>
+        </div>
+        <div class="dp-list">
+          ${s.map(
+      (i) => d`
+              <button
+                class="dp-row"
+                @click=${() => {
+        this._pickEvent(i);
+      }}
+              >
+                <span class="mdot" style="background:${this._colorForEvent(i)}"></span>
+                <span class="dp-when">
+                  ${i.allDay ? "all day" : `${this._fmtTime(i.start)} – ${this._fmtTime(i.end)}`}
+                </span>
+                <span class="dp-name">${i.summary}</span>
+              </button>
+            `
+    )}
+        </div>
+      </div>
+    `;
   }
   /**
    * What the + button means by "now": the next slot on the snap grid.
@@ -1447,7 +1793,7 @@ let m = class extends Y {
    */
   get _nowSlot() {
     const e = new Date(this._now);
-    return e.setSeconds(0, 0), e.setMinutes(Math.ceil(e.getMinutes() / le) * le), e;
+    return e.setSeconds(0, 0), e.setMinutes(Math.ceil(e.getMinutes() / _e) * _e), e;
   }
   /** The same moment as minutes from midnight, which is what a day label takes. */
   get _nowMinutes() {
@@ -1467,7 +1813,7 @@ let m = class extends Y {
    * without that, pressing the label lit the row beside it as well.
    */
   _pressStart(e, t, s, i) {
-    if (this._pressCancel(), !this._editMode || this._draft || e.button !== 0 || e.target?.closest(".ev, .lr:not(.empty)")) return;
+    if (this._pressCancel(), this._pressDid = !1, !this._editMode || this._draft || e.button !== 0 || e.target?.closest(".ev, .lr:not(.empty)")) return;
     const n = e.currentTarget.getBoundingClientRect(), a = i.axis === "x" ? n.width : n.height;
     if (a <= 0) return;
     const o = i.axis === "x" ? e.clientX - n.left : e.clientY - n.top, l = Math.min(1, Math.max(0, o / a)), { from: r, to: h } = this._fitSlot(t, i.start + l * i.span);
@@ -1475,12 +1821,12 @@ let m = class extends Y {
       idx: s,
       kind: i.kind,
       style: `${i.ghost(r, Math.min(h, i.start + i.span))};
-              animation-duration:${et}ms`
+              animation-duration:${mt}ms`
     };
-    const d = new Date(N(t).getTime() + r * 6e4), p = h - r;
+    const c = new Date(B(t).getTime() + r * 6e4), p = h - r;
     window.addEventListener("pointermove", this._onPressMove, !0), window.addEventListener("pointerup", this._onPressEnd, !0), window.addEventListener("pointercancel", this._onPressEnd, !0), window.addEventListener("scroll", this._onPressEnd, !0), this._pressTimer = setTimeout(() => {
-      this._pressTimer = void 0, this._press = null, this._pressCancel(), this._openCreator(d, p);
-    }, et);
+      this._pressTimer = void 0, this._press = null, this._pressDid = !0, this._pressCancel(), this._openCreator(c, p);
+    }, mt);
   }
   /**
    * The slot a press actually claims, once the events around it are taken in.
@@ -1493,15 +1839,15 @@ let m = class extends Y {
    * back to 9:15 and into the lesson before it when that ran to 9:20.
    */
   _fitSlot(e, t) {
-    const s = N(e).getTime(), i = this._active?.entity;
+    const s = B(e).getTime(), i = this._active?.entity;
     let n = 0, a = 24 * 60;
     for (const r of this._subs.events) {
       if (r.entity !== i || r.allDay) continue;
-      const h = I(r.start, s), d = I(r.end, s);
-      d <= t && d > n && (n = d), h > t && h < a && (a = h);
+      const h = U(r.start, s), c = U(r.end, s);
+      c <= t && c > n && (n = c), h > t && h < a && (a = h);
     }
-    const o = Math.max(Is(t), n), l = a - o;
-    return { from: o, to: o + (l > 0 ? Math.min(ge, l) : ge) };
+    const o = Math.max(si(t), n), l = a - o;
+    return { from: o, to: o + (l > 0 ? Math.min(Me, l) : Me) };
   }
   _pressCancel() {
     this._pressTimer && clearTimeout(this._pressTimer), this._pressTimer = void 0, this._pressFrom = null, this._press && (this._press = null), window.removeEventListener("pointermove", this._onPressMove, !0), window.removeEventListener("pointerup", this._onPressEnd, !0), window.removeEventListener("pointercancel", this._onPressEnd, !0), window.removeEventListener("scroll", this._onPressEnd, !0);
@@ -1545,7 +1891,7 @@ let m = class extends Y {
     if (!t) return;
     const s = (/* @__PURE__ */ new Date(`${t.startDate}T${t.startTime || "00:00"}`)).getTime(), i = (/* @__PURE__ */ new Date(`${t.endDate}T${t.endTime || "00:00"}`)).getTime(), n = Number.isFinite(s) && Number.isFinite(i) ? i - s : 0, a = { ...t, ...e }, o = (/* @__PURE__ */ new Date(`${a.startDate}T${a.startTime || "00:00"}`)).getTime();
     if (n > 0 && Number.isFinite(o)) {
-      const l = new Date(o + n), r = M(l);
+      const l = new Date(o + n), r = R(l);
       a.endDate = r.date, a.endTime = r.time;
     }
     this._draft = a, this._confirmDelete = !1;
@@ -1619,15 +1965,15 @@ let m = class extends Y {
    */
   async _settleAfterWrite(e, t) {
     if (!this.hass) return;
-    const s = Date.now() + Ys;
+    const s = Date.now() + (t ? ui : pi);
     let i = 0;
     for (; Date.now() < s; ) {
       if (Date.now() >= i) {
-        i = Date.now() + qs;
+        i = Date.now() + mi;
         const n = this._subWindow;
         await this._subs.forceUpdate(this.hass, this._entityIds), await this._subs.sync(this.hass, this._entityIds, n.start, n.end, !0), t && (await this._subs.refreshColorHelper(this.hass), await this._ensureEventColors(!0));
       }
-      if (await new Promise((n) => setTimeout(n, Gs)), this._viewFingerprint() !== e) return;
+      if (await new Promise((n) => setTimeout(n, fi)), this._viewFingerprint() !== e) return;
     }
   }
   /**
@@ -1652,7 +1998,7 @@ let m = class extends Y {
       return;
     }
     e.cancelable && e.preventDefault();
-    const l = Bs * (1 - Math.exp(-Math.abs(n) / js));
+    const l = di * (1 - Math.exp(-Math.abs(n) / ci));
     this._setRubber(s, Math.sign(n) * l, !1);
   }
   _onDragEnd(e) {
@@ -1669,8 +2015,7 @@ let m = class extends Y {
   }
   /** Whether this save moves the colour, which needs the helper to re-run. */
   _colourMoved(e) {
-    const t = this._selected ? this._colorIdFor(this._selected) : "";
-    return e.colorId !== t;
+    return e.colorId !== e.colorIdWas;
   }
   async _saveDraft() {
     const e = this._draft;
@@ -1679,7 +2024,7 @@ let m = class extends Y {
       this._editError = "A title is required.";
       return;
     }
-    const t = e.allDay && e.endDate <= e.startDate ? Ls(e.startDate) : e.endDate, s = e.allDay ? e.startDate : `${e.startDate} ${e.startTime}:00`, i = e.allDay ? t : `${e.endDate} ${e.endTime}:00`;
+    const t = e.allDay && e.endDate <= e.startDate ? Xs(e.startDate) : e.endDate, s = e.allDay ? e.startDate : `${e.startDate} ${e.startTime}:00`, i = e.allDay ? t : `${e.endDate} ${e.endTime}:00`;
     if (!e.allDay && new Date(s.replace(" ", "T")) >= new Date(i.replace(" ", "T"))) {
       this._editError = "The end has to come after the start.";
       return;
@@ -1692,10 +2037,15 @@ let m = class extends Y {
       all_day: e.allDay,
       location: e.location,
       description: e.description,
-      // Omitted entirely when unset: sending an empty colour is not the same as
-      // not mentioning it, and only one of those leaves the calendar's own
-      // colour alone.
-      ...e.colorId ? { color_id: e.colorId } : {}
+      // Sent ONLY when it moved — the same rule as the rrule, and for a
+      // sharper reason than tidiness. The form SHOWS the colour an occurrence
+      // inherits from its series, so re-sending it on a save that only touched
+      // the title would pin that inherited colour onto the occurrence as its
+      // own: nothing looks different, and then recolouring the series leaves
+      // that one behind. An empty string is a deliberate CLEAR, which the
+      // service turns into the null that removes the field; omitting it
+      // entirely is "leave the colour alone".
+      ...this._colourMoved(e) ? { color_id: e.colorId } : {}
     }, a = this._viewFingerprint();
     let o = !1;
     try {
@@ -1703,11 +2053,17 @@ let m = class extends Y {
         ...n,
         // Only when there is one: the service reads a present rrule as "set
         // the recurrence", and an empty string would mean "clear it".
-        ...e.repeat ? { rrule: ds(e.repeat, e.allDay) } : {}
+        ...e.repeat ? { rrule: lt(e.repeat, e.allDay) } : {}
       }) : await this._callEdit("simple_schedule_event_update", {
         ...n,
         event_id: e.eventId,
-        scope: this._sendScope
+        scope: this._sendScope,
+        // Sent ONLY when the rule actually moved. The service reads a
+        // present rrule as "set the recurrence" and an empty string as
+        // "clear it" — so sending the unchanged rule on every save would
+        // rewrite the series for a change of title, and sending nothing
+        // when it HAS moved would silently drop the edit.
+        ...this._repeatMoved ? { rrule: e.repeat ? lt(e.repeat, e.allDay) : "" } : {}
       }), o && await this._settleAfterWrite(a, this._colourMoved(e));
     } finally {
       this._busy = !1;
@@ -1741,12 +2097,12 @@ let m = class extends Y {
   }
   get _minContrast() {
     const e = this._config?.min_contrast;
-    return typeof e == "number" ? e : k.min_contrast;
+    return typeof e == "number" ? e : $.min_contrast;
   }
   /** URL of the pyscript helper's output, or null when it is switched off. */
   get _helperUrl() {
     const e = this._config?.color_helper;
-    return e === !1 ? null : typeof e == "string" && e ? e : ns;
+    return e === !1 ? null : typeof e == "string" && e ? e : ws;
   }
   /**
    * Refresh the per-event colour map. The helper rewrites it every 15 minutes,
@@ -1763,7 +2119,7 @@ let m = class extends Y {
     if (!this._eventColorsPending && !(!e && this._eventColorsAt && Date.now() - this._eventColorsAt < 10 * 6e4)) {
       this._eventColorsPending = !0;
       try {
-        this._eventColors = await as(t), this._eventColorsAt = Date.now();
+        this._eventColors = await vs(t), this._eventColorsAt = Date.now();
       } finally {
         this._eventColorsPending = !1;
       }
@@ -1771,7 +2127,7 @@ let m = class extends Y {
   }
   _colorFor(e) {
     const t = this._sources.findIndex((i) => i.entity === e), s = this._sources[t] ?? { entity: e };
-    return ss(s, this._colors, t < 0 ? 0 : t);
+    return ys(s, this._colors, t < 0 ? 0 : t);
   }
   /**
    * The colour of one block, most specific first: an explicit `event_colors`
@@ -1779,11 +2135,11 @@ let m = class extends Y {
    * calendar's colour.
    */
   _colorForEvent(e) {
-    return is(e.summary, this._config?.event_colors) ?? os(this._eventColors, e.uid, e.recurrenceId) ?? this._colorFor(e.entity);
+    return _s(e.summary, this._config?.event_colors) ?? xs(this._eventColors, e.uid, e.recurrenceId) ?? this._colorFor(e.entity);
   }
   /** The calendar's own name, as Home Assistant has it. Never a configured one. */
   _nameFor(e) {
-    return Xs(this.hass?.states?.[e]?.attributes?.friendly_name ?? e);
+    return bi(this.hass?.states?.[e]?.attributes?.friendly_name ?? e);
   }
   /**
    * The active calendar, with any header-toggle override folded in. Every read
@@ -1799,7 +2155,25 @@ let m = class extends Y {
   }
   /** The active calendar's mode, override first, then config, then default. */
   get _calendarMode() {
-    return this._active?.calendar_mode === "full" ? "full" : "focused";
+    const e = this._active?.calendar_mode;
+    return e === "full" || e === "monthly" ? e : "focused";
+  }
+  /** A month grid is its own layout, so almost every week-shaped rule bows out. */
+  get _isMonth() {
+    return this._calendarMode === "monthly" && this._mode === "grid";
+  }
+  /**
+   * How far from today the view is, in whatever unit it steps.
+   *
+   * The "today" button greys itself out on this. Reading `_weekOffset` alone
+   * left it permanently grey in a month, where that offset never moves.
+   */
+  get _navOffset() {
+    return this._isMonth ? this._monthOffset : this._weekOffset;
+  }
+  /** Per calendar, falling back to the card's own setting. See the type. */
+  get _monthShowTimes() {
+    return this._active?.month_mode_show_times ?? this._config?.month_mode_show_times ?? $.month_mode_show_times;
   }
   get _widthMode() {
     return this._active?.view_width_mode === "adaptive" ? "adaptive" : "fixed";
@@ -1814,7 +2188,13 @@ let m = class extends Y {
   _toggleMode(e) {
     const t = this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
     if (!t) return;
-    const s = this._active, i = e === "calendar_mode" ? { calendar_mode: s.calendar_mode === "full" ? "focused" : "full" } : {
+    this._resetMonthSettle();
+    const s = this._active, i = e === "calendar_mode" ? {
+      // focused -> full -> monthly -> focused. The first two are zoom
+      // levels on a time axis; the third is a different shape entirely,
+      // and it sits last so the two that are alike stay adjacent.
+      calendar_mode: s.calendar_mode === "focused" ? "full" : s.calendar_mode === "full" ? "monthly" : "focused"
+    } : {
       view_width_mode: s.view_width_mode === "adaptive" ? "fixed" : "adaptive"
     };
     this._modeOverride = {
@@ -1839,22 +2219,25 @@ let m = class extends Y {
     e !== this._pickerOpen && (this._pickerOpen = e, e || this._animEpoch++, e ? (document.addEventListener("pointerdown", this._onOutside, !0), document.addEventListener("keydown", this._onPickerKey, !0)) : (document.removeEventListener("pointerdown", this._onOutside, !0), document.removeEventListener("keydown", this._onPickerKey, !0)));
   }
   _selectCalendar(e) {
-    if (this._setPicker(!1), e === this._activeIdx) return;
+    if (this._closeDayPeek(), this._setPicker(!1), e === this._activeIdx) return;
+    this._resetMonthSettle();
     const t = e > this._activeIdx ? "fwd" : "back";
     this._navigate(t, () => {
       this._activeIdx = e;
     });
   }
+  /** The arrows step whatever the card is showing: a week, or a month. */
   _goWeek(e) {
-    this._navigate(e > 0 ? "fwd" : "back", () => {
-      this._weekOffset += e;
+    this._closeDayPeek(), this._resetMonthSettle(), this._navigate(e > 0 ? "fwd" : "back", () => {
+      this._isMonth ? this._monthOffset += e : this._weekOffset += e;
     });
   }
   _goToday() {
-    if (this._weekOffset === 0) return;
-    const e = this._weekOffset > 0 ? "back" : "fwd";
-    this._navigate(e, () => {
-      this._weekOffset = 0;
+    const e = this._navOffset;
+    if (e === 0) return;
+    const t = e > 0 ? "back" : "fwd";
+    this._resetMonthSettle(), this._navigate(t, () => {
+      this._isMonth ? this._monthOffset = 0 : this._weekOffset = 0;
     });
   }
   /* ------------------------------------------------------------------ *
@@ -1884,7 +2267,7 @@ let m = class extends Y {
    * flipped while the page is open; _motionQuery re-renders when it is.
    */
   get _reducedMotion() {
-    const e = this._config?.animations ?? k.animations;
+    const e = this._config?.animations ?? $.animations;
     return e === "always" ? !1 : e === "off" ? !0 : this._motionQuery.matches;
   }
   /**
@@ -1921,14 +2304,14 @@ let m = class extends Y {
       s();
       return;
     }
-    const n = e === "fwd" ? -Je : Je;
+    const n = e === "fwd" ? -ut : ut;
     this._navApply = s, this._navAnims = i.map(
       (o) => o.animate(
         [
           { opacity: "1", transform: "none" },
-          { opacity: "0", transform: `translateX(${n}px) scale(${Os})` }
+          { opacity: "0", transform: `translateX(${n}px) scale(${Gs})` }
         ],
-        { duration: As, easing: Cs, fill: "forwards" }
+        { duration: qs, easing: js, fill: "forwards" }
       )
     ), this._navAnims[this._navAnims.length - 1].finished.then(() => this._flushNav()).catch(() => {
     });
@@ -1956,9 +2339,9 @@ let m = class extends Y {
     this._spinTimer && clearTimeout(this._spinTimer);
     const t = setTimeout(() => {
       this._refreshing = !1;
-    }, Us);
+    }, li);
     try {
-      await this._subs.forceUpdate(this.hass, this._entityIds), await new Promise((i) => setTimeout(i, Hs)), await this._subs.refreshColorHelper(this.hass);
+      await this._subs.forceUpdate(this.hass, this._entityIds), await new Promise((i) => setTimeout(i, hi)), await this._subs.refreshColorHelper(this.hass);
       const s = this._subWindow;
       this._subs.clear(), await Promise.all([
         this._subs.sync(this.hass, this._entityIds, s.start, s.end, !0),
@@ -1967,18 +2350,18 @@ let m = class extends Y {
       ]);
     } finally {
       clearTimeout(t);
-      const s = Math.max(0, Fs - (Date.now() - e));
+      const s = Math.max(0, ri - (Date.now() - e));
       this._spinTimer = setTimeout(() => {
         this._refreshing = !1;
       }, s);
     }
   }
   render() {
-    if (!this._config || !this.hass) return u;
+    if (!this._config || !this.hass) return m;
     const e = this._config, t = this._window, s = this._active?.entity, i = this._subs.events.filter(
       (l) => l.entity === s && l.start < t.end && l.end > t.start
-    ), n = i.filter((l) => !l.allDay), a = Zt(n, e.day_start ?? k.day_start, e.day_end ?? k.day_end), o = this._mode === "list";
-    return c`
+    ), n = i.filter((l) => !l.allDay), a = us(n, e.day_start ?? $.day_start, e.day_end ?? $.day_end), o = this._mode === "list";
+    return d`
       <ha-card>
         <div
           class="panel ${o ? "narrow" : ""} ${this._reducedMotion ? "reduce" : ""} ${this._flash ? this._flashOut ? "flash-out" : "flash" : ""}"
@@ -1990,19 +2373,19 @@ let m = class extends Y {
         <!-- The one-shot wash on entering edit mode. Keyed on a counter so a
              second entry re-runs it: an animation only restarts when the
              element is new, and this element is otherwise identical. -->
-        ${this._flash ? c`<div
+        ${this._flash ? d`<div
               class="mode-flash ${this._flashOut ? "out" : ""}"
               .key=${this._flash}
               @animationend=${() => this._flash = 0}
-            ></div>` : u}
+            ></div>` : m}
       </ha-card>
     `;
   }
   /** Config pins the layout; 'auto' picks by the card's own measured width. */
   get _mode() {
-    const e = this._config?.layout ?? k.layout;
+    const e = this._config?.layout ?? $.layout;
     if (e === "grid" || e === "list") return e;
-    const t = this._config?.layout_breakpoint ?? k.layout_breakpoint;
+    const t = this._config?.layout_breakpoint ?? $.layout_breakpoint;
     return this._hostWidth > 0 && this._hostWidth < t ? "list" : "grid";
   }
   /**
@@ -2018,21 +2401,39 @@ let m = class extends Y {
    * months, then years once the month count would reach twelve.
    */
   get _weekLabel() {
+    if (this._isMonth) return this._monthLabel;
     const e = this._weekOffset;
     if (e === 0) return "This Week";
     const t = e > 0, s = Math.abs(e);
     if (s === 1) return t ? "Next Week" : "Last Week";
     let i = s, n = "Week";
-    s > Ds && (i = Math.round(s / Ss), n = "Month", i >= 12 && (i = Math.round(s / Ms), n = "Year"));
+    s > Us && (i = Math.round(s / Ys), n = "Month", i >= 12 && (i = Math.round(s / Bs), n = "Year"));
+    const a = `${i} ${n}${i === 1 ? "" : "s"}`;
+    return t ? `In ${a}` : `${a} Ago`;
+  }
+  /**
+   * The same sentence as the week pill, counted in months.
+   *
+   * Exact rather than derived from weeks: a month grid is paged a month at a
+   * time, so "In 2 Months" is a fact here rather than the rounding the week
+   * pill has to do.
+   */
+  get _monthLabel() {
+    const e = this._monthOffset;
+    if (e === 0) return "This Month";
+    const t = e > 0, s = Math.abs(e);
+    if (s === 1) return t ? "Next Month" : "Last Month";
+    let i = s, n = "Month";
+    s >= 12 && (i = Math.round(s / 12), n = "Year");
     const a = `${i} ${n}${i === 1 ? "" : "s"}`;
     return t ? `In ${a}` : `${a} Ago`;
   }
   /** Avatar, or the calendar's initial on its own colour when there is none. */
   _renderAvatar(e) {
     const t = this._avatarFor(e);
-    if (t) return c`<img class="av" src=${t} alt="" />`;
-    const s = dt(this._colorFor(e.entity), this._minContrast), i = (this._nameFor(e.entity).trim()[0] ?? "?").toUpperCase();
-    return c`<span class="av init" style="background:${s}">${i}</span>`;
+    if (t) return d`<img class="av" src=${t} alt="" />`;
+    const s = At(this._colorFor(e.entity), this._minContrast), i = (this._nameFor(e.entity).trim()[0] ?? "?").toUpperCase();
+    return d`<span class="av init" style="background:${s}">${i}</span>`;
   }
   /**
    * The card's heading: avatar, the calendar's own name, and — when there is
@@ -2045,27 +2446,27 @@ let m = class extends Y {
    */
   _renderPicker() {
     const e = this._sources, t = e.length > 1, s = this._active;
-    return c`
+    return d`
       <div class="picker">
         <button
           class="pick-btn ${t ? "" : "static"}"
           ?disabled=${!t}
-          aria-haspopup=${t ? "listbox" : u}
-          aria-expanded=${t ? this._pickerOpen ? "true" : "false" : u}
+          aria-haspopup=${t ? "listbox" : m}
+          aria-expanded=${t ? this._pickerOpen ? "true" : "false" : m}
           @click=${() => {
       t && this._setPicker(!this._pickerOpen);
     }}
         >
           ${this._renderAvatar(s)}
           <span class="pick-name">${this._nameFor(s.entity)}</span>
-          ${t ? c`<ha-icon
+          ${t ? d`<ha-icon
                 class="pick-chev ${this._pickerOpen ? "open" : ""}"
                 icon="mdi:chevron-down"
-              ></ha-icon>` : u}
+              ></ha-icon>` : m}
         </button>
         <div class="pick-menu ${this._pickerOpen ? "open" : ""}" role="listbox">
           ${e.map(
-      (i, n) => c`
+      (i, n) => d`
               <button
                 class="pick-item ${n === this._activeIdx ? "sel" : ""}"
                 role="option"
@@ -2082,16 +2483,28 @@ let m = class extends Y {
     `;
   }
   _renderHead(e) {
-    const t = this._config, s = this._subs.failed, n = this._mode === "list" || !e.length ? "" : `${this._fmtDate(e[0])} – ${this._fmtDate(e[e.length - 1])}`;
-    return c`
-      <div class="head">
+    const t = this._config, s = this._subs.failed, n = this._mode === "list" || !e.length ? "" : this._isMonth ? (
+      // The month grid spills into its neighbours by design, so a first-to-
+      // last date range would read "Aug 31 - Oct 11" for September. The
+      // month's own name is the only honest label.
+      Qe(this._now, this._monthOffset).toLocaleDateString(this._lang, {
+        month: "long",
+        year: "numeric"
+      })
+    ) : `${this._fmtDate(e[0])} – ${this._fmtDate(e[e.length - 1])}`, a = d`
+      <div class="range dir-${this._navDir}">
+        ${n}<span class="pill">${this._weekLabel}</span>
+      </div>
+    `;
+    return d`
+      <div class="head ${this._sheetOpen ? "dimmed" : ""}">
         <div class="titles">
           ${this._renderPicker()}
           <!-- Both only in edit mode, and both in the same breath: the pill says
                the card is armed, and the + is the one thing that mode offers
                which pressing the grid cannot reach on a phone, where the list
                layout has no timeline to press. -->
-          ${this._editMode ? c`
+          ${this._editMode ? d`
                 <span class="pill edit-pill">Edit Mode</span>
                 <button
                   class="pill add-pill"
@@ -2101,32 +2514,47 @@ let m = class extends Y {
                 >
                   <ha-icon icon="mdi:plus"></ha-icon>
                 </button>
-              ` : u}
+              ` : m}
         </div>
-        ${this._renderModeToggles()}
+        <!-- MONTH MODE ONLY. There the period is the answer to "which month am
+             I in", it changes under you as you page, and at 15px under the
+             arrows on the right - where you go to CHANGE it rather than to read
+             it - it was the smallest thing in the header. A week grid names its
+             days in every column heading and needs no such sign, so it keeps
+             the range where it has always been. -->
+        <div class="head-centre">
+          ${this._renderModeToggles()}
+          ${this._isMonth ? a : m}
+        </div>
         <div class="head-right">
           <div class="tools">
-          ${s.length ? c`<div class="warn" title=${s.join(", ")}>
+          ${s.length ? d`<div class="warn" title=${s.join(", ")}>
                 <ha-icon icon="mdi:alert-circle-outline"></ha-icon>
-              </div>` : u}
-          <button class="btn" @click=${() => this._goWeek(-1)} aria-label="Previous week">
+              </div>` : m}
+          <button
+            class="btn"
+            @click=${() => this._goWeek(-1)}
+            aria-label=${this._isMonth ? "Previous month" : "Previous week"}
+          >
             <ha-icon icon="mdi:chevron-left"></ha-icon>
           </button>
           <button
-            class="btn today ${this._weekOffset === 0 ? "off" : ""}"
+            class="btn today ${this._navOffset === 0 ? "off" : ""}"
             @click=${() => this._goToday()}
-            aria-label="This week"
+            aria-label=${this._isMonth ? "This month" : "This week"}
           >
             <ha-icon icon="mdi:calendar-today"></ha-icon>
           </button>
-          <button class="btn" @click=${() => this._goWeek(1)} aria-label="Next week">
+          <button
+            class="btn"
+            @click=${() => this._goWeek(1)}
+            aria-label=${this._isMonth ? "Next month" : "Next week"}
+          >
             <ha-icon icon="mdi:chevron-right"></ha-icon>
           </button>
-          ${t.show_refresh ?? k.show_refresh ? this._renderToolsMenu() : u}
+          ${t.show_refresh ?? $.show_refresh ? this._renderToolsMenu() : m}
           </div>
-          <div class="range dir-${this._navDir}">
-            ${n}<span class="pill">${this._weekLabel}</span>
-          </div>
+          ${this._isMonth ? m : a}
         </div>
       </div>
     `;
@@ -2141,7 +2569,7 @@ let m = class extends Y {
    */
   _renderToolsMenu() {
     const e = this._menuOpen;
-    return c`
+    return d`
       <div class="tools-menu-wrap">
         <button
           class="btn ${this._refreshing ? "spin" : ""} ${e ? "on" : ""}"
@@ -2190,28 +2618,34 @@ let m = class extends Y {
    */
   _renderModeToggles() {
     const e = this._config;
-    if (!(e.show_mode_toggles ?? k.show_mode_toggles) || this._mode !== "grid") return u;
-    const t = this._calendarMode === "full", s = this._widthMode === "adaptive", i = this._orientation === "days-as-rows", n = st[e.mode_toggle_icons ?? k.mode_toggle_icons] ?? st[k.mode_toggle_icons];
-    return c`
+    if (!(e.show_mode_toggles ?? $.show_mode_toggles) || this._mode !== "grid") return m;
+    const t = this._calendarMode === "full", s = this._widthMode === "adaptive", i = this._orientation === "days-as-rows", n = this._isMonth, a = wt[e.mode_toggle_icons ?? $.mode_toggle_icons] ?? wt[$.mode_toggle_icons];
+    return d`
       <div class="mode-toggles">
         <button
-          class="btn ${t ? "on" : ""}"
+          class="btn ${t || n ? "on" : ""}"
           @click=${() => this._toggleMode("calendar_mode")}
-          title=${t ? "Whole day - tap to fit the events" : "Fitted to the events - tap for the whole day"}
-          aria-pressed=${t ? "true" : "false"}
+          title=${n ? "The month - tap to go back to the day" : t ? "Whole day - tap for the month" : "Fitted to the events - tap for the whole day"}
           aria-label="Time span"
         >
-          <ha-icon icon=${t ? n.full : n.focused}></ha-icon>
+          <ha-icon icon=${n ? a.monthly : t ? a.full : a.focused}></ha-icon>
         </button>
-        ${i ? c`<button
-              class="btn ${s ? "on" : ""}"
-              @click=${() => this._toggleMode("view_width_mode")}
+        <!-- Collapsed rather than dropped when the month grid has no width to
+             set. Removing it would make it vanish and reappear with nothing to
+             animate; collapsing lets it slide out and back in. The element is
+             inert while away so it cannot be tabbed to. -->
+        ${i ? d`<button
+              class="btn width-toggle ${s ? "on" : ""} ${n ? "gone" : ""}"
+              tabindex=${n ? "-1" : "0"}
+              aria-hidden=${n ? "true" : "false"}
+              @click=${() => {
+      n || this._toggleMode("view_width_mode");
+    }}
               title=${s ? "Fitted to the card - tap for a fixed scale" : "Fixed scale, scrolls - tap to fit the card"}
-              aria-pressed=${s ? "true" : "false"}
               aria-label="Width"
             >
-              <ha-icon icon=${s ? n.adaptive : n.fixed}></ha-icon>
-            </button>` : u}
+              <ha-icon icon=${s ? a.adaptive : a.fixed}></ha-icon>
+            </button>` : m}
       </div>
     `;
   }
@@ -2309,17 +2743,83 @@ let m = class extends Y {
    * sub-column in one and a stacked sub-row in the other.
    */
   _renderGrid(e, t, s) {
-    return this._orientation === "days-as-rows" ? this._renderRowsGrid(e, t, s) : this._renderColumnsGrid(e, t, s);
+    return this._isMonth ? this._renderMonth(e, t) : this._orientation === "days-as-rows" ? this._renderRowsGrid(e, t, s) : this._renderColumnsGrid(e, t, s);
+  }
+  /**
+   * The month grid: whole weeks of seven, weekday names across the top.
+   *
+   * For calendars whose events are DATES rather than appointments — bin
+   * collections, birthdays, term dates. A time axis for those is mostly empty
+   * space with a few marks in it, which is why this exists as its own shape
+   * rather than as a zoom level on the week grid.
+   *
+   * Seven columns divide the card, so a month never scrolls sideways. That is
+   * the one place this deliberately departs from `view_width_mode: fixed`: a
+   * month you have to scroll to see the end of is not a month.
+   */
+  _renderMonth(e, t) {
+    const s = this._monthFit, i = this._monthShowTimes, n = Qe(this._now, this._monthOffset).getMonth(), a = [];
+    for (let l = 0; l < 7; l++)
+      a.push(this._fmtDowLong(new Date(2024, 0, 1 + l)));
+    const o = e.findIndex((l) => H(l, this._now)) % 7;
+    return d`
+      <div
+        class="mgrid dir-${this._navDir} ${this._receded ? "dimmed" : ""} ${this._editMode ? "editing" : ""}"
+        @animationend=${() => {
+      this._navDir = "none";
+    }}
+      >
+        <div class="mhead">
+          ${a.map(
+      (l, r) => d`<div class="mdow ${r === o ? "today" : ""}">${l}</div>`
+    )}
+        </div>
+        <div
+          class="mbody ${this._monthTight ? "tight" : ""} ${`${e.length / 7}|${this._active?.entity ?? ""}` !== this._monthLaidOut ? "probing" : ""}"
+        >
+          ${e.map((l, r) => {
+      const h = S(t, l).sort(
+        (g, x) => g.start.getTime() - x.start.getTime()
+      ), c = Math.min(s, De), p = h.slice(0, h.length > c ? Math.min(s - 1, c) : c), u = h.length - p.length, w = l.getMonth() !== n, f = Math.floor(r / 7) * pe;
+      return d`
+              <div
+                class="mcell ${w ? "out" : ""} ${H(l, this._now) ? "today" : ""}"
+                style="animation-name:${this._evAnim}; animation-delay:${f}ms"
+                @pointerdown=${(g) => this._pressStart(g, l, r, me(this._nowMinutes))}
+                @click=${(g) => this._onMonthCellClick(g, l)}
+                @contextmenu=${(g) => {
+        this._editMode && g.preventDefault();
+      }}
+              >
+                <div class="mdate">${l.getDate()}</div>
+                ${p.map(
+        (g) => d`
+                    <div class="mev">
+                      <span class="mdot" style="background:${this._colorForEvent(g)}"></span>
+                      ${i && !g.allDay ? d`<span class="mtime">${this._fmtTime(g.start)}</span>` : m}
+                      <span class="mname">${g.summary}</span>
+                    </div>
+                  `
+      )}
+                ${u > 0 ? d`<div class="mmore">${u} more</div>` : m}
+                ${this._press?.idx === r && this._press.kind === "label" ? d`<div class="press-ghost head" style=${this._press.style}></div>` : m}
+              </div>
+            `;
+    })}
+        </div>
+        ${this._renderDayPeek(t)}
+      </div>
+    `;
   }
   /** Days down the left, time across the top — the printed-timetable shape. */
   _renderRowsGrid(e, t, s) {
-    const i = this._config, n = i.day_height ?? k.day_height, a = i.hour_width ?? k.hour_width, o = this._calendarMode === "full", l = o ? 0 : s.start, r = o ? 24 * 60 : s.end, h = r - l, d = this._widthMode === "adaptive", p = Math.round(h / 60 * a), f = d ? "%" : "px", v = d ? 100 : p, b = (y) => (y - l) / h * (d ? 100 : p), w = b(l + $s) - b(l), T = d ? Qe / Math.max(1, this._axisPx || p) * 100 : Qe, O = e.map((y) => R(t.filter((x) => !x.allDay), y)), Z = this._active ? [this._active.entity] : [], U = Ke(O, i.lane_mode ?? k.lane_mode, Z), Q = U.columns * n, J = e.map((y) => R(t.filter((x) => x.allDay), y)), Te = [];
-    for (let y = Math.ceil(l / 60) * 60; y <= r; y += 60) Te.push(y);
-    const yt = Math.max(160, (this._hostWidth || 1e3) - Ns - Ws * 2), wt = d ? yt / (h / 60) : a, vt = Math.max(1, Math.ceil(zs / wt)), Ee = Te.filter((y, x) => x % vt === 0), xt = e.findIndex((y) => _e(y, this._now));
-    return this._focusPx = o && !d ? Math.max(0, Math.round((s.start - Rs - l) / h * p)) : 0, c`
+    const i = this._config, n = i.day_height ?? $.day_height, a = i.hour_width ?? $.hour_width, o = this._calendarMode === "full", l = o ? 0 : s.start, r = o ? 24 * 60 : s.end, h = r - l, c = this._widthMode === "adaptive", p = Math.round(h / 60 * a), u = c ? "%" : "px", w = c ? 100 : p, f = (v) => (v - l) / h * (c ? 100 : p), g = f(l + Ws) - f(l), x = c ? pt / Math.max(1, this._axisPx || p) * 100 : pt, D = e.map((v) => S(t.filter((k) => !k.allDay), v)), G = this._active ? [this._active.entity] : [], M = ot(D, i.lane_mode ?? $.lane_mode, G), P = M.columns * n, z = e.map((v) => S(t.filter((k) => k.allDay), v)), K = [];
+    for (let v = Math.ceil(l / 60) * 60; v <= r; v += 60) K.push(v);
+    const re = Math.max(160, (this._hostWidth || 1e3) - ai - oi * 2), le = c ? re / (h / 60) : a, X = Math.max(1, Math.ceil(ii / le)), V = K.filter((v, k) => k % X === 0), Z = e.findIndex((v) => H(v, this._now));
+    return this._focusPx = o && !c ? Math.max(0, Math.round((s.start - ni - l) / h * p)) : 0, d`
       <div
         class="rgrid dir-${this._navDir} ${this._receded ? "dimmed" : ""} ${this._editMode ? "editing" : ""}"
-        style="--row-h:${Q}px; --lane-h:${n}px"
+        style="--row-h:${P}px; --lane-h:${n}px"
       >
         <div
           class="rframe"
@@ -2335,41 +2835,41 @@ let m = class extends Y {
           <div class="rdays">
             <div class="rcorner"></div>
             ${e.map(
-      (y, x) => c`
+      (v, k) => d`
                 <div
-                  class="rday ${x % 2 ? "alt" : ""} ${x === xt ? "today" : ""}"
-                  @pointerdown=${(P) => this._pressStart(P, y, x, be(this._nowMinutes))}
-                  @contextmenu=${(P) => {
-        this._editMode && P.preventDefault();
+                  class="rday ${k % 2 ? "alt" : ""} ${k === Z ? "today" : ""}"
+                  @pointerdown=${(W) => this._pressStart(W, v, k, me(this._nowMinutes))}
+                  @contextmenu=${(W) => {
+        this._editMode && W.preventDefault();
       }}
                 >
-                  <span class="dow">${this._fmtDowLong(y)},</span>
-                  <span class="dnum">${this._fmtDate(y)}</span>
-                  ${this._press?.idx === x && this._press.kind === "label" ? c`<div class="press-ghost head" style=${this._press.style}></div>` : u}
+                  <span class="dow">${this._fmtDowLong(v)},</span>
+                  <span class="dnum">${this._fmtDate(v)}</span>
+                  ${this._press?.idx === k && this._press.kind === "label" ? d`<div class="press-ghost head" style=${this._press.style}></div>` : m}
                 </div>
               `
     )}
           </div>
 
-          <div class="rscroll" @scroll=${(y) => this._onHScroll(y)}>
-            <div class="rinner" style="--axis-w:${d ? "100%" : `${p}px`}">
+          <div class="rscroll" @scroll=${(v) => this._onHScroll(v)}>
+            <div class="rinner" style="--axis-w:${c ? "100%" : `${p}px`}">
               <div class="rtimes">
-                ${Ee.map(
-      (y) => c`<div
-                      class="rhr ${b(y) < 0.5 ? "first" : ""} ${b(y) >= v - T ? "last" : ""}"
-                      style="left:${b(y)}${f}"
+                ${V.map(
+      (v) => d`<div
+                      class="rhr ${f(v) < 0.5 ? "first" : ""} ${f(v) >= w - x ? "last" : ""}"
+                      style="left:${f(v)}${u}"
                     >
-                      ${this._fmtHour(y)}
+                      ${this._fmtHour(v)}
                     </div>`
     )}
               </div>
 
-              ${e.map((y, x) => {
-      const P = N(y).getTime();
-      return c`
+              ${e.map((v, k) => {
+      const W = B(v).getTime();
+      return d`
                   <div
-                    class="rcanvas ${x % 2 ? "alt" : ""}"
-                    @pointerdown=${($) => this._pressStart($, y, x, {
+                    class="rcanvas ${k % 2 ? "alt" : ""}"
+                    @pointerdown=${(T) => this._pressStart(T, v, k, {
         axis: "x",
         start: l,
         span: h,
@@ -2380,49 +2880,49 @@ let m = class extends Y {
         // read as the gap not working at all. It has to tell the
         // truth about what it is claiming, however thin.
         kind: "slot",
-        ghost: (ee, L) => `left:${b(ee)}${f}; width:${b(L) - b(ee)}${f};
+        ghost: (he, F) => `left:${f(he)}${u}; width:${f(F) - f(he)}${u};
                            top:0; height:100%`
       })}
-                    @contextmenu=${($) => {
-        this._editMode && $.preventDefault();
+                    @contextmenu=${(T) => {
+        this._editMode && T.preventDefault();
       }}
                   >
-                    ${this._press?.idx === x && this._press.kind === "slot" ? c`<div class="press-ghost" style=${this._press.style}></div>` : u}
+                    ${this._press?.idx === k && this._press.kind === "slot" ? d`<div class="press-ghost" style=${this._press.style}></div>` : m}
                     <div class="rlines">
-                      ${Ee.map(
-        ($) => c`<div class="rline" style="left:${b($)}${f}"></div>`
+                      ${V.map(
+        (T) => d`<div class="rline" style="left:${f(T)}${u}"></div>`
       )}
                     </div>
-                    ${J[x].map(
-        ($) => c`
+                    ${z[k].map(
+        (T) => d`
                         <div
                           class="ev rev"
                           style="left:0; width:100%; top:0; height:${n}px;
-                                 animation-name:${this._evAnim}; animation-delay:${x * me}ms;
-                                 ${ie(this._colorForEvent($), this._minContrast)}"
-                          @click=${() => this._pickEvent($)}
+                                 animation-name:${this._evAnim}; animation-delay:${k * pe}ms;
+                                 ${fe(this._colorForEvent(T), this._minContrast)}"
+                          @click=${() => this._pickEvent(T)}
                         >
-                          <div class="ev-in"><div class="ev-name">${$.summary}</div></div>
+                          <div class="ev-in"><div class="ev-name">${T.summary}</div></div>
                         </div>
                       `
       )}
-                    ${U.days[x].map(({ ev: $, column: ee }) => {
-        const L = Math.max(l, I($.start, P)), De = I($.end, P), Se = Math.min(r, De <= L ? L + 15 : De);
-        if (Se <= l || L >= r) return u;
-        const Me = b(L), kt = Math.max(b(Se) - Me, w);
-        return c`
+                    ${M.days[k].map(({ ev: T, column: he }) => {
+        const F = Math.max(l, U(T.start, W)), ze = U(T.end, W), We = Math.min(r, ze <= F ? F + 15 : ze);
+        if (We <= l || F >= r) return m;
+        const Fe = f(F), Wt = Math.max(f(We) - Fe, g);
+        return d`
                         <div
                           class="ev rev"
-                          style="left:${Me}${f}; width:${kt}${f};
-                                 top:${ee * n}px; height:${n}px;
-                                 animation-name:${this._evAnim}; animation-delay:${x * me}ms;
-                                 ${ie(this._colorForEvent($), this._minContrast)}"
-                          @click=${() => this._pickEvent($)}
+                          style="left:${Fe}${u}; width:${Wt}${u};
+                                 top:${he * n}px; height:${n}px;
+                                 animation-name:${this._evAnim}; animation-delay:${k * pe}ms;
+                                 ${fe(this._colorForEvent(T), this._minContrast)}"
+                          @click=${() => this._pickEvent(T)}
                         >
                           <div class="ev-in">
-                            <div class="ev-name">${$.summary}</div>
+                            <div class="ev-name">${T.summary}</div>
                             <div class="ev-time">
-                              ${this._fmtTime($.start)} – ${this._fmtTime($.end)}
+                              ${this._fmtTime(T.start)} – ${this._fmtTime(T.end)}
                             </div>
                           </div>
                         </div>
@@ -2434,31 +2934,31 @@ let m = class extends Y {
             </div>
           </div>
         </div>
-        ${this._hThumb ? c`<div
+        ${this._hThumb ? d`<div
               class="hbar"
-              @pointerdown=${(y) => this._barDown(y)}
-              @pointermove=${(y) => this._barMove(y)}
-              @pointerup=${(y) => this._barUp(y)}
-              @pointercancel=${(y) => this._barUp(y)}
+              @pointerdown=${(v) => this._barDown(v)}
+              @pointermove=${(v) => this._barMove(v)}
+              @pointerup=${(v) => this._barUp(v)}
+              @pointercancel=${(v) => this._barUp(v)}
             >
               <div
                 class="hthumb"
                 style="left:${this._hThumb.left}%; width:${this._hThumb.width}%"
               ></div>
-            </div>` : u}
+            </div>` : m}
       </div>
     `;
   }
   /** Days across the top, time down the left — the calendar shape. */
   _renderColumnsGrid(e, t, s) {
     this._calendarMode === "full" && (s = { start: 0, end: 24 * 60 });
-    const i = this._config, n = i.hour_height ?? k.hour_height, a = s.end - s.start, o = Math.round(a / 60 * n), l = e.map((b) => R(t.filter((w) => !w.allDay), b)), r = this._active ? [this._active.entity] : [], h = Ke(l, i.lane_mode ?? k.lane_mode, r), d = e.map((b) => R(t.filter((w) => w.allDay), b)), p = d.some((b) => b.length > 0), f = [];
-    for (let b = Math.ceil(s.start / 60) * 60; b <= s.end; b += 60) f.push(b);
-    const v = e.length;
-    return c`
+    const i = this._config, n = i.hour_height ?? $.hour_height, a = s.end - s.start, o = Math.round(a / 60 * n), l = e.map((f) => S(t.filter((g) => !g.allDay), f)), r = this._active ? [this._active.entity] : [], h = ot(l, i.lane_mode ?? $.lane_mode, r), c = e.map((f) => S(t.filter((g) => g.allDay), f)), p = c.some((f) => f.length > 0), u = [];
+    for (let f = Math.ceil(s.start / 60) * 60; f <= s.end; f += 60) u.push(f);
+    const w = e.length;
+    return d`
       <div
         class="grid dir-${this._navDir} ${this._receded ? "dimmed" : ""} ${this._editMode ? "editing" : ""}"
-        style="--cols:${v}; --sub:${h.columns}; --body-h:${o}px"
+        style="--cols:${w}; --sub:${h.columns}; --body-h:${o}px"
         @animationend=${() => {
       this._navDir = "none";
     }}
@@ -2466,36 +2966,36 @@ let m = class extends Y {
         <div class="hdr">
           <div class="corner"></div>
           ${e.map(
-      (b, w) => c`
+      (f, g) => d`
               <div
-                class="dayhead ${w % 2 ? "alt" : ""}"
-                @pointerdown=${(T) => this._pressStart(T, b, w, be(this._nowMinutes))}
-                @contextmenu=${(T) => {
-        this._editMode && T.preventDefault();
+                class="dayhead ${g % 2 ? "alt" : ""}"
+                @pointerdown=${(x) => this._pressStart(x, f, g, me(this._nowMinutes))}
+                @contextmenu=${(x) => {
+        this._editMode && x.preventDefault();
       }}
               >
-                <span class="dow">${this._fmtDowLong(b)},</span>
-                <span class="dnum">${this._fmtDate(b)}</span>
-                ${this._press?.idx === w && this._press.kind === "label" ? c`<div class="press-ghost head" style=${this._press.style}></div>` : u}
+                <span class="dow">${this._fmtDowLong(f)},</span>
+                <span class="dnum">${this._fmtDate(f)}</span>
+                ${this._press?.idx === g && this._press.kind === "label" ? d`<div class="press-ghost head" style=${this._press.style}></div>` : m}
               </div>
             `
     )}
         </div>
 
-        ${p ? c`
+        ${p ? d`
               <div class="allday">
                 <div class="gut-lbl">all-day</div>
-                ${d.map(
-      (b) => c`
+                ${c.map(
+      (f) => d`
                     <div class="ad-cell">
-                      ${b.map(
-        (w) => c`
+                      ${f.map(
+        (g) => d`
                           <div
                             class="ad"
-                            style=${ie(this._colorForEvent(w), this._minContrast)}
-                            @click=${() => this._pickEvent(w)}
+                            style=${fe(this._colorForEvent(g), this._minContrast)}
+                            @click=${() => this._pickEvent(g)}
                           >
-                            ${w.summary}
+                            ${g.summary}
                           </div>
                         `
       )}
@@ -2503,29 +3003,29 @@ let m = class extends Y {
                   `
     )}
               </div>
-            ` : u}
+            ` : m}
 
         <div class="body">
           <div class="lines">
-            ${f.map(
-      (b) => c`<div class="line" style="top:${nt(b, s)}"></div>`
+            ${u.map(
+      (f) => d`<div class="line" style="top:${xt(f, s)}"></div>`
     )}
           </div>
           <div class="gutter">
-            ${f.map(
-      (b) => c`<div class="hr" style="top:${nt(b, s)}">${this._fmtHour(b)}</div>`
+            ${u.map(
+      (f) => d`<div class="hr" style="top:${xt(f, s)}">${this._fmtHour(f)}</div>`
     )}
           </div>
           ${e.map(
-      (b, w) => this._renderDay(b, w, h.days[w], h.columns, s, o)
+      (f, g) => this._renderDay(f, g, h.days[g], h.columns, s, o)
     )}
         </div>
       </div>
     `;
   }
   _renderDay(e, t, s, i, n, a) {
-    const o = n.end - n.start, l = N(e).getTime();
-    return c`
+    const o = n.end - n.start, l = B(e).getTime();
+    return d`
       <div
         class="day ${t % 2 ? "alt" : ""}"
         @pointerdown=${(r) => this._pressStart(r, e, t, {
@@ -2535,32 +3035,32 @@ let m = class extends Y {
       kind: "slot",
       // No minimum height, for the reason the rows grid has no minimum
       // width: the ghost is the slot, not a block.
-      ghost: (h, d) => `top:${(h - n.start) / o * a}px;
-               height:${(d - h) / o * a}px;
+      ghost: (h, c) => `top:${(h - n.start) / o * a}px;
+               height:${(c - h) / o * a}px;
                left:0; width:100%`
     })}
         @contextmenu=${(r) => {
       this._editMode && r.preventDefault();
     }}
       >
-        ${this._press?.idx === t && this._press.kind === "slot" ? c`<div class="press-ghost" style=${this._press.style}></div>` : u}
+        ${this._press?.idx === t && this._press.kind === "slot" ? d`<div class="press-ghost" style=${this._press.style}></div>` : m}
         ${s.map(({ ev: r, column: h }) => {
-      const d = Math.max(n.start, I(r.start, l)), p = I(r.end, l), f = Math.min(n.end, p <= d ? d + 15 : p);
-      if (f <= n.start || d >= n.end) return u;
-      const v = (d - n.start) / o * a, b = Math.max(ks, (f - d) / o * a), w = this._colorForEvent(r), T = b < 46;
-      return c`
+      const c = Math.max(n.start, U(r.start, l)), p = U(r.end, l), u = Math.min(n.end, p <= c ? c + 15 : p);
+      if (u <= n.start || c >= n.end) return m;
+      const w = (c - n.start) / o * a, f = Math.max(zs, (u - c) / o * a), g = this._colorForEvent(r), x = f < 46;
+      return d`
             <div
-              class="ev ${T ? "compact" : ""} ${this._selected?.key === r.key ? "sel" : ""}"
-              style="top:${v}px; height:${b}px;
+              class="ev ${x ? "compact" : ""} ${this._selected?.key === r.key ? "sel" : ""}"
+              style="top:${w}px; height:${f}px;
                      left:calc(${h} * (100% / ${i}));
                      width:calc(100% / ${i});
-                     animation-name:${this._evAnim}; animation-delay:${t * me}ms;
-                     ${ie(w, this._minContrast)}"
+                     animation-name:${this._evAnim}; animation-delay:${t * pe}ms;
+                     ${fe(g, this._minContrast)}"
               @click=${() => this._pickEvent(r)}
             >
               <div class="ev-in">
                 <div class="ev-name">${r.summary}</div>
-                ${T ? u : c`<div class="ev-time">
+                ${x ? m : d`<div class="ev-time">
                       ${this._fmtTime(r.start)} – ${this._fmtTime(r.end)}
                     </div>`}
               </div>
@@ -2576,8 +3076,8 @@ let m = class extends Y {
    */
   _renderList(e, t) {
     let s = 0;
-    const i = be(this._nowMinutes);
-    return c`
+    const i = me(this._nowMinutes);
+    return d`
       <div
         class="list ${this._receded ? "dimmed" : ""} ${this._editMode ? "editing" : ""} dir-${this._navDir}"
         @animationend=${() => {
@@ -2585,13 +3085,13 @@ let m = class extends Y {
     }}
       >
         ${e.map((n, a) => {
-      const o = R(t, n).sort(
+      const o = S(t, n).sort(
         (l, r) => l.start.getTime() - r.start.getTime()
       );
-      return c`
+      return d`
             <div class="ld">
               <div
-                class="ld-head ${_e(n, this._now) ? "today" : ""}"
+                class="ld-head ${H(n, this._now) ? "today" : ""}"
                 @pointerdown=${(l) => this._pressStart(l, n, a, i)}
                 @contextmenu=${(l) => {
         this._editMode && l.preventDefault();
@@ -2606,27 +3106,27 @@ let m = class extends Y {
                   <span class="dow">${this._fmtDowLong(n)},</span>
                   <span class="dnum">${this._fmtDate(n)}</span>
                 </span>
-                ${this._press?.idx === a && this._press.kind === "label" ? c`<div class="press-ghost head" style=${this._press.style}></div>` : u}
+                ${this._press?.idx === a && this._press.kind === "label" ? d`<div class="press-ghost head" style=${this._press.style}></div>` : m}
               </div>
               ${o.length ? o.map(
-        (l) => c`
+        (l) => d`
                       <div
                         class="lr"
                         style="animation-name:${this._evAnim};
                                animation-delay:${Math.min(
-          s++ * Ts,
-          Es
+          s++ * Fs,
+          Hs
         )}ms"
                         @click=${() => this._pickEvent(l)}
                       >
                         <span class="lr-bar" style="background:${this._colorForEvent(l)}"></span>
                         <span class="lr-time">
-                          ${l.allDay ? "all day" : c`${this._fmtTime(l.start)}<br />${this._fmtTime(l.end)}`}
+                          ${l.allDay ? "all day" : d`${this._fmtTime(l.start)}<br />${this._fmtTime(l.end)}`}
                         </span>
                         <span class="lr-name">${l.summary}</span>
                       </div>
                     `
-      ) : c`<div class="lr empty">Nothing scheduled</div>`}
+      ) : d`<div class="lr empty">Nothing scheduled</div>`}
             </div>
           `;
     })}
@@ -2648,9 +3148,9 @@ let m = class extends Y {
   _onWheelScroll(e, t, s) {
     const i = e.currentTarget;
     window.clearTimeout(this._wheelTimers[t]), this._wheelTimers[t] = window.setTimeout(() => {
-      const n = Math.round(i.scrollTop / B), a = this._draft;
+      const n = Math.round(i.scrollTop / J), a = this._draft;
       if (!a) return;
-      const [o, l] = (a[s] || "00:00").split(":").map(Number), r = t === "hour" ? Math.min(23, Math.max(0, n)) : o, h = t === "minute" ? Math.min(59, Math.max(0, n)) : l, d = (f) => String(f).padStart(2, "0"), p = `${d(r)}:${d(h)}`;
+      const [o, l] = (a[s] || "00:00").split(":").map(Number), r = t === "hour" ? Math.min(23, Math.max(0, n)) : o, h = t === "minute" ? Math.min(59, Math.max(0, n)) : l, c = (u) => String(u).padStart(2, "0"), p = `${c(r)}:${c(h)}`;
       p !== a[s] && (s === "startTime" ? this._patchStart({ startTime: p }) : this._patchDraft({ endTime: p }));
     }, 140);
   }
@@ -2665,7 +3165,7 @@ let m = class extends Y {
    * however the row was chosen.
    */
   _spinWheel(e, t, s) {
-    const i = Math.min(s, Math.max(0, t)) * B;
+    const i = Math.min(s, Math.max(0, t)) * J;
     e.scrollTo({ top: i, behavior: this._reducedMotion ? "auto" : "smooth" });
   }
   /** One notch of the mouse wheel is one row, over whichever column is hovered. */
@@ -2674,14 +3174,14 @@ let m = class extends Y {
     if (!s) return;
     e.preventDefault(), e.stopPropagation();
     const i = e.currentTarget;
-    this._spinWheel(i, Math.round(i.scrollTop / B) + s, t);
+    this._spinWheel(i, Math.round(i.scrollTop / J) + s, t);
   }
   _positionWheels() {
     const e = this.renderRoot?.querySelectorAll(".wheel-col");
     if (e?.length)
       for (const t of e) {
         const s = Number(t.dataset.index ?? 0);
-        t.scrollTop = s * B;
+        t.scrollTop = s * J;
       }
   }
   _renderWheel(e) {
@@ -2690,8 +3190,8 @@ let m = class extends Y {
     const a = [];
     for (let r = 0; r < 60; r++) a.push(r);
     const o = (r) => String(r).padStart(2, "0"), l = (r) => this._hour12 ? `${r % 12 === 0 ? 12 : r % 12} ${r < 12 ? "AM" : "PM"}` : o(r);
-    return c`
-      <div class="wheel" style="--wheel-h:${B * Ps}px">
+    return d`
+      <div class="wheel" style="--wheel-h:${J * Ks}px">
         <div class="wheel-band"></div>
         <div
           class="wheel-col"
@@ -2701,7 +3201,7 @@ let m = class extends Y {
         >
           <div class="wheel-pad"></div>
           ${n.map(
-      (r) => c`<div
+      (r) => d`<div
               class="wheel-item ${r === s ? "sel" : ""}"
               @click=${(h) => this._spinWheel(h.currentTarget.parentElement, r, 23)}
             >
@@ -2719,7 +3219,7 @@ let m = class extends Y {
         >
           <div class="wheel-pad"></div>
           ${a.map(
-      (r) => c`<div
+      (r) => d`<div
               class="wheel-item ${r === i ? "sel" : ""}"
               @click=${(h) => this._spinWheel(h.currentTarget.parentElement, r, 59)}
             >
@@ -2733,38 +3233,38 @@ let m = class extends Y {
   }
   _renderCalendar(e, t) {
     const s = this._pickerMonth ?? { y: (/* @__PURE__ */ new Date()).getFullYear(), m: (/* @__PURE__ */ new Date()).getMonth() }, i = new Date(s.y, s.m, 1), n = (i.getDay() + 6) % 7, a = new Date(s.y, s.m + 1, 0).getDate(), o = [];
-    for (let f = 0; f < n; f++) o.push(null);
-    for (let f = 1; f <= a; f++) o.push(new Date(s.y, s.m, f));
-    const l = (f) => String(f).padStart(2, "0"), r = i.toLocaleDateString(this._lang, { month: "long", year: "numeric" }), h = [];
-    for (let f = 0; f < 7; f++)
-      h.push(new Date(2024, 0, 1 + f).toLocaleDateString(this._lang, { weekday: "narrow" }));
-    const d = this._calEpoch % 2 ? "calDayB" : "calDayA", p = this._calDir * 22;
-    return c`
+    for (let u = 0; u < n; u++) o.push(null);
+    for (let u = 1; u <= a; u++) o.push(new Date(s.y, s.m, u));
+    const l = (u) => String(u).padStart(2, "0"), r = i.toLocaleDateString(this._lang, { month: "long", year: "numeric" }), h = [];
+    for (let u = 0; u < 7; u++)
+      h.push(new Date(2024, 0, 1 + u).toLocaleDateString(this._lang, { weekday: "narrow" }));
+    const c = this._calEpoch % 2 ? "calDayB" : "calDayA", p = this._calDir * 22;
+    return d`
       <div class="cal" style="--cal-from:${p}px">
         <div class="cal-head">
           <button class="cal-nav" @click=${() => this._stepMonth(-1)} aria-label="Previous month">
             <ha-icon icon="mdi:chevron-left"></ha-icon>
           </button>
-          <span class="cal-month" style="animation-name:${d}">${r}</span>
+          <span class="cal-month" style="animation-name:${c}">${r}</span>
           <button class="cal-nav" @click=${() => this._stepMonth(1)} aria-label="Next month">
             <ha-icon icon="mdi:chevron-right"></ha-icon>
           </button>
         </div>
         <div class="cal-grid">
-          ${h.map((f) => c`<div class="cal-dow">${f}</div>`)}
-          ${o.map((f, v) => {
-      const b = Math.floor(v / 7) * 26;
-      if (!f) return c`<div></div>`;
-      const w = `${f.getFullYear()}-${l(f.getMonth() + 1)}-${l(f.getDate())}`;
-      return c`
+          ${h.map((u) => d`<div class="cal-dow">${u}</div>`)}
+          ${o.map((u, w) => {
+      const f = Math.floor(w / 7) * 26;
+      if (!u) return d`<div></div>`;
+      const g = `${u.getFullYear()}-${l(u.getMonth() + 1)}-${l(u.getDate())}`;
+      return d`
               <button
-                class="cal-day ${w === e ? "sel" : ""} ${_e(f, this._now) ? "today" : ""}"
-                style="animation-name:${d}; animation-delay:${b}ms"
+                class="cal-day ${g === e ? "sel" : ""} ${H(u, this._now) ? "today" : ""}"
+                style="animation-name:${c}; animation-delay:${f}ms"
                 @click=${() => {
-        t(w), this._closePicker();
+        t(g), this._closePicker();
       }}
               >
-                ${f.getDate()}
+                ${u.getDate()}
               </button>
             `;
     })}
@@ -2780,7 +3280,7 @@ let m = class extends Y {
    * same reason the all-day time chip is collapsed instead of conditional.
    */
   _renderFold(e, t, s, i, n, a = !1) {
-    return c`
+    return d`
       <div class="ed-group">
         <button
           class="ed-row ed-disclose"
@@ -2809,7 +3309,7 @@ let m = class extends Y {
       hour: "numeric",
       minute: "2-digit"
     }) : i[s];
-    return c`
+    return d`
       <div class="ed-row">
         <span class="ed-lbl">${e}</span>
         <span class="ed-vals picks">
@@ -2834,15 +3334,15 @@ let m = class extends Y {
           </button>
         </span>
       </div>
-      ${this._showPicker(t) ? c`<div class="ed-picker" data-field=${t}>
+      ${this._showPicker(t) ? d`<div class="ed-picker" data-field=${t}>
             ${this._renderCalendar(
       i[t],
       (l) => t === "startDate" ? this._patchStart({ startDate: l }) : this._patchDraft({ endDate: l })
     )}
-          </div>` : u}
-      ${this._showPicker(s) && !i.allDay ? c`<div class="ed-picker" data-field=${s}>
+          </div>` : m}
+      ${this._showPicker(s) && !i.allDay ? d`<div class="ed-picker" data-field=${s}>
             ${this._renderWheel(s)}
-          </div>` : u}
+          </div>` : m}
     `;
   }
   /* ---- location lookup ---------------------------------------------- */
@@ -2854,7 +3354,7 @@ let m = class extends Y {
    * suggestions with stale ones.
    */
   _searchLocation(e) {
-    if (this._patchDraft({ location: e }), this._placeTimer && clearTimeout(this._placeTimer), this._placeAbort?.abort(), e.trim().length < bt) {
+    if (this._patchDraft({ location: e }), this._placeTimer && clearTimeout(this._placeTimer), this._placeAbort?.abort(), e.trim().length < Rt) {
       this._places = [], this._placesBusy = !1;
       return;
     }
@@ -2862,7 +3362,7 @@ let m = class extends Y {
       const t = new AbortController();
       this._placeAbort = t;
       const s = this.hass?.states?.["zone.home"]?.attributes;
-      Ve(e, {
+      dt(e, {
         lat: typeof s?.latitude == "number" ? s.latitude : void 0,
         lon: typeof s?.longitude == "number" ? s.longitude : void 0,
         lang: this._lang?.split("-")[0],
@@ -2892,7 +3392,7 @@ let m = class extends Y {
    */
   async _ensureLeaflet() {
     if (this._leaflet) return;
-    const e = await bs();
+    const e = await Ps();
     this._leaflet = e, this._leafletOk = !!e;
   }
   /**
@@ -2912,7 +3412,7 @@ let m = class extends Y {
     const e = this._draft?.location?.trim();
     if (!e) return;
     this._placesBusy = !0;
-    const t = await Ve(e, { limit: 1 });
+    const t = await dt(e, { limit: 1 });
     this._placesBusy = !1, t.length && (this._mapPoint = { lat: t[0].lat, lon: t[0].lon });
   }
   /**
@@ -3036,7 +3536,33 @@ let m = class extends Y {
    */
   get _draftAccent() {
     const e = this._draft;
-    return e ? e.colorId ? se.find(([t]) => t === e.colorId)?.[1] ?? this._colorFor(e.entity) : this._colorFor(e.entity) : "var(--ssc-fg)";
+    return e ? e.colorId ? ue.find(([t]) => t === e.colorId)?.[1] ?? this._colorFor(e.entity) : this._colorFor(e.entity) : "var(--ssc-fg)";
+  }
+  /**
+   * An event's repeat rule in words, or '' when there is nothing to say.
+   *
+   * '' covers three different cases on purpose — a one-off, a rule this card
+   * cannot model, and a malformed one — because the answer on screen is the
+   * same for all three: say nothing rather than something half-true.
+   */
+  _repeatWords(e) {
+    const t = ht(this._seriesRule(e));
+    return t ? de(t, e.start, this._lang) : "";
+  }
+  /**
+   * The repeat rule of the series this event belongs to.
+   *
+   * A singly-modified occurrence is DETACHED from its series, and Home
+   * Assistant sends it with no rule at all — measured, five of thirty-two on a
+   * real school week. The series still has one, and every other occurrence
+   * carries it, so a sibling sharing the uid is asked instead. Without this the
+   * card says "Weekly on Monday" about most of a series and nothing about the
+   * one lesson somebody moved, which reads as that lesson not repeating.
+   */
+  _seriesRule(e) {
+    if (e.rrule) return e.rrule;
+    if (e.uid)
+      return this._subs.events.find((t) => t.uid === e.uid && t.rrule)?.rrule;
   }
   /** The draft's start as a Date, which every repeat label is generated from. */
   get _draftStart() {
@@ -3049,12 +3575,47 @@ let m = class extends Y {
     this._custom = this._draft?.repeat ? { ...this._draft.repeat, byDay: [...this._draft.repeat.byDay] } : {
       freq: "WEEKLY",
       interval: 1,
-      byDay: [re[e.getDay()]],
+      byDay: [O[e.getDay()]],
       end: { kind: "never" }
     }, this._openPicker = null, this._pickerClosing = null, this._endsOpen = !1, clearTimeout(this._customCloseTimer), this._customClosing = !1, this._customOpen = !0;
   }
   _patchCustom(e) {
-    this._custom && (this._custom = { ...this._custom, ...e });
+    this._custom && (this._custom = this._namedDays({ ...this._custom, ...e }, this._draftStart));
+  }
+  /**
+   * A weekly rule always names its days, even when RFC 5545 does not require it.
+   *
+   * FREQ=WEEKLY with no BYDAY means "the day DTSTART falls on", so it is
+   * equivalent to naming that day — but only one of the two survives a trip
+   * through the unit picker, because normalise() clears byDay whenever the
+   * frequency is not weekly. Wandering weeks to months and back therefore
+   * turned BYDAY=MO into nothing, and the form then believed the rule had
+   * changed when the user had put it back exactly as they found it.
+   *
+   * Filling it in at both ends — when the rule is seeded and whenever it is
+   * touched — makes that round trip lossless.
+   */
+  _namedDays(e, t) {
+    return !e || e.freq !== "WEEKLY" || e.byDay.length ? e : { ...e, byDay: [O[t.getDay()]] };
+  }
+  /**
+   * Whether this edit moves the repeat rule, which is the thing that decides
+   * what scopes are even legal — see _renderEditor.
+   */
+  get _repeatMoved() {
+    const e = this._draft;
+    return !e || e.isNew ? !1 : !Lt(e.repeat, e.repeatWas);
+  }
+  /**
+   * Set the repeat rule, moving the scope with it when it has to.
+   *
+   * A repeat rule belongs to the SERIES: Google has no way to give one
+   * occurrence a rule of its own, and a PATCH that tries is rejected. So
+   * changing the rule takes "This event" off the table, and the form moves the
+   * choice to "All events" rather than letting a save fail on it later.
+   */
+  _setRepeat(e) {
+    this._patchDraft({ repeat: e }), this._repeatMoved && this._scope === "instance" && (this._scope = "series");
   }
   /** What the folded Ends row says when it is shut. */
   get _endsSummary() {
@@ -3074,21 +3635,21 @@ let m = class extends Y {
    * browser's own locale.
    */
   _renderRepeat() {
-    const e = this._draft, t = this._draftStart, s = hs(e.repeat, t, this._lang), i = [
-      ...gt(t, this._lang).map((n) => ({
+    const e = this._draft, t = this._draftStart, s = ks(e.repeat, t, this._lang), i = [
+      ...Ct(t, this._lang).map((n) => ({
         key: n.key,
         label: n.label,
-        pick: () => this._patchDraft({ repeat: n.rule })
+        pick: () => this._setRepeat(n.rule)
       })),
       {
         key: "custom",
-        label: s === "custom" ? fe(e.repeat, t, this._lang) : "Custom…",
+        label: s === "custom" ? de(e.repeat, t, this._lang) : "Custom…",
         pick: () => this._openCustom()
       }
     ];
-    return c`
+    return d`
       ${i.map(
-      (n) => c`
+      (n) => d`
           <button
             class="ed-row scope ${s === n.key ? "sel" : ""}"
             role="radio"
@@ -3096,7 +3657,7 @@ let m = class extends Y {
             @click=${n.pick}
           >
             <span class="ed-lbl">${n.label}</span>
-            ${n.key === "custom" ? c`<ha-icon class="ed-chev" icon="mdi:tune-variant"></ha-icon>` : c`<span class="radio"><span class="radio-dot"></span></span>`}
+            ${n.key === "custom" ? d`<ha-icon class="ed-chev" icon="mdi:tune-variant"></ha-icon>` : d`<span class="radio"><span class="radio-dot"></span></span>`}
           </button>
         `
     )}
@@ -3111,7 +3672,7 @@ let m = class extends Y {
    */
   _renderStepper(e, t, s, i, n, a = !0) {
     const o = e(), l = (r) => Math.min(s, Math.max(t, r));
-    return c`
+    return d`
       <span class="stepper ${a ? "on" : ""}">
         <button
           class="st-btn"
@@ -3154,7 +3715,7 @@ let m = class extends Y {
    * rule — "every 2 weeks on no days at all" — never reaches it.
    */
   _renderCustomModal() {
-    if (!this._customOpen && !this._customClosing || !this._custom) return u;
+    if (!this._customOpen && !this._customClosing || !this._custom) return m;
     const e = this._custom, t = [
       ["DAILY", e.interval === 1 ? "day" : "days"],
       ["WEEKLY", e.interval === 1 ? "week" : "weeks"],
@@ -3165,7 +3726,7 @@ let m = class extends Y {
       month: "short",
       day: "numeric"
     });
-    return c`
+    return d`
       <div class="recwrap ${this._customClosing ? "out" : ""}">
         <!-- The accent is set HERE as well as on the sheet: this window is a
              SIBLING of it, not a child, so it inherits nothing from it. Without
@@ -3200,7 +3761,7 @@ let m = class extends Y {
     )}
               <span class="seg">
                 ${t.map(
-      ([o, l]) => c`
+      ([o, l]) => d`
                     <button
                       class="seg-btn ${e.freq === o ? "on" : ""}"
                       @click=${() => {
@@ -3221,18 +3782,18 @@ let m = class extends Y {
             <div class="rec-days-in">
               <div class="ed-head">Repeat on</div>
               <div class="dow-row">
-                ${X.map((o, l) => {
+                ${ae.map((o, l) => {
       const r = e.byDay.includes(o), h = new Date(2024, 0, 1 + l).toLocaleDateString(this._lang, {
         weekday: "narrow"
       });
-      return c`
+      return d`
                     <button
                       class="dow-btn ${r ? "on" : ""}"
                       aria-pressed=${r ? "true" : "false"}
                       @click=${() => {
-        const d = r ? e.byDay.filter((p) => p !== o) : [...e.byDay, o];
+        const c = r ? e.byDay.filter((p) => p !== o) : [...e.byDay, o];
         this._patchCustom({
-          byDay: d.length ? d : [re[s.getDay()]]
+          byDay: c.length ? c : [O[s.getDay()]]
         });
       }}
                     >
@@ -3240,6 +3801,36 @@ let m = class extends Y {
                     </button>
                   `;
     })}
+              </div>
+            </div>
+          </div>
+
+          <!-- The one control Google's dialog had that this one did not: a
+               monthly series repeats either on a DATE or on a weekday's
+               position, and the two are different rules. Without it the card
+               could read "the second Monday" but never set or clear it. -->
+          <div class="rec-days ${e.freq === "MONTHLY" ? "open" : ""}">
+            <div class="rec-days-in">
+              <div class="ed-head">Repeat on</div>
+              <div class="seg month">
+                <button
+                  class="seg-btn ${e.byPos ? "" : "on"}"
+                  @click=${() => this._patchCustom({ byPos: void 0, byMonthDay: s.getDate() })}
+                >
+                  ${`day ${e.byMonthDay ?? s.getDate()}`}
+                </button>
+                <button
+                  class="seg-btn ${e.byPos ? "on" : ""}"
+                  @click=${() => this._patchCustom({
+      byMonthDay: void 0,
+      byPos: { pos: Ee(s), day: O[s.getDay()] }
+    })}
+                >
+                  ${`the ${Vs[Ee(s)]} ${new Intl.DateTimeFormat(
+      this._lang,
+      { weekday: "long" }
+    ).format(s)}`}
+                </button>
               </div>
             </div>
           </div>
@@ -3255,7 +3846,7 @@ let m = class extends Y {
       () => {
         this._endsOpen = !this._endsOpen, this._endsOpen || this._closePicker();
       },
-      c`
+      d`
               <!-- Whole ROWS, not just the dots. The dot is 24px of a 44px row
                    and was the only live part of it, so tapping the obvious
                    place - the word, the date, anywhere across - did nothing. -->
@@ -3288,12 +3879,12 @@ let m = class extends Y {
                 </button>
                 <span class="radio"><span class="radio-dot"></span></span>
               </div>
-              ${this._showPicker("untilDate") ? c`<div class="ed-picker" data-field="untilDate">
+              ${this._showPicker("untilDate") ? d`<div class="ed-picker" data-field="untilDate">
                     ${this._renderCalendar(
         i,
         (o) => this._patchCustom({ end: { kind: "on", date: o } })
       )}
-                  </div>` : u}
+                  </div>` : m}
 
               <div
                 class="ed-row scope ends ${e.end.kind === "after" ? "sel" : ""}"
@@ -3327,7 +3918,7 @@ let m = class extends Y {
       this._showPicker("untilDate")
     )}
 
-          <div class="rec-says">${fe(e, s, this._lang)}</div>
+          <div class="rec-says">${de(e, s, this._lang)}</div>
         </div>
         <div class="mm-foot">
           <span class="mm-addr"></span>
@@ -3348,7 +3939,7 @@ let m = class extends Y {
    */
   _closeCustom(e) {
     if (this._customOpen) {
-      if (e && this._patchDraft({ repeat: this._custom }), this._customOpen = !1, this._openPicker = null, this._pickerClosing = null, clearTimeout(this._customCloseTimer), this._reducedMotion) {
+      if (e && this._setRepeat(this._custom), this._customOpen = !1, this._openPicker = null, this._pickerClosing = null, clearTimeout(this._customCloseTimer), this._reducedMotion) {
         this._custom = null;
         return;
       }
@@ -3364,7 +3955,7 @@ let m = class extends Y {
   /** A year out, which is where Google's own "On" date starts. */
   get _defaultUntil() {
     const e = this._draftStart;
-    return e.setFullYear(e.getFullYear() + 1), M(e).date;
+    return e.setFullYear(e.getFullYear() + 1), R(e).date;
   }
   /**
    * The location picker, as a window of its own.
@@ -3379,10 +3970,10 @@ let m = class extends Y {
    * already made by the tap; this only closes the window.
    */
   _renderMapModal() {
-    if (!this._mapOpen) return u;
+    if (!this._mapOpen) return m;
     const e = this._mapPoint;
-    return c`
-      <link rel="stylesheet" href=${gs} />
+    return d`
+      <link rel="stylesheet" href=${Os} />
       <div class="mapmodal" @click=${(t) => t.stopPropagation()}>
         <div class="mm-head">
           <span class="mm-title">Choose a location</span>
@@ -3391,19 +3982,19 @@ let m = class extends Y {
           </button>
         </div>
         <div class="mm-body">
-          ${e ? this._leafletOk ? c`
+          ${e ? this._leafletOk ? d`
                   <div class="map live">
                     <div class="map-canvas"></div>
-                    <span class="map-credit">${Ze[this._baseMap].attribution}</span>
+                    <span class="map-credit">${ct[this._baseMap].attribution}</span>
                   </div>
                 ` : (
       // Leaflet could not be borrowed. Still shows WHERE the place is,
       // just without panning — better than an empty window.
-      c`
+      d`
                   <div class="map static-fallback" style="--map-h:340px">
                     ${(() => {
-        const { base: t, labels: s } = ms(e.lat, e.lon, 16, 520, 340, "Light"), i = (n) => c`<img src=${n.url} alt="" style="left:${n.left}px; top:${n.top}px" />`;
-        return c`
+        const { base: t, labels: s } = As(e.lat, e.lon, 16, 520, 340, "Light"), i = (n) => d`<img src=${n.url} alt="" style="left:${n.left}px; top:${n.top}px" />`;
+        return d`
                         <div class="map-layer">${t.map(i)}</div>
                         <div class="map-layer labels">${s.map(i)}</div>
                         <div class="map-pin"></div>
@@ -3411,7 +4002,7 @@ let m = class extends Y {
       })()}
                   </div>
                 `
-    ) : c`<div class="map-none">
+    ) : d`<div class="map-none">
                 ${this._placesBusy ? "Looking that up…" : "Search for an address first, or open this from a place that has one."}
               </div>`}
         </div>
@@ -3419,7 +4010,7 @@ let m = class extends Y {
           <span class="mm-addr">${this._draft?.location || "Tap the map to pick a place."}</span>
           <a
             class="ed-btn small"
-            href=${ys(this._draft?.location ?? "", e?.lat, e?.lon)}
+            href=${Ls(this._draft?.location ?? "", e?.lat, e?.lon)}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -3484,7 +4075,7 @@ let m = class extends Y {
   _applyBaseMap(e, t) {
     for (const a of this._baseLayers) e.removeLayer(a);
     this._baseLayers = [];
-    const s = Ze[this._baseMap], i = { maxNativeZoom: s.maxNativeZoom, maxZoom: 19 }, n = t.tileLayer(s.url, i).addTo(e);
+    const s = ct[this._baseMap], i = { maxNativeZoom: s.maxNativeZoom, maxZoom: 19 }, n = t.tileLayer(s.url, i).addTo(e);
     this._baseLayers.push(n), s.overlay && this._baseLayers.push(t.tileLayer(s.overlay, i).addTo(e));
   }
   /**
@@ -3499,7 +4090,7 @@ let m = class extends Y {
     this._mapPickSeq === void 0 && (this._mapPickSeq = 0);
     const s = ++this._mapPickSeq;
     this._mapPoint = { lat: e, lon: t };
-    const i = await _s(e, t, { lang: this._lang?.split("-")[0] });
+    const i = await Cs(e, t, { lang: this._lang?.split("-")[0] });
     s !== this._mapPickSeq || !i || (this._patchDraft({ location: i.label }), this._places = []);
   }
   /** All-day on or off, closing any time wheel that no longer applies. */
@@ -3519,13 +4110,13 @@ let m = class extends Y {
    */
   _renderEditor() {
     const e = this._draft;
-    if (!e) return u;
+    if (!e) return m;
     const t = this._draftAccent, s = [
       ["instance", "This event"],
       ["future", "This and future"],
       ["series", "All events"]
     ];
-    return c`
+    return d`
       <div
         class="scrim"
         @click=${() => {
@@ -3564,15 +4155,16 @@ let m = class extends Y {
             ${this._renderPickerRow("Ends", "endDate", "endTime")}
           </div>
 
-          ${e.recurring ? c`
+          ${e.recurring ? d`
                 <div class="ed-group">
                   <div class="ed-head">Applies to</div>
                   ${s.map(
-      ([i, n]) => c`
+      ([i, n]) => d`
                       <button
-                        class="ed-row scope ${this._scope === i ? "sel" : ""}"
+                        class="ed-row scope ${this._scope === i ? "sel" : ""} ${i === "instance" && this._repeatMoved ? "off" : ""}"
                         role="radio"
                         aria-checked=${this._scope === i ? "true" : "false"}
+                        ?disabled=${i === "instance" && this._repeatMoved}
                         @click=${() => {
         this._scope = i, this._confirmDelete = !1;
       }}
@@ -3589,49 +4181,60 @@ let m = class extends Y {
                        string, so Lit builds a NEW element per scope and the
                        entry animation actually re-runs. Swapping the text inside
                        one element changes nothing a CSS animation can see. -->
-                  ${this._scope === "instance" ? c`<div class="ed-note">Only the occurrence you opened changes.</div>` : this._scope === "future" ? c`<div class="ed-note">
+                  ${this._repeatMoved ? d`<div class="ed-note">
+                        A repeat rule belongs to the whole series, so this change cannot apply to
+                        one occurrence on its own.
+                      </div>` : this._scope === "instance" ? d`<div class="ed-note">Only the occurrence you opened changes.</div>` : this._scope === "future" ? d`<div class="ed-note">
                           This occurrence and every later one. Earlier ones are left alone.
-                        </div>` : c`<div class="ed-note">
+                        </div>` : d`<div class="ed-note">
                           Every occurrence, including ones already past.
                         </div>`}
                 </div>
-              ` : u}
+              ` : m}
 
           <!-- Repeat, colour and details all fold, and all sit after the
                recurrence options: what a change APPLIES TO is the decision with
                consequences, so it comes before the cosmetic ones. Repeat leads
                the three because it is the one that changes how many events
-               exist, and it is offered only when creating - see _openEditor. -->
-          ${e.isNew ? this._renderFold(
+               exist. Hidden only when the event carries a rule this card cannot
+               state in words - see canRepeat. -->
+          ${e.canRepeat ? this._renderFold(
       "Repeat",
-      fe(e.repeat, this._draftStart, this._lang),
+      de(e.repeat, this._draftStart, this._lang),
       this._repeatOpen,
       () => {
         this._repeatOpen = !this._repeatOpen;
       },
       this._renderRepeat()
-    ) : u}
+    ) : m}
           ${this._renderFold(
       "Colour",
-      e.colorId ? se.find(([i]) => i === e.colorId)?.[2] ?? "" : "Calendar's colour",
+      e.colorId ? ue.find(([i]) => i === e.colorId)?.[2] ?? "" : (
+        // NOT "Calendar's colour". Clearing an occurrence's own colour
+        // makes it inherit its SERIES, which may itself be coloured —
+        // measured: a cleared occurrence of a Basil series comes back
+        // Basil, not the calendar's pink. The old label promised
+        // something the card then visibly did not do.
+        "Default"
+      ),
       this._colorOpen,
       () => {
         this._colorOpen = !this._colorOpen;
       },
-      c`
+      d`
               <!-- Google's own picker: round swatches in a grid with a tick on
                    the one that is set. -->
               <div class="sw-grid">
                 <button
                   class="sw none ${e.colorId === "" ? "sel" : ""}"
-                  title="The calendar's own colour"
-                  aria-label="The calendar's own colour"
+                  title="No colour of its own - inherits the series or the calendar"
+                  aria-label="No colour of its own - inherits the series or the calendar"
                   @click=${() => this._patchDraft({ colorId: "" })}
                 >
-                  ${e.colorId === "" ? c`<ha-icon icon="mdi:check"></ha-icon>` : u}
+                  ${e.colorId === "" ? d`<ha-icon icon="mdi:check"></ha-icon>` : m}
                 </button>
-                ${se.map(
-        ([i, n, a]) => c`
+                ${ue.map(
+        ([i, n, a]) => d`
                     <button
                       class="sw ${e.colorId === i ? "sel" : ""}"
                       style="--sw:${n}"
@@ -3639,7 +4242,7 @@ let m = class extends Y {
                       aria-label=${a}
                       @click=${() => this._patchDraft({ colorId: i })}
                     >
-                      ${e.colorId === i ? c`<ha-icon icon="mdi:check"></ha-icon>` : u}
+                      ${e.colorId === i ? d`<ha-icon icon="mdi:check"></ha-icon>` : m}
                     </button>
                   `
       )}
@@ -3653,7 +4256,7 @@ let m = class extends Y {
       () => {
         this._detailsOpen = !this._detailsOpen;
       },
-      c`
+      d`
               <div class="ed-row loc">
                 <span class="ed-lbl">Location</span>
                 <span class="ed-vals">
@@ -3678,21 +4281,21 @@ let m = class extends Y {
               <!-- Suggestions sit under the field, not over it: the form is
                    already inside a sheet, and a second floating layer on a phone
                    ends up half off the screen. -->
-              ${this._places.length ? c`
+              ${this._places.length ? d`
                     <div class="loc-list">
                       ${this._places.map(
-        (i) => c`
+        (i) => d`
                           <button class="loc-item" @click=${() => this._pickPlace(i)}>
                             <ha-icon icon="mdi:map-marker-outline"></ha-icon>
                             <span class="loc-text">
                               <span class="loc-name">${i.name}</span>
-                              ${i.detail ? c`<span class="loc-detail">${i.detail}</span>` : u}
+                              ${i.detail ? d`<span class="loc-detail">${i.detail}</span>` : m}
                             </span>
                           </button>
                         `
       )}
                     </div>
-                  ` : u}
+                  ` : m}
               <div class="ed-row notes">
                 <span class="ed-lbl">Notes</span>
                 <textarea
@@ -3705,12 +4308,12 @@ let m = class extends Y {
             `
     )}
 
-          ${this._editError ? c`<div class="ed-error">${this._editError}</div>` : u}
+          ${this._editError ? d`<div class="ed-error">${this._editError}</div>` : m}
 
           <div class="ed-actions">
             <!-- Nothing to delete yet. Cancel is the way out of a new event,
                  and it is already the next button along. -->
-            ${e.isNew ? u : c`<button
+            ${e.isNew ? m : d`<button
                   class="ed-btn danger ${this._confirmDelete ? "armed" : ""}"
                   ?disabled=${this._busy}
                   @click=${() => void this._deleteDraft()}
@@ -3739,13 +4342,19 @@ let m = class extends Y {
   _renderSheet() {
     if (this._draft) return this._renderEditor();
     const e = this._selected;
-    return e ? c`
+    return e ? d`
       <div class="scrim" @click=${() => this._closeSheet()}>
         <div
           class="sheet"
           style="--accent:${this._colorForEvent(e)}"
           @click=${(t) => t.stopPropagation()}
         >
+          <!-- A way out that is not "tap the dark bit". The scrim has always
+               closed this, but nothing said so, and on a tablet an unmarked
+               dismissal is a guess. -->
+          <button class="sh-close" aria-label="Close" @click=${() => this._closeSheet()}>
+            <ha-icon icon="mdi:close"></ha-icon>
+          </button>
           <div class="sh-name">${e.summary}</div>
           <div class="sh-time">
             ${e.allDay ? `${this._fmtDate(e.start)} · all day` : `${this._fmtDow(e.start)} ${this._fmtDate(e.start)} · ${this._fmtTime(
@@ -3756,11 +4365,20 @@ let m = class extends Y {
             <span class="dot" style="background:${this._colorFor(e.entity)}"></span>
             ${this._nameFor(e.entity)}
           </div>
-          ${e.location ? c`<div class="sh-row">${e.location}</div>` : u}
-          ${e.description ? c`<div class="sh-row">${e.description}</div>` : u}
+          <!-- The repeat rule, which Home Assistant has always sent and this
+               card used to throw away. A lesson that looks identical every week
+               and one that happens once are the same block until this says
+               otherwise. Only for a rule the card can state in words: a raw
+               RRULE on screen would be worse than nothing. -->
+          ${this._repeatWords(e) ? d`<div class="sh-row repeat">
+                <ha-icon icon="mdi:repeat"></ha-icon>
+                <span>${this._repeatWords(e)}</span>
+              </div>` : m}
+          ${e.location ? d`<div class="sh-row">${e.location}</div>` : m}
+          ${e.description ? d`<div class="sh-row">${e.description}</div>` : m}
         </div>
       </div>
-    ` : u;
+    ` : m;
   }
   get _lang() {
     return this.hass?.locale?.language;
@@ -3772,7 +4390,7 @@ let m = class extends Y {
    * without touching the global setting.
    */
   get _hour12() {
-    const e = this._config?.time_format ?? k.time_format;
+    const e = this._config?.time_format ?? $.time_format;
     if (e === "12") return !0;
     if (e === "24") return !1;
     const t = this.hass?.locale?.time_format;
@@ -3784,11 +4402,11 @@ let m = class extends Y {
       hour: "numeric",
       minute: "2-digit",
       hour12: !0
-    }).format(e) : `${e.getHours()}:${it(e.getMinutes())}`;
+    }).format(e) : `${e.getHours()}:${vt(e.getMinutes())}`;
   }
   _fmtHour(e) {
     const t = Math.floor(e / 60) % 24;
-    if (!this._hour12) return `${t}:${it(e % 60)}`;
+    if (!this._hour12) return `${t}:${vt(e % 60)}`;
     const s = new Date(2e3, 0, 1, t, e % 60);
     return new Intl.DateTimeFormat(this._lang, { hour: "numeric", hour12: !0 }).format(s);
   }
@@ -3800,10 +4418,10 @@ let m = class extends Y {
   }
   /** "Sep 7th". The suffix is English-only, so other locales keep a bare number. */
   _fmtDate(e) {
-    return `${new Intl.DateTimeFormat(this._lang, { month: "short" }).format(e)} ${e.getDate()}${Zs(e.getDate(), this._lang)}`;
+    return `${new Intl.DateTimeFormat(this._lang, { month: "short" }).format(e)} ${e.getDate()}${_i(e.getDate(), this._lang)}`;
   }
 };
-m.styles = Tt`
+b.styles = Ht`
     /*
      * Sizing and weight carry the hierarchy here, never colour. Every piece of
      * text is full-strength foreground; what changes between a subject name and
@@ -3816,6 +4434,9 @@ m.styles = Tt`
      * white panel on the page background and it came out muddy grey.
      */
     :host {
+      /* The card's own inset. Named because the month grid cancels it to reach
+         the card's edges - see .mgrid - and the two must not drift apart. */
+      --ssc-pad: 18px;
       --ssc-font: system-ui, 'SF Pro Display', 'SF Pro Text', Inter, 'Helvetica Neue', Roboto,
         sans-serif;
       --ssc-fg: var(--primary-text-color, #fff);
@@ -3859,7 +4480,7 @@ m.styles = Tt`
       position: relative;
     }
     .panel {
-      padding: 18px;
+      padding: var(--ssc-pad);
       box-sizing: border-box;
     }
 
@@ -3869,6 +4490,18 @@ m.styles = Tt`
       align-items: flex-start;
       gap: 12px;
       margin-bottom: 14px;
+      transition:
+        transform 260ms var(--ssc-glide),
+        opacity 260ms var(--ssc-glide);
+    }
+    /* The header goes back with the schedule. It used to stay at full strength
+       while everything under it receded, which made the sheet look like it had
+       opened over half a card. Opacity is safe here where it is not on the day
+       panel: there is nothing behind the header but the card itself. */
+    .head.dimmed {
+      transform: translateY(calc(var(--ssc-dim-lift, 18px) * -0.5));
+      opacity: 0.22;
+      pointer-events: none;
     }
     /* Buttons and the week range share the right-hand column, the range tucked
        under them, so the heading has the whole left side to itself. */
@@ -3883,14 +4516,41 @@ m.styles = Tt`
        group would sit wherever the title happened to end, and forcing it with
        equal flex bases on the side groups squashes a long calendar name.
        Taken out of flow it lands on the centre line whatever the sides do. */
-    .mode-toggles {
+    /* Centred on the CARD, and the anchor the range hangs off — see below. */
+    .head-centre {
       position: absolute;
       left: 50%;
       top: 0;
       transform: translateX(-50%);
       display: flex;
       align-items: center;
+    }
+    .mode-toggles {
+      display: flex;
+      align-items: center;
       gap: 15px;
+    }
+    /* The period, read rather than operated: big enough to answer "which month
+       is this" from across a room, and beside the shape controls instead of
+       tucked under the arrows that change it.
+       Taken OUT OF FLOW and hung off the LEFT edge of the toggle group, one
+       button plus a gap along - so it sits beside the mode button itself rather
+       than after the whole group. As a flex sibling its width was part of what
+       got centred, so the button slid left and right by a few px every time the
+       month name changed length. Out of flow it contributes nothing, and the
+       button holds its place whatever the text beside it says. */
+    .head-centre .range {
+      position: absolute;
+      left: calc(44px + 16px);
+      margin-top: 0;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.4px;
+      white-space: nowrap;
+    }
+    .head-centre .range .pill {
+      font-size: 15px;
+      padding: 4px 10px;
     }
     /* Narrow chrome. The phone LAYOUT is still undesigned, but the header must
        not visibly break while it waits: the title has to fit, and the week pill
@@ -4940,8 +5600,8 @@ m.styles = Tt`
       }
       /* text-align, but NOT align-items: center. As a centred flex item the
          name sizes to its CONTENT, so a long one overflowed the block on both
-         sides and you were left reading its middle - "/ MG" out of
-         "ICT / MGeo". Stretched to the block instead, a short name still
+         sides and you were left reading its middle - "/ Geog" out of
+         "ICT / Geography". Stretched to the block instead, a short name still
          centres and a long one clips from the start with an ellipsis, which
          is the half worth keeping. */
       .ev.rev .ev-in {
@@ -5036,6 +5696,47 @@ m.styles = Tt`
       transition: opacity 240ms var(--ssc-glide);
     }
     .rgrid.dimmed .ev,
+    /* The weekday row goes back with the cells it heads. It was left out, so a
+       sheet opened over a month whose column titles were still at full strength
+       - the one bright row in an otherwise receded grid. */
+    .mgrid.dimmed .mcell,
+    .mgrid.dimmed .mhead {
+      transform: translateY(var(--ssc-dim-lift, 18px)) scale(var(--ssc-dim-scale, 0.94));
+      opacity: 0.1;
+      transition:
+        transform 260ms var(--ssc-glide),
+        opacity 260ms var(--ssc-glide);
+    }
+    /* The day panel recedes WITH the grid it belongs to. It stays open behind
+       the detail sheet, and at full strength it competed - two lists of the
+       same events, one over the other.
+       Its CONTENTS fade; its surface does not. Two earlier attempts were both
+       wrong in the same place, which is that a panel is not a cell: fading the
+       whole thing (opacity 0.1) let the grid read straight through it, and
+       darkening the whole thing (brightness) turned an already-dark surface
+       into a black hole punched in the card. Keeping the surface at the card's
+       own background and fading only what sits ON it leaves a quiet empty
+       panel - opaque, so nothing shows through, and no darker than its
+       surroundings, so it is not a hole either.
+       !important on the transform because peekIn is a fill:both animation still
+       holding it at none, which a plain rule cannot outrank. */
+    .mgrid.dimmed .daypeek {
+      transform: translateY(var(--ssc-dim-lift, 18px)) scale(var(--ssc-dim-scale, 0.94)) !important;
+      box-shadow: none;
+      border-color: rgba(255, 255, 255, 0.07);
+      transition:
+        transform 260ms var(--ssc-glide),
+        box-shadow 260ms var(--ssc-glide),
+        border-color 260ms var(--ssc-glide);
+      pointer-events: none;
+    }
+    .mgrid.dimmed .daypeek > * {
+      opacity: 0.13;
+      transition: opacity 260ms var(--ssc-glide);
+    }
+    .mgrid.dimmed .peek-scrim {
+      pointer-events: none;
+    }
     .grid.dimmed .ev {
       transform: translateY(var(--ssc-dim-lift, 9px)) scale(var(--ssc-dim-scale, 0.963));
       transition: transform 240ms var(--ssc-glide);
@@ -5059,11 +5760,15 @@ m.styles = Tt`
        blocks re-run their own stagger on top, so the new week assembles rather
        than snapping. */
     .grid.dir-fwd .body,
-    .grid.dir-fwd .hdr {
+    .grid.dir-fwd .hdr,
+    .mgrid.dir-fwd .mbody,
+    .mgrid.dir-fwd .mhead {
       animation: inFromRight var(--ssc-week-dur) var(--ssc-week-ease) both;
     }
     .grid.dir-back .body,
-    .grid.dir-back .hdr {
+    .grid.dir-back .hdr,
+    .mgrid.dir-back .mbody,
+    .mgrid.dir-back .mhead {
       animation: inFromLeft var(--ssc-week-dur) var(--ssc-week-ease) both;
     }
     /* The fold: the lattice arrives slightly small and settles to size as it
@@ -5163,6 +5868,372 @@ m.styles = Tt`
     /* Padding and the negative margin are on EVERY heading, not just today's,
        so the text stays on the same left edge whichever day it is and only the
        fill changes. */
+    /* The width toggle sliding away when a month grid gives it nothing to do.
+       Width and margin collapse together so the neighbour closes the gap rather
+       than the button leaving a hole behind it. */
+    .btn.width-toggle {
+      overflow: hidden;
+      transition:
+        width 0.42s var(--ssc-spring),
+        min-width 0.42s var(--ssc-spring),
+        margin 0.42s var(--ssc-spring),
+        opacity 0.24s ease,
+        transform 0.42s var(--ssc-spring);
+    }
+    /* Fades and slides out but KEEPS ITS SLOT. Collapsing the width shrank the
+       group, and because the group is centred that moved the mode button
+       sideways every time the month grid came or went - so the control you had
+       just tapped was no longer under the pointer. The empty slot costs nothing
+       to look at and keeps the button still. */
+    .btn.width-toggle.gone {
+      opacity: 0;
+      transform: translateX(-8px) scale(0.8);
+      pointer-events: none;
+    }
+
+    /* ---- the month grid -------------------------------------------------
+     *
+     * Seven equal columns that divide the card, so a month never scrolls
+     * sideways - the one deliberate departure from view_width_mode: fixed,
+     * because a month you cannot see the end of is not a month. Six rows
+     * always, so the card keeps its height as you page through the year.
+     */
+    /* Out to the card's own edges. A month is furniture that reaches the frame;
+       an 18px gutter down each side of it reads as a mistake rather than as
+       margin, and those are seven columns that would rather have the pixels. */
+    .mgrid {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      margin: 0 calc(-1 * var(--ssc-pad));
+    }
+    /* Banded like the week grid's day column, so the header reads as the same
+       piece of fixed furniture rather than as a line of text above a grid. */
+    .mhead {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      border-bottom: 2px solid var(--ssc-line-strong);
+      background: var(--ssc-band);
+    }
+    /* .rday, the week grid's day cell, rebuilt here - not just its type.
+       Matching the FACE alone was tried twice and is not the same thing: .rday
+       is a flex column that centres its label in a tall cell with air above and
+       below, and a 16px/700 label crammed against the top of a 26px strip reads
+       as nothing like it however identical the font. So this takes the whole
+       box: the column layout, the centring, the 10px/12px padding, the 1px gap,
+       and a min-height equal to .rday's two-line block (18.4 + 1 + 16.1) so the
+       label has the same room to sit in. */
+    .mdow {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 1px;
+      /* .rday's two-line block (18.4 + 1 + 16.1) plus 5px of air. */
+      min-height: 41px;
+      box-sizing: border-box;
+      padding: 0 12px 0 10px;
+      text-align: left;
+      line-height: 1.15;
+      /* Deliberately the same size, weight and colour as .mdate: the weekday at
+         the top of a column and the number in a cell are one label split in
+         two, and they read as a pair only if nothing distinguishes them but
+         position. Change one, change the other. */
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+    /* Column separators on the same 1px as the cells below, so the header's
+       divisions line up with the month's instead of floating over them. */
+    .mdow:not(:nth-child(7n)) {
+      border-right: 1px solid var(--ssc-line);
+    }
+    /* Today's weekday, inverted like its cell and like .rday.today - so the
+       column you are in is marked at the top as well as in the grid. Only while
+       today is actually on show; see todayCol. */
+    .mdow.today {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
+    }
+    .mbody {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      /* The rows share --mgrid-h, which _measureMonth works out from the window
+         and clamps between a one-event and a three-event cell. The minmax is
+         only a floor for the very first paint, before there is a cell to
+         measure; after that --mgrid-h is exact. */
+      grid-auto-rows: minmax(64px, 1fr);
+      height: var(--mgrid-h, auto);
+    }
+    .mcell {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      /* The padding-bottom is MONTH_BREATHE_PX, and it is doing two jobs at
+         once: it is the air you see under the last event, and it is the room
+         _measureMonthFit holds back when it works out how many events fit. One
+         number, one place - change it and both move together. */
+      gap: 1px;
+      padding: 3px 4px ${gt}px;
+      /* The cell IS the target - a tap anywhere in it opens the day. */
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+      border-right: 1px solid var(--ssc-line);
+      border-bottom: 1px solid var(--ssc-line);
+      /* Same fill mode and easing as the week blocks, so switching between the
+         two shapes does not switch how the card moves. */
+      animation: evIn var(--ssc-block-dur) var(--ssc-block-ease) backwards;
+    }
+    .mcell:nth-child(7n) {
+      border-right: none;
+    }
+    /* The probe frame: laid out so it can be measured, but shown to nobody and
+       animating not at all. One frame, then the real render animates in at the
+       right size. Hidden by visibility rather than display, because a grid with
+       no boxes has nothing to measure - and the animation reset needs
+       !important, because the cascade puts animation-name inline where a plain
+       rule cannot reach it. */
+    .mbody.probing {
+      visibility: hidden;
+    }
+    .mbody.probing .mcell {
+      animation: none !important;
+    }
+    /* The cramped layout: the two discretionary paddings handed back so another
+       event fits. _measureMonth turns this on only when it buys a whole row, and
+       the savings here must equal MONTH_TRIM_FOOT and MONTH_TRIM_DATE. */
+    .mbody.tight .mcell {
+      padding-bottom: ${gt - It}px;
+    }
+    .mbody.tight .mdate {
+      padding-bottom: ${9 - zt}px;
+    }
+    /* The days either side of the month. Drawn rather than left blank - an
+       empty corner reads as a rendering fault - but clearly not this month. */
+    .mcell.out {
+      background: rgba(0, 0, 0, 0.16);
+    }
+    .mcell.out .mdate {
+      opacity: 0.35;
+    }
+    .mcell.out .mev {
+      opacity: 0.55;
+    }
+    /* A bare number, top right. The day it belongs to is named in full in the
+       header above, so repeating "Sep" in all thirty-five cells was saying the
+       same thing thirty-five times - tried, and it crowded the events out.
+       Larger than a week grid's date line because it is the only thing here
+       carrying the day. */
+    .mdate {
+      flex: 0 0 auto;
+      text-align: right;
+      /* Half again the bare line box - 22px of type given 33px of room - so the
+         number sits in its own band instead of leaning on the first event.
+         _measureMonth reads this height back off the DOM, so the events below
+         lose the space honestly rather than being clipped by it. */
+      padding: 2px 4px 9px;
+      /* Paired with .mdow - same size, same weight, same colour. See there. */
+      font-size: 18px;
+      line-height: 1.25;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    /* Today: the WHOLE cell inverted, exactly as the week grid inverts its day
+       cell. An earlier version pilled just the number, which at arm's length
+       was a dot rather than a day. */
+    .mcell.today,
+    .mcell.out.today {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
+    }
+    .mcell.today .mdate {
+      font-weight: 700;
+    }
+    /* Today can fall outside the month on show - 30 September is in October's
+       leading row - and there it is still today, not a dimmed neighbour. */
+    .mcell.out.today .mdate,
+    .mcell.out.today .mev {
+      opacity: 1;
+    }
+    /* Plain rows, NOT controls. They carry no hover and no pointer of their own,
+       because a highlight on one event promises it can be tapped and it cannot -
+       the cell owns the tap. The names here are truncated summaries; picking one
+       happens in the day panel. */
+    .mev,
+    .mmore {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 13px;
+      line-height: 1.25;
+      text-align: left;
+    }
+    .mdot {
+      flex: 0 0 auto;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+    .mtime {
+      flex: 0 0 auto;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.85;
+    }
+    .mname {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .mmore {
+      font-weight: 700;
+      opacity: 0.8;
+      padding-left: 18px;
+    }
+
+    /* ---- the day panel ----
+       Google's "N more" popup, plus the END time. "4am" says nothing useful
+       about a collection that runs until 10. */
+    .peek-scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+    }
+    .daypeek {
+      position: absolute;
+      z-index: 6;
+      box-sizing: border-box;
+      padding: 10px 10px 12px;
+      background: var(--ha-card-background, #1c1c1e);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--ssc-line-strong);
+      animation: peekIn 320ms var(--ssc-block-ease) both;
+      transform-origin: top center;
+    }
+    @keyframes peekIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-6px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+    /* The name and the date are one block, so today's inversion covers both -
+       and the close button with them. Negative margins cancel .daypeek's own
+       padding so the fill reaches the panel's edges rather than floating in it. */
+    .dp-title {
+      margin: -10px -10px 0;
+      padding: 10px 10px 8px;
+    }
+    .dp-title.today {
+      background: var(--ssc-today-cell, #ededed);
+      color: var(--ssc-today-cell-fg, #16161a);
+    }
+    .dp-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    /* The week grid's day cell, at heading scale: name over date, the name the
+       heavier of the two. It was a 12px "THU" kicker over a bare 10, which is
+       the abbreviation a month CELL is forced into - and this panel has room.
+       Full strength, like every other piece of text on this card. */
+    .dp-dow {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .dp-close {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      /* inherit, so the × darkens with the title block on today. */
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dp-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .dp-title.today .dp-close:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+    .dp-close ha-icon {
+      --mdc-icon-size: 18px;
+    }
+    .dp-date {
+      font-size: 16px;
+      font-weight: 400;
+      padding: 1px 2px 0;
+    }
+    .dp-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 260px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    /* These rows are now the ONLY way into an event from a month, so they are
+       sized as targets rather than as lines of text: ~36px, near enough a
+       fingertip, where 26px was a row you had to aim at. */
+    .dp-row {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 6px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ssc-fg);
+      font-family: inherit;
+      font-size: 14px;
+      text-align: left;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Zebra. With the times shrink-wrapped rather than in a fixed column, the
+       band is what carries the eye from a time to its name across a gap that
+       changes width every row. */
+    .dp-row:nth-child(even) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .dp-row:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    /* Shrink to the time it holds. A fixed column that aligned every summary on
+       the same x was tried and rejected - it forced the panel wider and left a
+       gutter between each time and its name. */
+    .dp-when {
+      flex: 0 0 auto;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.85;
+    }
+    .dp-name {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
     .ld-head {
       display: block;
       padding: 6px 10px;
@@ -5250,10 +6321,13 @@ m.styles = Tt`
       animation: fadeIn 180ms ease both;
     }
     .sheet {
+      position: relative;
       min-width: 240px;
       max-width: 76%;
       background: var(--ha-card-background, #1c1c1e);
-      padding: 18px 20px 20px;
+      /* Room at the top and right for the close button, so the title is not
+         squeezed up against it. */
+      padding: 24px 20px 24px;
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
       border-top: 5px solid var(--accent);
       /* BACKWARDS, not both. Both pins the end state after the animation, which
@@ -5261,11 +6335,38 @@ m.styles = Tt`
          move — the same trap the event blocks hit. */
       animation: sheetIn 460ms var(--ssc-block-ease) backwards;
     }
+    /* Top right, out of the text flow, with the title reserving room for it so
+       a long name wraps before it reaches. Same 28px circle the day panel's
+       close uses, so the two dismissals look like the same control. */
+    .sh-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease;
+    }
+    .sh-close:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .sh-close ha-icon {
+      --mdc-icon-size: 20px;
+    }
     .sh-name {
       font-size: 24px;
       font-weight: 700;
       letter-spacing: -0.4px;
       line-height: 1.18;
+      /* Clear of the close button. */
+      padding-right: 32px;
     }
     .sh-time {
       margin-top: 12px;
@@ -5285,6 +6386,19 @@ m.styles = Tt`
       font-size: 15px;
       font-weight: 400;
       line-height: 1.4;
+    }
+    /* The repeat rule earns an icon where the other rows do not: location and
+       notes are self-evidently what they say, and "Weekly on Friday" on its own
+       could be read as part of the description above it. */
+    .sh-row.repeat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sh-row.repeat ha-icon {
+      --mdc-icon-size: 18px;
+      flex: 0 0 auto;
+      opacity: 0.85;
     }
 
     /* ---- the edit form -------------------------------------------------
@@ -6089,6 +7203,20 @@ m.styles = Tt`
       border-color: var(--accent);
       color: var(--ssc-today-cell-fg, #16161a);
     }
+    /* The two monthly shapes are whole phrases, not single words, so this one
+       fills the row rather than sitting at its natural width like the unit
+       picker above it. */
+    .seg.month {
+      display: flex;
+      margin: 0 12px 10px;
+    }
+    .seg.month .seg-btn {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 44px;
+      white-space: normal;
+      line-height: 1.2;
+    }
     .stepper {
       display: inline-flex;
       align-items: center;
@@ -6401,6 +7529,12 @@ m.styles = Tt`
     .ed-row.scope.sel {
       background: rgba(255, 255, 255, 0.07);
     }
+    /* A scope the current edit has made illegal — see _setRepeat. Dimmed rather
+       than removed: a row that vanishes takes the explanation with it. */
+    .ed-row.scope.off {
+      opacity: 0.35;
+      cursor: default;
+    }
     /* A bar that wipes down the left edge of the chosen row. This is the part
        that carries the change at a glance — a dot 20px wide at the far right of
        a 400px row is not something the eye catches, however well it springs. */
@@ -6575,6 +7709,26 @@ m.styles = Tt`
     .panel.reduce .lr,
     .panel.reduce .sheet,
     .panel.reduce .scrim,
+    /* !important, and it has to be. These elements carry their animation-name
+       INLINE - the staggered cascade needs a per-element delay and an
+       alternating name - and an inline declaration beats any selector. Without
+       this, animations: off still animated them; measured, the cells reported
+       evInB with reduce on. */
+    .panel.reduce .ev,
+    .panel.reduce .lr,
+    .panel.reduce .mcell,
+    .panel.reduce ~ .scrim .cal-day,
+    .panel.reduce ~ .scrim .cal-month,
+    .panel.reduce .press-ghost {
+      animation: none !important;
+    }
+    .panel.reduce .mcell,
+    .panel.reduce .mgrid.dir-fwd .mbody,
+    .panel.reduce .mgrid.dir-fwd .mhead,
+    .panel.reduce .mgrid.dir-back .mbody,
+    .panel.reduce .mgrid.dir-back .mhead,
+    .panel.reduce ~ .scrim .daypeek,
+    .panel.reduce .daypeek,
     .panel.reduce .grid.dir-fwd .body,
     .panel.reduce .grid.dir-fwd .hdr,
     .panel.reduce .grid.dir-back .body,
@@ -6614,185 +7768,201 @@ m.styles = Tt`
     .panel.reduce ~ .scrim .ed-fold,
     .panel.reduce ~ .scrim .ed-fold-in,
     .panel.reduce ~ .scrim .ed-chip.time,
-    .panel.reduce .menu-right {
+    .panel.reduce .menu-right,
+    .panel.reduce .btn.width-toggle {
       transition: none;
     }
     .panel.reduce .ev-in {
       transition: none;
     }
   `;
-g([
-  ct({ attribute: !1 })
-], m.prototype, "hass", 2);
-g([
+y([
+  Et({ attribute: !1 })
+], b.prototype, "hass", 2);
+y([
   _()
-], m.prototype, "_config", 2);
-g([
+], b.prototype, "_config", 2);
+y([
   _()
-], m.prototype, "_sources", 2);
-g([
+], b.prototype, "_sources", 2);
+y([
   _()
-], m.prototype, "_colors", 2);
-g([
+], b.prototype, "_colors", 2);
+y([
   _()
-], m.prototype, "_eventColors", 2);
-g([
+], b.prototype, "_eventColors", 2);
+y([
   _()
-], m.prototype, "_weekOffset", 2);
-g([
+], b.prototype, "_weekOffset", 2);
+y([
   _()
-], m.prototype, "_now", 2);
-g([
+], b.prototype, "_monthOffset", 2);
+y([
   _()
-], m.prototype, "_hostWidth", 2);
-g([
+], b.prototype, "_now", 2);
+y([
   _()
-], m.prototype, "_refreshing", 2);
-g([
+], b.prototype, "_hostWidth", 2);
+y([
   _()
-], m.prototype, "_selected", 2);
-g([
+], b.prototype, "_refreshing", 2);
+y([
   _()
-], m.prototype, "_navDir", 2);
-g([
+], b.prototype, "_selected", 2);
+y([
   _()
-], m.prototype, "_activeIdx", 2);
-g([
+], b.prototype, "_navDir", 2);
+y([
   _()
-], m.prototype, "_modeOverride", 2);
-g([
+], b.prototype, "_activeIdx", 2);
+y([
   _()
-], m.prototype, "_pickerOpen", 2);
-g([
+], b.prototype, "_modeOverride", 2);
+y([
   _()
-], m.prototype, "_animEpoch", 2);
-g([
+], b.prototype, "_pickerOpen", 2);
+y([
   _()
-], m.prototype, "_hThumb", 2);
-g([
+], b.prototype, "_animEpoch", 2);
+y([
   _()
-], m.prototype, "_axisPx", 2);
-g([
+], b.prototype, "_hThumb", 2);
+y([
   _()
-], m.prototype, "_editMode", 2);
-g([
+], b.prototype, "_axisPx", 2);
+y([
   _()
-], m.prototype, "_menuOpen", 2);
-g([
+], b.prototype, "_editMode", 2);
+y([
   _()
-], m.prototype, "_draft", 2);
-g([
+], b.prototype, "_menuOpen", 2);
+y([
   _()
-], m.prototype, "_scope", 2);
-g([
+], b.prototype, "_draft", 2);
+y([
   _()
-], m.prototype, "_busy", 2);
-g([
+], b.prototype, "_scope", 2);
+y([
   _()
-], m.prototype, "_editError", 2);
-g([
+], b.prototype, "_busy", 2);
+y([
   _()
-], m.prototype, "_confirmDelete", 2);
-g([
+], b.prototype, "_editError", 2);
+y([
   _()
-], m.prototype, "_press", 2);
-g([
+], b.prototype, "_confirmDelete", 2);
+y([
   _()
-], m.prototype, "_openPicker", 2);
-g([
+], b.prototype, "_dayPeek", 2);
+y([
   _()
-], m.prototype, "_pickerMonth", 2);
-g([
+], b.prototype, "_monthFit", 2);
+y([
   _()
-], m.prototype, "_pickerClosing", 2);
-g([
+], b.prototype, "_monthTight", 2);
+y([
   _()
-], m.prototype, "_calDir", 2);
-g([
+], b.prototype, "_monthLaidOut", 2);
+y([
   _()
-], m.prototype, "_calEpoch", 2);
-g([
+], b.prototype, "_press", 2);
+y([
   _()
-], m.prototype, "_detailsOpen", 2);
-g([
+], b.prototype, "_openPicker", 2);
+y([
   _()
-], m.prototype, "_colorOpen", 2);
-g([
+], b.prototype, "_pickerMonth", 2);
+y([
   _()
-], m.prototype, "_repeatOpen", 2);
-g([
+], b.prototype, "_pickerClosing", 2);
+y([
   _()
-], m.prototype, "_customOpen", 2);
-g([
+], b.prototype, "_calDir", 2);
+y([
   _()
-], m.prototype, "_custom", 2);
-g([
+], b.prototype, "_calEpoch", 2);
+y([
   _()
-], m.prototype, "_customClosing", 2);
-g([
+], b.prototype, "_detailsOpen", 2);
+y([
   _()
-], m.prototype, "_endsOpen", 2);
-g([
+], b.prototype, "_colorOpen", 2);
+y([
   _()
-], m.prototype, "_places", 2);
-g([
+], b.prototype, "_repeatOpen", 2);
+y([
   _()
-], m.prototype, "_placesBusy", 2);
-g([
+], b.prototype, "_customOpen", 2);
+y([
   _()
-], m.prototype, "_mapOpen", 2);
-g([
+], b.prototype, "_custom", 2);
+y([
   _()
-], m.prototype, "_mapPoint", 2);
-g([
+], b.prototype, "_customClosing", 2);
+y([
   _()
-], m.prototype, "_baseMap", 2);
-g([
+], b.prototype, "_endsOpen", 2);
+y([
   _()
-], m.prototype, "_leafletOk", 2);
-g([
+], b.prototype, "_places", 2);
+y([
   _()
-], m.prototype, "_flash", 2);
-g([
+], b.prototype, "_placesBusy", 2);
+y([
   _()
-], m.prototype, "_flashOut", 2);
-g([
+], b.prototype, "_mapOpen", 2);
+y([
   _()
-], m.prototype, "_revision", 2);
-m = g([
-  Gt("simple-schedule-card")
-], m);
-function Ks(e) {
+], b.prototype, "_mapPoint", 2);
+y([
+  _()
+], b.prototype, "_baseMap", 2);
+y([
+  _()
+], b.prototype, "_leafletOk", 2);
+y([
+  _()
+], b.prototype, "_flash", 2);
+y([
+  _()
+], b.prototype, "_flashOut", 2);
+y([
+  _()
+], b.prototype, "_revision", 2);
+b = y([
+  hs("simple-schedule-card")
+], b);
+function gi(e) {
   const t = e.entities ?? (e.entity ? [e.entity] : []), s = [];
   for (const i of t)
     typeof i == "string" ? s.push({ entity: i }) : i && typeof i.entity == "string" && s.push({ ...i });
   return s;
 }
-function ie(e, t) {
-  return `--accent:${e}; --fill:${dt(e, t)};`;
+function fe(e, t) {
+  return `--accent:${e}; --fill:${At(e, t)};`;
 }
-function Xs(e) {
+function bi(e) {
   return e.replace(/(^|\s)(\p{L})/gu, (t, s, i) => s + i.toUpperCase());
 }
-function it(e) {
+function vt(e) {
   return String(e).padStart(2, "0");
 }
-const Vs = { one: "st", two: "nd", few: "rd", other: "th" };
-function Zs(e, t) {
+const yi = { one: "st", two: "nd", few: "rd", other: "th" };
+function _i(e, t) {
   if (t && !t.toLowerCase().startsWith("en")) return "";
   try {
-    return Vs[new Intl.PluralRules("en", { type: "ordinal" }).select(e)] ?? "";
+    return yi[new Intl.PluralRules("en", { type: "ordinal" }).select(e)] ?? "";
   } catch {
     return "";
   }
 }
-function _e(e, t) {
+function H(e, t) {
   return e.getFullYear() === t.getFullYear() && e.getMonth() === t.getMonth() && e.getDate() === t.getDate();
 }
-function nt(e, t) {
+function xt(e, t) {
   return `${(e - t.start) / (t.end - t.start) * 100}%`;
 }
-function I(e, t) {
+function U(e, t) {
   return (e.getTime() - t) / 6e4;
 }
 window.customCards = window.customCards || [];
@@ -6803,10 +7973,10 @@ window.customCards.push({
   preview: !1
 });
 console.info(
-  `%c SIMPLE-SCHEDULE-CARD %c v${xs} `,
+  `%c SIMPLE-SCHEDULE-CARD %c v${Is} `,
   "color:#fff;background:#0a84ff;font-weight:700;border-radius:3px 0 0 3px;padding:2px 4px",
   "color:#0a84ff;background:#222;border-radius:0 3px 3px 0;padding:2px 4px"
 );
 export {
-  m as SimpleScheduleCard
+  b as SimpleScheduleCard
 };

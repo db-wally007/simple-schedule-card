@@ -51,6 +51,18 @@ export class CalendarSubscriptions {
   private _byEntity = new Map<string, ScheduleEvent[]>();
   private _failed = new Set<string>();
   private _key = '';
+  /**
+   * The window a `sync` is part-way through establishing.
+   *
+   * Without it there is a gap of several awaits between `_key` being set and the
+   * first subscription landing in `_unsubs`, and during that gap the early-out
+   * below sees the right key but `subscribed === false` and starts the whole
+   * round again. Anything that re-renders the card in those milliseconds - and
+   * the card re-renders on every state change in the house - therefore spawns
+   * another full set of subscriptions, each asking Home Assistant to expand
+   * three months of recurrences for every calendar.
+   */
+  private _syncing: string | null = null;
 
   constructor(private readonly _onChange: () => void) {}
 
@@ -103,13 +115,34 @@ export class CalendarSubscriptions {
     force = false,
   ): Promise<void> {
     const key = `${entityIds.join(',')}|${start.getTime()}|${end.getTime()}`;
-    if (key === this._key && this.subscribed && !force) return;
+    // `_syncing` covers the window where this key is claimed but no subscription
+    // has landed yet; without it a re-render mid-flight starts the round again.
+    if (!force && key === this._key && (this.subscribed || this._syncing === key)) return;
     this._key = key;
+    this._syncing = key;
     this.stop();
 
     const startIso = toLocalIso(start);
     const endIso = toLocalIso(end);
 
+    try {
+      await this._subscribeAll(hass, entityIds, key, start, end, startIso, endIso);
+    } finally {
+      // Only if this call is still the current one - a newer sync has already
+      // claimed the flag and must keep it until IT finishes.
+      if (this._syncing === key) this._syncing = null;
+    }
+  }
+
+  private async _subscribeAll(
+    hass: HassLike,
+    entityIds: string[],
+    key: string,
+    start: Date,
+    end: Date,
+    startIso: string,
+    endIso: string,
+  ): Promise<void> {
     for (const entity of entityIds) {
       try {
         const unsub = await hass.connection.subscribeMessage<EventsPush>(

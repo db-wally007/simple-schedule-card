@@ -27,6 +27,17 @@ export interface Recurrence {
   byDay: string[];
   /** MONTHLY: the Nth weekday of the month, -1 meaning the last one. */
   byPos?: { pos: number; day: string };
+  /**
+   * MONTHLY/YEARLY: the day of the month, when the rule states it outright.
+   *
+   * Google's "Monthly on day 14" is the same thing as a bare FREQ=MONTHLY on an
+   * event starting the 14th, and it writes it either way depending on how the
+   * series was made. Kept rather than normalised away so that saving an
+   * unrelated change writes the rule back exactly as it was found.
+   */
+  byMonthDay?: number;
+  /** YEARLY: the month, when the rule restates it. Same reasoning as byMonthDay. */
+  byMonth?: number;
   end: RepeatEnd;
 }
 
@@ -124,15 +135,39 @@ export function presets(start: Date, locale?: string): Preset[] {
   ];
 }
 
+/**
+ * Drop the parts that do not apply to the rule's own frequency.
+ *
+ * Switching the unit in the custom dialog leaves the previous unit's parts
+ * behind — a monthly rule still carrying the BYDAY it had while it was weekly.
+ * They never reach the RRULE, because toRRule only writes what the frequency
+ * allows, but they DO reach sameRecurrence: two rules that emit the same line
+ * would compare unequal, which shows a preset as "custom" and, worse, makes
+ * _repeatMoved fire on an edit that changed nothing.
+ */
+export function normalise(rule: Recurrence): Recurrence {
+  const out: Recurrence = { ...rule, byDay: rule.freq === 'WEEKLY' ? rule.byDay : [] };
+  if (out.freq !== 'MONTHLY') delete out.byPos;
+  if (out.freq !== 'MONTHLY' && out.freq !== 'YEARLY') delete out.byMonthDay;
+  if (out.freq !== 'YEARLY') delete out.byMonth;
+  // A monthly series is on a weekday's position OR on a date, never both.
+  if (out.byPos) delete out.byMonthDay;
+  return out;
+}
+
 /** Whether two rules say the same thing. Used to light up the matching row. */
-export function sameRecurrence(a: Recurrence | null, b: Recurrence | null): boolean {
-  if (!a || !b) return a === b;
+export function sameRecurrence(one: Recurrence | null, two: Recurrence | null): boolean {
+  if (!one || !two) return one === two;
+  const a = normalise(one);
+  const b = normalise(two);
   if (a.freq !== b.freq || a.interval !== b.interval) return false;
   if (!sameDays(a.byDay, b.byDay)) return false;
   if (!!a.byPos !== !!b.byPos) return false;
   if (a.byPos && b.byPos && (a.byPos.pos !== b.byPos.pos || a.byPos.day !== b.byPos.day)) {
     return false;
   }
+  if ((a.byMonthDay ?? null) !== (b.byMonthDay ?? null)) return false;
+  if ((a.byMonth ?? null) !== (b.byMonth ?? null)) return false;
   if (a.end.kind !== b.end.kind) return false;
   if (a.end.kind === 'on' && b.end.kind === 'on') return a.end.date === b.end.date;
   if (a.end.kind === 'after' && b.end.kind === 'after') return a.end.count === b.end.count;
@@ -172,7 +207,13 @@ export function untilStamp(date: string, allDay: boolean): string {
  * DTSTART is not written: Google takes it from the event's own start, and a
  * second copy here would be one more thing that can disagree with it.
  */
-export function toRRule(rule: Recurrence, allDay = false): string {
+export function toRRule(input: Recurrence, allDay = false): string {
+  // Normalised HERE rather than in the working copy the dialog edits. The two
+  // are different jobs: emission must never write a part the frequency does not
+  // allow, while the editor should remember the five weekdays you picked if you
+  // glance at the monthly options and come back. Normalising the model itself
+  // threw that selection away and then reported the rule as changed.
+  const rule = normalise(input);
   const parts = [`FREQ=${rule.freq}`];
   if (rule.interval > 1) parts.push(`INTERVAL=${rule.interval}`);
   if (rule.freq === 'WEEKLY' && rule.byDay.length) {
@@ -181,11 +222,150 @@ export function toRRule(rule: Recurrence, allDay = false): string {
   if (rule.freq === 'MONTHLY' && rule.byPos) {
     parts.push(`BYDAY=${rule.byPos.pos}${rule.byPos.day}`);
   }
+  // Written back only when it was there to begin with, or when the monthly mode
+  // explicitly asks for a day of the month. A bare FREQ=MONTHLY already means
+  // "the day DTSTART falls on", so adding one unasked changes nothing and loses
+  // the distinction between the two shapes Google itself uses.
+  if (rule.byMonth !== undefined) parts.push(`BYMONTH=${rule.byMonth}`);
+  if (rule.byMonthDay !== undefined && !rule.byPos) {
+    parts.push(`BYMONTHDAY=${rule.byMonthDay}`);
+  }
   // UNTIL and COUNT are two ways of saying the same thing, and Google rejects
   // an RRULE carrying both.
   if (rule.end.kind === 'on') parts.push(`UNTIL=${untilStamp(rule.end.date, allDay)}`);
   if (rule.end.kind === 'after') parts.push(`COUNT=${rule.end.count}`);
   return `RRULE:${parts.join(';')}`;
+}
+
+/** The four this card can model. Anything else is left to the raw string. */
+const FREQS: Freq[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
+
+/**
+ * Read a rule back out of the RRULE Google sends.
+ *
+ * The inverse of `toRRule`, and deliberately forgiving in one direction only:
+ * anything it does not fully understand comes back as **null** rather than as a
+ * half-read rule. A rule shown wrongly is worse than one not shown at all —
+ * this is the text that tells somebody their lesson repeats weekly, and the
+ * same value seeds the editor.
+ *
+ * What it does not model, and therefore refuses: FREQ values below a day
+ * (HOURLY, MINUTELY, SECONDLY), BYMONTHDAY, BYSETPOS, BYMONTH, and multiple
+ * positional BYDAY entries. None are reachable from this card's own editor;
+ * they are reachable from Google's.
+ */
+export function parseRRule(rrule: string | null | undefined): Recurrence | null {
+  if (!rrule) return null;
+  // Google sends the property name on the line; HA's rrule field usually omits
+  // it. Accept both, and ignore any EXDATE/RDATE lines folded in alongside.
+  const line = rrule
+    .split(/[\r\n]+/)
+    .map((l) => l.trim())
+    .find((l) => !l || /^(RRULE[:;])/i.test(l) || /FREQ=/i.test(l));
+  if (!line) return null;
+  const body = line.replace(/^RRULE[:;]/i, '');
+
+  const parts = new Map<string, string>();
+  for (const piece of body.split(';')) {
+    const [k, v] = piece.split('=');
+    if (k && v !== undefined) parts.set(k.trim().toUpperCase(), v.trim());
+  }
+
+  const freq = (parts.get('FREQ') ?? '').toUpperCase() as Freq;
+  if (!FREQS.includes(freq)) return null;
+  // Parts with a meaning this card cannot show. BYMONTHDAY and BYMONTH are NOT
+  // among them: Google's own dialog writes both when a monthly or yearly series
+  // is made from it, and refusing them left the card silent about rules the
+  // user had every right to expect it to read. What stays refused is what
+  // Google's dialog cannot produce - it comes from imports and other clients.
+  for (const unsupported of ['BYSETPOS', 'BYYEARDAY', 'BYWEEKNO', 'BYHOUR', 'BYMINUTE']) {
+    if (parts.has(unsupported)) return null;
+  }
+
+  const interval = Number(parts.get('INTERVAL') ?? '1');
+  if (!Number.isInteger(interval) || interval < 1) return null;
+
+  const rule: Recurrence = { freq, interval, byDay: [], end: { kind: 'never' } };
+
+  const byDay = parts.get('BYDAY');
+  if (byDay) {
+    const entries = byDay.split(',').map((d) => d.trim().toUpperCase()).filter(Boolean);
+    const positional = entries.filter((d) => /^-?\d/.test(d));
+    if (positional.length) {
+      // "the second Tuesday" — only meaningful monthly, and only one of them.
+      if (freq !== 'MONTHLY' || entries.length !== 1) return null;
+      const m = /^(-?\d+)([A-Z]{2})$/.exec(positional[0]);
+      if (!m) return null;
+      const pos = Number(m[1]);
+      if (!POS_WORDS[pos] || !RFC_DAYS.includes(m[2] as never)) return null;
+      rule.byPos = { pos, day: m[2] };
+    } else {
+      if (entries.some((d) => !RFC_DAYS.includes(d as never))) return null;
+      rule.byDay = orderDays(entries);
+    }
+  }
+
+  // A single day of the month, or a single month, is Google restating the
+  // start date. A LIST of them is not something this card can draw.
+  const single = (key: string): number | null | undefined => {
+    const raw = parts.get(key);
+    if (raw === undefined) return undefined;
+    if (raw.includes(',')) return null;
+    const n = Number(raw);
+    return Number.isInteger(n) ? n : null;
+  };
+  const monthDay = single('BYMONTHDAY');
+  if (monthDay === null) return null;
+  if (monthDay !== undefined) {
+    if (freq !== 'MONTHLY' && freq !== 'YEARLY') return null;
+    if (monthDay < 1 || monthDay > 31) return null;
+    rule.byMonthDay = monthDay;
+  }
+  const month = single('BYMONTH');
+  if (month === null) return null;
+  if (month !== undefined) {
+    if (freq !== 'YEARLY') return null;
+    if (month < 1 || month > 12) return null;
+    rule.byMonth = month;
+  }
+  // A monthly rule cannot be BOTH on a weekday and on a date.
+  if (rule.byPos && rule.byMonthDay !== undefined) return null;
+
+  if (parts.has('COUNT') && parts.has('UNTIL')) return null; // never both
+  const count = parts.get('COUNT');
+  if (count !== undefined) {
+    const n = Number(count);
+    if (!Number.isInteger(n) || n < 1) return null;
+    rule.end = { kind: 'after', count: n };
+  }
+  const until = parts.get('UNTIL');
+  if (until !== undefined) {
+    const date = untilToLocalDate(until);
+    if (!date) return null;
+    rule.end = { kind: 'on', date };
+  }
+  return rule;
+}
+
+/**
+ * An UNTIL stamp back to the yyyy-mm-dd the picker speaks.
+ *
+ * A timed UNTIL is UTC, and the local date it falls on is what the form should
+ * show — Google caps a series at the end of a day in the event's own zone, so
+ * a CET series reads `…T225959Z`, which is the 8th locally and the 8th is what
+ * the user chose.
+ */
+function untilToLocalDate(until: string): string | null {
+  const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?$/.exec(until.trim());
+  if (!m) return null;
+  const [, y, mo, d, hh, mm, ss, z] = m;
+  if (!hh) return `${y}-${mo}-${d}`;
+  const at = z
+    ? new Date(Date.UTC(+y, +mo - 1, +d, +hh, +mm, +ss))
+    : new Date(+y, +mo - 1, +d, +hh, +mm, +ss);
+  if (Number.isNaN(at.getTime())) return null;
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${at.getFullYear()}-${p(at.getMonth() + 1)}-${p(at.getDate())}`;
 }
 
 function dayNames(days: string[], locale?: string): string {
@@ -228,7 +408,7 @@ export function describe(rule: Recurrence | null, start: Date, locale?: string):
         ? `on the ${POS_WORDS[rule.byPos.pos]} ${new Intl.DateTimeFormat(locale, {
             weekday: 'long',
           }).format(new Date(2024, 0, 1 + WEEK_ORDER.indexOf(rule.byPos.day as never)))}`
-        : `on day ${start.getDate()}`;
+        : `on day ${rule.byMonthDay ?? start.getDate()}`;
       base = every ? `${every}months ${where}` : `Monthly ${where}`;
       break;
     }

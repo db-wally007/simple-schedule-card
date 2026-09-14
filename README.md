@@ -25,13 +25,18 @@ On a narrow screen it falls back to a day-grouped list:
   Friday is exactly as tall as a busy Monday. The lane count is resolved once for the whole
   week and applied to every day alike, so one crowded morning never leaves the other days'
   blocks twice as thick.
+- **A month grid too**, for calendars whose events are dates rather than appointments.
+  Seven columns divide the card so it never scrolls sideways, cells print as many events
+  as physically fit, and a tap opens the whole day. See [Month mode](#month-mode).
 - **Several people's calendars**, switched from the heading, each with its own avatar,
   colour and time axis.
 - **Colours that match Google**, including per-event colours, which no calendar card can
   show on its own — see [Colours](#colours).
 - **Push updates.** Events arrive over `calendar/event/subscribe`, so the grid reflects a
   change as soon as Home Assistant knows about it. Nothing polls.
-- A detail sheet on tap.
+- A detail sheet on tap, saying **how the event repeats** — "Weekly on Friday",
+  "Every weekday (Monday to Friday)" — read out of the rule Google actually
+  holds.
 - **Read-only until you say otherwise.** An explicit [edit mode](#editing-events) — behind a
   menu, announced in red while it lasts — lets you change, delete and create events, set a
   repeat rule and a colour, and pick a location off a map. Off, the card behaves exactly as it
@@ -115,7 +120,8 @@ Each entry in `entities`:
 |---|---|---|---|
 | `entity` | string | **required** | A `calendar.*` entity id. |
 | `person` | string | – | A `person.*` whose picture becomes the calendar's avatar. |
-| `calendar_mode` | `focused` \| `full` | `focused` | `focused` fits the time axis to that calendar's own events. `full` draws the whole day, midnight to midnight, and opens scrolled to the first event. |
+| `calendar_mode` | `focused` \| `full` \| `monthly` | `focused` | `focused` fits the time axis to that calendar's own events. `full` draws the whole day, midnight to midnight, and opens scrolled to the first event. `monthly` is a different **shape** — a month grid rather than a time axis; see below. |
+| `month_mode_show_times` | boolean | `true` | `monthly` only: print each event's time in its cell. Off for a calendar where the time says nothing — bin day is always 04:00. |
 | `view_width_mode` | `fixed` \| `adaptive` | `fixed` | `fixed` gives every hour `hour_width` pixels, so a block of a given length looks the same on any screen and the grid scrolls when the day is wider than the card. `adaptive` fits the whole span into the card, so nothing scrolls. `days-as-rows` only. |
 
 There is deliberately **no `name`** and **no `color`** per calendar. Both come from Home
@@ -148,6 +154,73 @@ own colour.
 
 Opening the menu, or an event's detail sheet, dims the schedule and folds the blocks away
 behind it; closing replays the week's entry animation.
+
+### Month mode
+
+`calendar_mode: monthly` draws a month grid instead of a time axis — for
+calendars whose events are **dates rather than appointments**: bin collections,
+birthdays, term dates. A time axis for those is an empty grid with a few marks
+in it.
+
+![A month on a tablet](screenshots/month.png)
+
+```yaml
+entities:
+  - entity: calendar.garbage_collection
+    calendar_mode: monthly
+    month_mode_show_times: false
+```
+
+Seven columns divide the card, so a month never scrolls sideways — the one place
+this departs from `view_width_mode: fixed`, because a month you have to scroll
+to see the end of is not a month. Only the weeks the month actually touches are
+drawn — usually five — so September does not carry a week of October under it.
+The rows share a fixed total height, so a five-row month has taller cells rather
+than a shorter card, and nothing jumps as you page. The days either side of the
+boundary are drawn but dimmed, and today's cell is inverted exactly as it is in
+the week grids.
+
+The grid runs to the card's own edges, and the header is the week grids' own day
+cell rebuilt across seven columns — the same banded, centred label in the same
+face — while the cells carry a bare number. The day is said once, properly,
+rather than thirty-five times in miniature.
+
+A cell prints **as many events as fit** and folds the rest into "**N more**".
+Nothing about that is configured: the cell grows with the card, clamped between
+a one-event and a three-event height, and the count follows. Everything in the
+sum is measured from the rendered cell, so changing a font size cannot start
+clipping things; the only constant is `MONTH_BREATHE_PX` in `card.ts`, the air
+held back at the foot of a cell, which is both the margin you see and the room
+the calculation reserves.
+
+On a short window a cell also **gives its breathing room back** when doing so
+buys a whole extra event — `MONTH_TRIM_PX`. Generous padding is a luxury a
+cramped cell cannot afford, and an empty strip under "N more" is worse than a
+tighter cell with one more thing in it.
+
+The cap and filling the window pull against each other, and the cap wins — a
+four-week month on a tall screen leaves space under the grid rather than growing
+cells into a list.
+
+**Tapping anywhere in a cell opens that day** — the number, an event row, the
+"N more" line, the empty space beside them. A month cell is a summary with
+truncated names, not a list you pick from, so the day panel is where an event is
+actually chosen; its rows open the detail sheet. Empty days open too, because
+"nothing on this day" is an answer.
+
+The panel shows each event's **start and end** time — one more thing than
+Google's own version of it, because "4am" says nothing useful about a collection
+that runs until 10 — and always opens fully on screen, wherever in the grid the
+day sits.
+
+![The day panel, with start and end times](screenshots/month-day.png)
+
+It stays open behind the detail sheet, so looking at one event and then another
+from the same day does not mean finding the cell again.
+
+The arrows step **months** in this mode, and the pill counts in months too. The
+width toggle has nothing to set, so it slides out of the header while the month
+is showing. Below `layout_breakpoint` the card still falls back to the list.
 
 ### The mode toggles
 
@@ -235,9 +308,19 @@ Whatever is live wears the calendar's colour: the chosen unit, the chosen days,
 and the numbers themselves. A count under an unselected row stays plain, because
 nothing is using it.
 
-Repeat is offered when **creating** only. Changing the rule on a series that
-already exists is a different operation, tangled up with the scope question
-above it, and the form hides the row rather than showing one that lies.
+**Repeat** is also editable on an event that already exists, seeded from the
+rule Google holds — so a lesson that moves from weekly to fortnightly is two
+taps rather than a trip to Google Calendar.
+
+Changing it moves the scope for you. A repeat rule belongs to the whole series:
+Google has no way to give one occurrence a rule of its own, so **This event**
+greys out and the choice moves to **All events**, with **This and future** still
+available if you want the change to start here and leave the past alone.
+
+The row is hidden entirely — rather than showing "Does not repeat" — when the
+event carries a rule this card cannot state in words, such as "the 8th of every
+month" or a BYSETPOS. Showing it would invite you to overwrite a rule you were
+never shown.
 
 For a recurring event the form asks what the change applies to:
 
