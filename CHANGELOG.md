@@ -4,6 +4,55 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-09-15
+
+The month grid reaches the **phone**, and the month mode shipped in 3.0.0 gets the pass of
+refinement that only comes from living with it on the real wall tablet.
+
+### Added
+
+- **A month on a phone.** Month mode is now the one mode that does NOT fall back to the
+  day-grouped list below `layout_breakpoint` — a list is what a month is an alternative to.
+  It scales down instead: seven columns still divide the card at about 50px each, the weekday
+  headings shorten to two capitals, the times go (a tap gives them back in full), and each cell
+  keeps a **named** event with a "+N" under it. Dots alone were tried first and rejected: a
+  colour with no word beside it says something is on that day but not what.
+- **"Switch to Monthly View" / "Switch to Weekly View"** in the ⋯ menu. The header's mode
+  toggles are a grid-layout control and vanish with it, which left a phone with no way out of
+  whichever shape the YAML chose. Leaving a month returns to the calendar's *configured* shape,
+  so a card set to `full` comes back as `full`.
+- A **close button** on the event detail sheet, in every view and mode. The scrim always closed
+  it; nothing said so.
+
+### Changed
+
+- The month's period **slides** as the card narrows instead of being pinned to a centre it no
+  longer fits, shrinking from 24px to 13px as it goes. Measured: it clears both the calendar
+  name and the nav buttons from 1408px down to 820.
+- The month cells and the day panel were tuned against the real thing: more room around the day
+  number, the event list indented off the gridline, larger dots, and the weekday header rebuilt
+  as the week grid's own day cell rather than a lookalike.
+
+### Fixed
+
+- **Dots that vanished on today's cell.** Today inverts to near-white, and the palette is chosen
+  to read on the dark card — a general-waste grey came out at 1.06:1 against it, which is a
+  smudge. `darkenForContrast` now takes the surface it is measured against and dots on that cell
+  are corrected to 3:1, WCAG's threshold for a non-text graphic. The hue survives; only lightness
+  is removed.
+- **A rounding bug in that same helper**, which had been there since v1: the bisection finds a
+  factor that passes, but rounding the channels back to integers raised the luminance again and
+  landed the result a hair *under* the target it had just promised — 2.99:1 for a 3:1 ask.
+- **The month grid flashed at the wrong size** when switching into it. The probe frame that
+  exists to prevent exactly that was being skipped, because the card still believed it knew the
+  shape's size while the measurement had been discarded on unmount. Verified across phone and
+  tablet: the grid is now never painted at any size but its final one.
+- The ⋯ menu was clipped (its height was hard-coded for two items) and then ran off the screen
+  (the wrapped phone header puts its button mid-card, so a right-anchored menu had nowhere to go).
+  It sizes to its contents and centres on the button.
+- The "today" button was permanently greyed out in a month: it tested the week offset, which never
+  moves there. The arrows said "week" in a month, too.
+
 ## [3.0.0] - 2026-09-15
 
 A **month grid**. v1 drew a week, v2 let you change it; v3 adds a second SHAPE, for calendars

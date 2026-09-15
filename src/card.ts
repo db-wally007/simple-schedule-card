@@ -75,7 +75,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.0.0';
+const CARD_VERSION = '3.1.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -313,6 +313,36 @@ const SUB_SETTLE_MS = 220;
  * means the layout is feeding it, not settling.
  */
 const MONTH_SETTLE_TRIES = 4;
+
+/**
+ * The phone month: rows per cell, and the cell's height bounds in px.
+ *
+ * TWO rows, which is one named event and a "+N" under it. Dots alone were tried
+ * and rejected: a colour with no word next to it says something is on that day
+ * but not what, and at that point the grid is decoration. One truncated name is
+ * worth more than four anonymous dots.
+ *
+ * Bounds are plain px rather than derived, because the wide layout's row
+ * arithmetic assumes room for a time and a full name and neither is true here.
+ *
+ * The month still FITS THE SCREEN on a phone. Letting the cells grow until it
+ * scrolled was tried and looked wrong: a month you cannot see all of is not
+ * doing the one thing a month grid is for.
+ */
+const MONTH_COMPACT_ROWS = 2;
+const MONTH_COMPACT_MIN_H = 62;
+const MONTH_COMPACT_MAX_H = 104;
+
+/**
+ * What `.mcell.today` is painted with, and the contrast a dot needs on it.
+ *
+ * Kept in step with the `--ssc-today-cell` default by hand: reading the real
+ * value back would mean measuring the DOM during render, and this card has paid
+ * for that lesson twice. A theme that overrides the token gets an approximation,
+ * which is still far better than the untouched colour.
+ */
+const TODAY_CELL_FILL = '#ededed';
+const DOT_ON_LIGHT_CONTRAST = 3;
 
 /** Air under the last row of a month, so it does not sit flush with the edge. */
 const MONTH_BOTTOM_GAP = 18;
@@ -1217,6 +1247,18 @@ export class SimpleScheduleCard extends LitElement {
     const body = this.renderRoot?.querySelector('.mbody') as HTMLElement | null;
     if (!body) {
       this._monthGridH = 0;
+      /*
+       * The measurement goes with it, so the shape is NOT laid out any more.
+       *
+       * Without this, leaving a month and coming back skipped the probe frame -
+       * `_monthLaidOut` still named the shape from last time, while the height
+       * that went with it had just been thrown away. The grid then painted at
+       * the CSS minimum, the animation guard refused to measure through the
+       * entry cascade, and the real height only arrived when that finished: a
+       * small grid that snapped to full size a moment later, which is exactly
+       * what the probe frame exists to prevent.
+       */
+      if (this._monthLaidOut) this._monthLaidOut = '';
       return;
     }
     /** The shape being drawn — see `_monthLaidOut`. */
@@ -1300,8 +1342,15 @@ export class SimpleScheduleCard extends LitElement {
     const heightFor = (n: number) => Math.ceil(overhead + n * rowH + (n - 1) * gap);
     // +1: the "N more" line is a row of its own, and a cell sized for exactly
     // three events has no room to admit there is a fourth.
-    const minH = heightFor(MONTH_FIT_MIN + 1);
-    const maxH = heightFor(MONTH_FIT_MAX + 1);
+    const compact = this._isCompactMonth;
+    /*
+     * The phone cell is not a stack of rows - its events are dots that wrap -
+     * so heightFor() has nothing to say about it. Its bounds are plain px: tall
+     * enough for a date over two rows of dots, and capped so a four-week month
+     * does not turn into four bands of empty space.
+     */
+    const minH = compact ? MONTH_COMPACT_MIN_H : heightFor(MONTH_FIT_MIN + 1);
+    const maxH = compact ? MONTH_COMPACT_MAX_H : heightFor(MONTH_FIT_MAX + 1);
 
     const rows = Math.max(1, Math.ceil(body.children.length / 7));
     // A little air at the bottom so the last row is not flush with the edge.
@@ -1338,6 +1387,14 @@ export class SimpleScheduleCard extends LitElement {
         body.style.setProperty('--mgrid-h', `${next}px`);
         heightMoved = true;
       }
+    }
+
+    // The height is all the phone layout needed; how many dots it shows is a
+    // constant, not something derived from it.
+    if (compact) {
+      if (!heightMoved) giveUp();
+      else if (this._monthLaidOut !== shape) this.requestUpdate();
+      return;
     }
 
     // Off the height the grid IS, not the one just computed: the guard above can
@@ -2081,6 +2138,23 @@ export class SimpleScheduleCard extends LitElement {
     }
   }
 
+  /**
+   * An event's dot, corrected for the surface it lands on.
+   *
+   * Every colour this card draws is chosen to read on the DARK card. Today's
+   * month cell inverts to near-white, and on that a pale one all but disappears
+   * — the grey of a general-waste bin against #ededed is about 1.7:1, which is
+   * a smudge. Only on that cell, and only the dot: the text there is already
+   * the inverted foreground, and the same colour on the dark cells is right as
+   * it is.
+   *
+   * 3:1 is WCAG's threshold for a non-text graphic, which is what this is.
+   */
+  private _dotColor(ev: ScheduleEvent, onLightCell: boolean): string {
+    const c = this._colorForEvent(ev);
+    return onLightCell ? darkenForContrast(c, DOT_ON_LIGHT_CONTRAST, TODAY_CELL_FILL) : c;
+  }
+
   private _colorFor(entity: string): string {
     const i = this._sources.findIndex((s) => s.entity === entity);
     const source = this._sources[i] ?? { entity };
@@ -2125,9 +2199,22 @@ export class SimpleScheduleCard extends LitElement {
     return 'focused';
   }
 
-  /** A month grid is its own layout, so almost every week-shaped rule bows out. */
+  /**
+   * A month grid is its own layout, so almost every week-shaped rule bows out.
+   *
+   * NOT gated on the grid layout any more: a month stays a month on a phone,
+   * scaled down rather than replaced by a week list. Seven columns still divide
+   * the card, they are just narrow enough that a cell shows dots instead of
+   * names — which is what every phone calendar does, and the day panel behind a
+   * tap is the detail.
+   */
   private get _isMonth(): boolean {
-    return this._calendarMode === 'monthly' && this._mode === 'grid';
+    return this._calendarMode === 'monthly';
+  }
+
+  /** The month, drawn for a phone: dots, no names, short weekday initials. */
+  private get _isCompactMonth(): boolean {
+    return this._isMonth && this._mode === 'list';
   }
 
   /**
@@ -2448,9 +2535,14 @@ export class SimpleScheduleCard extends LitElement {
               ? 'flash-out'
               : 'flash'
             : ''}"
+          style=${this._hostWidth > 0 ? `--ssc-w:${this._hostWidth}px` : nothing}
         >
           ${this._renderHead(w.days)}
-          ${list ? this._renderList(w.days, all) : this._renderGrid(w.days, all, axis)}
+          <!-- A month keeps its grid at every width; only the week shapes fall
+               back to a list, which has no month to fall back TO. -->
+          ${list && !this._isMonth
+            ? this._renderList(w.days, all)
+            : this._renderGrid(w.days, all, axis)}
         </div>
         ${this._renderSheet()}
         <!-- The one-shot wash on entering edit mode. Keyed on a counter so a
@@ -2600,12 +2692,14 @@ export class SimpleScheduleCard extends LitElement {
     const failed = this._subs.failed;
     const list = this._mode === 'list';
     // The phone drops the date range and keeps only the pill. Every day heading
-    // below carries its own date, so on a narrow card the range was a second
-    // answer to a question already answered five times over — and the pill says
-    // the thing the headings cannot, which is where this week sits relative to
-    // now. The grid keeps both: its day columns are initials, not dates.
+    // in the LIST below carries its own date, so on a narrow card the range was
+    // a second answer to a question already answered five times over — and the
+    // pill says the thing the headings cannot, which is where this week sits
+    // relative to now. The grid keeps both: its day columns are initials, not
+    // dates — and a month on a phone keeps both for the same reason, only more
+    // so: its cells are bare numbers and nothing else on screen names the month.
     const range =
-      list || !days.length
+      (list && !this._isMonth) || !days.length
         ? ''
         : this._isMonth
           ? // The month grid spills into its neighbours by design, so a first-to-
@@ -2616,9 +2710,17 @@ export class SimpleScheduleCard extends LitElement {
               year: 'numeric',
             })
           : `${this._fmtDate(days[0])} – ${this._fmtDate(days[days.length - 1])}`;
-    /** One block, two possible homes — see the centre group below. */
+    /**
+     * One block, three possible homes.
+     *
+     * `right` is where every week shape has always put it, under the arrows.
+     * A month puts it in the `centre` when there is room on both sides for it,
+     * and `inline` beside the calendar name when there is not.
+     */
+    const monthRangeHome: 'centre' | 'right' =
+      this._isMonth && this._mode === 'grid' ? 'centre' : 'right';
     const rangeBlock = html`
-      <div class="range dir-${this._navDir}">
+      <div class="range ${monthRangeHome} dir-${this._navDir}">
         ${range}<span class="pill">${this._weekLabel}</span>
       </div>
     `;
@@ -2652,7 +2754,7 @@ export class SimpleScheduleCard extends LitElement {
              the range where it has always been. -->
         <div class="head-centre">
           ${this._renderModeToggles()}
-          ${this._isMonth ? rangeBlock : nothing}
+          ${monthRangeHome === 'centre' ? rangeBlock : nothing}
         </div>
         <div class="head-right">
           <div class="tools">
@@ -2684,7 +2786,7 @@ export class SimpleScheduleCard extends LitElement {
           </button>
           ${(cfg.show_refresh ?? DEFAULTS.show_refresh) ? this._renderToolsMenu() : nothing}
           </div>
-          ${this._isMonth ? nothing : rangeBlock}
+          ${monthRangeHome === 'right' ? rangeBlock : nothing}
         </div>
       </div>
     `;
@@ -2711,7 +2813,12 @@ export class SimpleScheduleCard extends LitElement {
         >
           <ha-icon icon=${this._refreshing ? 'mdi:refresh' : 'mdi:dots-horizontal'}></ha-icon>
         </button>
-        <div class="pick-menu menu-right ${open ? 'open' : ''}" role="menu">
+        <div
+          class="pick-menu menu-right ${open ? 'open' : ''}"
+          role="menu"
+          style="--menu-items:${this._shapeItemShown ? 3 : 2}"
+        >
+          ${this._renderShapeItem()}
           <button
             class="pick-item"
             role="menuitem"
@@ -2749,6 +2856,72 @@ export class SimpleScheduleCard extends LitElement {
    * Only offered where they mean something: the list layout has no time axis at
    * all, and view_width_mode has nothing to fit unless the days run as rows.
    */
+  /**
+   * The month/list switch, as a menu command.
+   *
+   * The centre toggles are a grid-layout control and vanish with it, which left
+   * the phone with no way out of whichever shape the YAML chose. This is the
+   * same job with the two choices a narrow card actually has: the month grid, or
+   * the day-grouped list. The three-way cycle would be wrong here - `focused`
+   * and `full` are zoom levels on a time axis, and a phone has no time axis to
+   * zoom.
+   *
+   * Unlike the header toggles, this NAMES ITS DESTINATION. Those show the mode
+   * they are in, because a button that shows where it would take you reads
+   * backwards the moment you look away; a menu item is a command and has room
+   * to say what it does. The icons are the same pair either way.
+   *
+   * Leaving a month goes back to whatever the calendar was configured as, not
+   * to a hardcoded default, so a card set to `full` returns to `full`.
+   */
+  private get _shapeItemShown(): boolean {
+    const cfg = this._config;
+    if (!cfg) return false;
+    if (!(cfg.show_mode_toggles ?? DEFAULTS.show_mode_toggles)) return false;
+    if (this._mode !== 'list') return false;
+    return !!this._sources[Math.min(this._activeIdx, this._sources.length - 1)];
+  }
+
+  private _renderShapeItem(): unknown {
+    if (!this._shapeItemShown) return nothing;
+    const cfg = this._config!;
+    const src = this._sources[Math.min(this._activeIdx, this._sources.length - 1)]!;
+    const month = this._isMonth;
+    const ic =
+      TOGGLE_ICONS[cfg.mode_toggle_icons ?? DEFAULTS.mode_toggle_icons] ??
+      TOGGLE_ICONS[DEFAULTS.mode_toggle_icons];
+    return html`
+      <button
+        class="pick-item"
+        role="menuitem"
+        @click=${() => {
+          this._setMenu(false);
+          this._resetMonthSettle();
+          this._closeDayPeek();
+          this._modeOverride = {
+            ...this._modeOverride,
+            [src.entity]: {
+              ...this._modeOverride[src.entity],
+              // Back to the configured shape, which is only a month if the YAML
+              // says so - in which case the list is the other choice.
+              calendar_mode: month
+                ? src.calendar_mode === 'monthly'
+                  ? 'focused'
+                  : (src.calendar_mode ?? 'focused')
+                : 'monthly',
+            },
+          };
+          this._animEpoch++;
+        }}
+      >
+        <ha-icon icon=${month ? 'mdi:view-agenda-outline' : ic.monthly}></ha-icon>
+        <span class="pick-name">
+          ${month ? 'Switch to Weekly View' : 'Switch to Monthly View'}
+        </span>
+      </button>
+    `;
+  }
+
   private _renderModeToggles(): unknown {
     const cfg = this._config!;
     if (!(cfg.show_mode_toggles ?? DEFAULTS.show_mode_toggles)) return nothing;
@@ -2985,20 +3158,30 @@ export class SimpleScheduleCard extends LitElement {
    * month you have to scroll to see the end of is not a month.
    */
   private _renderMonth(days: Date[], all: ScheduleEvent[]): TemplateResult {
-    const fit = this._monthFit;
-    const showTimes = this._monthShowTimes;
+    const compact = this._isCompactMonth;
+    // Fixed on a phone rather than measured: the cell is too small for the
+    // fitting arithmetic to have any room to work in.
+    const fit = compact ? MONTH_COMPACT_ROWS : this._monthFit;
+    const showTimes = this._monthShowTimes && !compact;
     const subject = monthOf(this._now, this._monthOffset).getMonth();
 
     // The week grids name a day in full - "Monday" - and this header is the
     // month's version of that label, so it says the same word in the same face.
     // The cells underneath carry bare numbers, which is why the day identity has
-    // to live up here and be legible from across a room.
+    // to live up here and be legible from across a room. On a phone the column
+    // is narrower than the word, so it shortens to the initial - the position in
+    // a Monday-first row is what identifies it there.
     const dows: string[] = [];
     for (let i = 0; i < 7; i++) {
       // 2024-01-01 was a Monday, which is where this card's weeks start.
       // No comma, unlike .rday's label: there a date follows it, here nothing
       // does, and a comma pointing at nothing reads as a typo.
-      dows.push(this._fmtDowLong(new Date(2024, 0, 1 + i)));
+      const d = new Date(2024, 0, 1 + i);
+      // Two capitals on a phone - MO TU WE - because a single initial repeats
+      // (T, T and S, S) and leaves the column ambiguous on its own.
+      dows.push(
+        compact ? this._fmtDowLong(d).slice(0, 2).toUpperCase() : this._fmtDowLong(d),
+      );
     }
 
     // Which column today sits in - and -1 when today is not on show at all, so
@@ -3009,9 +3192,9 @@ export class SimpleScheduleCard extends LitElement {
 
     return html`
       <div
-        class="mgrid dir-${this._navDir} ${this._receded ? 'dimmed' : ''} ${this._editMode
-          ? 'editing'
-          : ''}"
+        class="mgrid dir-${this._navDir} ${compact ? 'compact' : ''} ${this._receded
+          ? 'dimmed'
+          : ''} ${this._editMode ? 'editing' : ''}"
         @animationend=${() => {
           this._navDir = 'none';
         }}
@@ -3037,7 +3220,7 @@ export class SimpleScheduleCard extends LitElement {
             // a row of its own, so an overflowing cell shows one event fewer -
             // without that the summary line is what falls off the bottom, which
             // is the one line that must not.
-            const cap = Math.min(fit, MONTH_FIT_MAX);
+            const cap = compact ? fit : Math.min(fit, MONTH_FIT_MAX);
             const shown = evs.slice(0, evs.length > cap ? Math.min(fit - 1, cap) : cap);
             const hidden = evs.length - shown.length;
             const outside = day.getMonth() !== subject;
@@ -3056,10 +3239,17 @@ export class SimpleScheduleCard extends LitElement {
                 }}
               >
                 <div class="mdate">${day.getDate()}</div>
+                <!-- display:contents in the roomy layout, so this wrapper is
+                     invisible there; a wrapping flex row on a phone, where the
+                     events are dots that flow rather than stack. -->
+                <div class="mevs">
                 ${shown.map(
                   (ev) => html`
                     <div class="mev">
-                      <span class="mdot" style="background:${this._colorForEvent(ev)}"></span>
+                      <span
+                        class="mdot"
+                        style="background:${this._dotColor(ev, sameDay(day, this._now))}"
+                      ></span>
                       ${showTimes && !ev.allDay
                         ? html`<span class="mtime">${this._fmtTime(ev.start)}</span>`
                         : nothing}
@@ -3067,7 +3257,10 @@ export class SimpleScheduleCard extends LitElement {
                     </div>
                   `,
                 )}
-                ${hidden > 0 ? html`<div class="mmore">${hidden} more</div>` : nothing}
+                ${hidden > 0
+                  ? html`<div class="mmore">${compact ? `+${hidden}` : `${hidden} more`}</div>`
+                  : nothing}
+                </div>
                 ${this._press?.idx === i && this._press.kind === 'label'
                   ? html`<div class="press-ghost head" style=${this._press.style}></div>`
                   : nothing}
@@ -5286,12 +5479,27 @@ export class SimpleScheduleCard extends LitElement {
        group would sit wherever the title happened to end, and forcing it with
        equal flex bases on the side groups squashes a long calendar name.
        Taken out of flow it lands on the centre line whatever the sides do. */
-    /* Centred on the CARD, and the anchor the range hangs off — see below. */
+    /*
+     * Positioned by its LEFT edge, and it slides.
+     *
+     * The wide case wants the mode button on the card's centre line, which is
+     * 50% less half the button group. The narrow case wants the whole thing far
+     * enough left that the period clears the nav buttons. clamp() gives both and
+     * everything between as ONE continuous movement - the group drifts left as
+     * the card narrows instead of sitting pinned to a middle it no longer fits.
+     *
+     * 652px is the room the group needs to its right at the widest: the button
+     * group, its gap, the longest period the card produces, and the tools. It
+     * does not depend on the CURRENT month's name, so paging does not move the
+     * button - only resizing does.
+     */
     .head-centre {
       position: absolute;
-      left: 50%;
+      /* Measured, not guessed: the calendar name's button ends 268px from the
+         card's left edge, so 280 is the first place this group can stand
+         without covering the name it belongs to. */
+      left: clamp(280px, calc(100% - 652px), calc(50% - 52px));
       top: 0;
-      transform: translateX(-50%);
       display: flex;
       align-items: center;
     }
@@ -5313,7 +5521,9 @@ export class SimpleScheduleCard extends LitElement {
       position: absolute;
       left: calc(44px + 16px);
       margin-top: 0;
-      font-size: 24px;
+      /* Shrinks with the card rather than stepping down at a breakpoint. --ssc-w
+         is the card's own measured width; 24px is the tablet, 16px the floor. */
+      font-size: clamp(13px, calc(var(--ssc-w, 1400px) * 0.017), 24px);
       font-weight: 600;
       letter-spacing: -0.4px;
       white-space: nowrap;
@@ -5803,8 +6013,32 @@ export class SimpleScheduleCard extends LitElement {
       left: auto;
       right: 0;
     }
+    /* Sized to the items it actually holds - 42px each plus the menu's own
+       padding - rather than a constant. It was 104px, which was exactly two,
+       and the phone's third command was clipped clean off the bottom. */
     .menu-right.menu-right.open {
-      max-height: 104px;
+      max-height: calc(var(--menu-items, 2) * 42px + 20px);
+    }
+    /*
+     * CENTRED ON THE BUTTON, on a phone only.
+     *
+     * The wrapped header puts the tools row at the card's LEFT edge, so the dots
+     * button sits in the middle of the card with 176px of nothing to its right.
+     * Right-anchored to it there were only 218px before the card's left edge and
+     * "Switch to Monthly View" needs 243, so the menu ran off screen. Two wrong
+     * fixes preceded this one: shrinking the menu (it was a position problem,
+     * not a size one) and anchoring it to the full-width row instead (it fitted,
+     * but sat 160px from the button and no longer read as belonging to it).
+     *
+     * Centring keeps it attached AND inside: half of 243 either side of a button
+     * whose centre is 198px from both card edges. min-width has to go, or the
+     * menu stretches to the button's own width instead of its content's.
+     */
+    .narrow .menu-right {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      min-width: 0;
     }
     /* Finger-sized gaps. On the kiosk tablet these sat 3px apart and the wrong
        button got hit; 40px targets need real space between them, not just size. */
@@ -6677,6 +6911,12 @@ export class SimpleScheduleCard extends LitElement {
       position: relative;
       margin: 0 calc(-1 * var(--ssc-pad));
     }
+    /* No bleed on a phone. Reaching past the card's inset is a flourish a wide
+       card can afford; at 394px it just pushed the first and last columns off
+       the edges. */
+    .mgrid.compact {
+      margin: 0;
+    }
     /* Banded like the week grid's day column, so the header reads as the same
        piece of fixed furniture rather than as a line of text above a grid. */
     .mhead {
@@ -6718,6 +6958,75 @@ export class SimpleScheduleCard extends LitElement {
     .mdow:not(:nth-child(7n)) {
       border-right: 1px solid var(--ssc-line);
     }
+
+    /* ---- the month on a phone -------------------------------------------
+     *
+     * Seven columns dividing the card, about 50px each. Everything here is the
+     * tablet cell at a smaller size rather than a different thing: a date, one
+     * NAMED event, and a "+N" under it. The time is what goes - it is the one
+     * part a tap can recover in full, and dropping it buys the name most of the
+     * column.
+     *
+     * The .mevs wrapper is display:contents everywhere, so the rows stack as
+     * they always did and the tablet pays nothing for it. */
+    .mevs {
+      display: contents;
+    }
+    /* Air between the header and the grid, so the month's name is not sitting
+       on the weekday row. */
+    .mgrid.compact {
+      margin-top: 22px;
+    }
+    /* align-items, not just text-align: .mdow inherits .rday's flex COLUMN with
+       align-items:flex-start, and a bare text node in it is a flex item — so
+       text-align alone left it hard against the column's left edge. */
+    .mgrid.compact .mdow {
+      /* Half again the row's natural height. This is the day-name cell, which
+         has one short word in it and was the cramped part - not the month
+         cells below, which fit the screen. */
+      min-height: 45px;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-align: center;
+    }
+    .mgrid.compact .mcell {
+      gap: 1px;
+      padding: 4px 2px 5px;
+    }
+    /* The number gets room of its own here too, and the events start below it
+       rather than against it. */
+    .mgrid.compact .mdate {
+      padding: 2px 5px 16px 0;
+      font-size: 14px;
+      line-height: 1.15;
+    }
+    .mgrid.compact .mev,
+    .mgrid.compact .mmore {
+      padding: 0 1px 0 3px;
+      gap: 3px;
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    /* No room for a time in 50px, and it is the part a tap gives back. */
+    .mgrid.compact .mtime {
+      display: none;
+    }
+    .mgrid.compact .mname {
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    .mgrid.compact .mdot {
+      width: 7px;
+      height: 7px;
+    }
+    .mgrid.compact .mmore {
+      padding-left: 12px;
+      font-weight: 700;
+      opacity: 0.75;
+    }
     /* Today's weekday, inverted like its cell and like .rday.today - so the
        column you are in is marked at the top as well as in the grid. Only while
        today is actually on show; see todayCol. */
@@ -6734,6 +7043,9 @@ export class SimpleScheduleCard extends LitElement {
          measure; after that --mgrid-h is exact. */
       grid-auto-rows: minmax(64px, 1fr);
       height: var(--mgrid-h, auto);
+    }
+    .mgrid.compact .mbody {
+      grid-auto-rows: minmax(${MONTH_COMPACT_MIN_H}px, 1fr);
     }
     .mcell {
       position: relative;
@@ -6799,11 +7111,12 @@ export class SimpleScheduleCard extends LitElement {
     .mdate {
       flex: 0 0 auto;
       text-align: right;
-      /* Half again the bare line box - 22px of type given 33px of room - so the
-         number sits in its own band instead of leaning on the first event.
+      /* Half again the bare line box - 22px of type given 35px of room - so the
+         number sits in its own band instead of leaning on the first event, and
+         clear of the cell's top and right rules rather than tight against them.
          _measureMonth reads this height back off the DOM, so the events below
          lose the space honestly rather than being clipped by it. */
-      padding: 2px 4px 9px;
+      padding: 4px 6px 9px;
       /* Paired with .mdow - same size, same weight, same colour. See there. */
       font-size: 18px;
       line-height: 1.25;
@@ -6838,16 +7151,21 @@ export class SimpleScheduleCard extends LitElement {
       gap: 5px;
       width: 100%;
       box-sizing: border-box;
-      padding: 1px 4px;
+      /* Indented from the cell's left rule so the dots read as a column of
+         their own rather than sitting on the gridline. */
+      padding: 1px 4px 1px 7px;
       border-radius: 4px;
       font-size: 13px;
       line-height: 1.25;
       text-align: left;
     }
+    /* Used in both places this dot appears: the month cells and the day panel.
+       At 9px it was a full stop rather than a colour - the one thing in a cell
+       that has to be readable at a glance from across a room. */
     .mdot {
       flex: 0 0 auto;
-      width: 9px;
-      height: 9px;
+      width: 11px;
+      height: 11px;
       border-radius: 50%;
     }
     .mtime {
@@ -6863,10 +7181,13 @@ export class SimpleScheduleCard extends LitElement {
       white-space: nowrap;
       font-weight: 600;
     }
+    /* Text lined up with the event TIMES above it, not with their dots: the
+       row's own left padding, plus a dot, plus the gap after it. Keep this in
+       step with .mev's padding-left and .mdot's width or it drifts. */
     .mmore {
       font-weight: 700;
       opacity: 0.8;
-      padding-left: 18px;
+      padding-left: 23px;
     }
 
     /* ---- the day panel ----

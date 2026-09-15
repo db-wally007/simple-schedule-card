@@ -220,7 +220,27 @@ from the same day does not mean finding the cell again.
 
 The arrows step **months** in this mode, and the pill counts in months too. The
 width toggle has nothing to set, so it slides out of the header while the month
-is showing. Below `layout_breakpoint` the card still falls back to the list.
+is showing.
+
+### A month on a phone
+
+A month stays a month below `layout_breakpoint` — it is the one mode that does
+**not** fall back to the day-grouped list, because a list is what a month is an
+alternative to. It scales down instead: seven columns still divide the card, at
+about 50px each. The weekday headings shorten to two capitals, the times go —
+they are the part a tap gives back in full — and each cell keeps a **named**
+event with a "+N" under it.
+
+<img src="screenshots/phone-month.png" width="330" alt="The month on a phone">
+
+Tapping a day opens the same panel the tablet uses, which is where the detail
+lives. The **⋯ menu** gains a "Switch to Monthly View" / "Switch to Weekly View"
+command, since the header's mode toggles are a grid control and there is no room
+for them here.
+
+On a wide card the month's name is centred beside the mode button, and it slides
+left — shrinking as it goes — as the card narrows, rather than staying pinned to
+a middle it no longer fits.
 
 ### The mode toggles
 

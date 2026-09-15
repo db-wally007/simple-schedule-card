@@ -123,3 +123,57 @@ describe('darkenForContrast', () => {
     expect(darkenForContrast('nonsense', 4.5)).toBe('nonsense');
   });
 });
+
+/**
+ * A coloured mark on a PALE surface, which is the other half of the same job.
+ * Today's month cell inverts to near-white, and the palette is picked to read on
+ * the dark card — so a light colour lands on it almost invisibly.
+ */
+describe('darkenForContrast against a light surface', () => {
+  const lin = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = (hex: string) => {
+    const m = /^#(..)(..)(..)$/.exec(hex)!;
+    return (
+      0.2126 * lin(parseInt(m[1], 16)) +
+      0.7152 * lin(parseInt(m[2], 16)) +
+      0.0722 * lin(parseInt(m[3], 16))
+    );
+  };
+  const against = (hex: string, bg: string) => {
+    const a = lum(hex);
+    const b = lum(bg);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  const TODAY = '#ededed';
+
+  it('rescues a pale colour that vanishes on the today cell', () => {
+    // The general-waste grey: fine on the dark card, a smudge on #ededed.
+    expect(against('#c8c8c8', TODAY)).toBeLessThan(1.5);
+    expect(against(darkenForContrast('#c8c8c8', 3, TODAY), TODAY)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('rescues the pale end of the palette too', () => {
+    for (const c of ['#f6bf26', '#e67c73', '#7bd389']) {
+      expect(against(darkenForContrast(c, 3, TODAY), TODAY)).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('leaves a colour that already reads on that surface alone', () => {
+    expect(darkenForContrast('#0b8043', 3, TODAY)).toBe('#0b8043');
+  });
+
+  it('is stricter than the same target measured against pure white', () => {
+    // #ededed is darker than white, so less separation is available and the
+    // colour has to come down further. Getting this backwards would under-darken.
+    const onWhite = darkenForContrast('#c8c8c8', 3);
+    const onCell = darkenForContrast('#c8c8c8', 3, TODAY);
+    expect(lum(onCell)).toBeLessThan(lum(onWhite));
+  });
+
+  it('still defaults to white, so the block labels are unaffected', () => {
+    expect(darkenForContrast('#e67c73', 4.5)).toBe(darkenForContrast('#e67c73', 4.5, '#ffffff'));
+  });
+});

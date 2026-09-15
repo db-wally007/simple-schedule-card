@@ -413,6 +413,45 @@ Related: `_measureMonth`/`_fitDayPeek` no longer run on a bare `hass` update eit
 synchronous layout, and none of those updates can move the grid. Window resize is handled by an
 explicit listener, since the host `ResizeObserver` only watches width.
 
+### A month does not fall back to a list
+
+`_isMonth` is NOT gated on the grid layout — that was the one place the month deferred to the
+week machinery, and it made no sense: a list is what a month is an alternative TO. Below the
+breakpoint it scales down instead (`_isCompactMonth`), and `render()` dispatches
+`list && !this._isMonth` so only the week shapes fall back.
+
+- Seven columns at ~50px fit a date and nothing else, so the names and times are `display: none`
+  and the events become a wrapping row of dots. The `.mevs` wrapper is `display: contents` at
+  full size, so the tablet layout pays nothing for it, and a flex-wrap row when compact.
+- The cap is a count of DOTS (`MONTH_COMPACT_DOTS`), not a measured row fit: dots wrap, so
+  nothing has to be surrendered to the "+N" line the way a row-fitted cell does.
+- `_measureMonth` still sets the HEIGHT on a phone — the grid should fill the screen there too —
+  but its bounds are plain px (`MONTH_COMPACT_MIN_H`/`MAX_H`), because a compact cell is not a
+  stack of rows and `heightFor()` has nothing to say about it. The fit/trim reasoning is skipped
+  entirely after the height settles.
+- **No bleed when compact.** `.mgrid`'s negative margin reaches past the card's inset, which a
+  wide card can afford; at 394px it pushed the first and last columns off the edges.
+- The phone keeps the month's NAME in the header. The narrow layout blanks the range for week
+  shapes because every day heading in the list carries its own date — a month has no such
+  headings and its cells are bare numbers, so nothing else on screen would say which month it is.
+
+### The period SLIDES; it does not switch homes
+
+`.head-centre` is positioned by its left edge with a single `clamp()`, so the mode button and the
+period drift left together as the card narrows — one continuous movement, with the type shrinking
+alongside (`clamp(13px, calc(var(--ssc-w) * 0.017), 24px)`).
+
+An earlier version gave the period three discrete homes by width (centred / beside the calendar
+name / under the arrows) and it was **rejected outright**: a thing that teleports between
+positions as you resize is worse than one that merely runs out of room. If this ever needs
+revisiting, make it continuous.
+
+The bounds are measured, not guessed: the calendar-name button ends 268px from the card's left
+edge (hence the 280px floor), the tools are 221px wide, and the whole header needs 912px to hold
+name + toggles + the longest period + buttons at full size. Verified clear of both neighbours
+from 1408px down to 820; below that the header is genuinely out of room and the phone layout
+takes over at 560.
+
 ### Month mode is a SHAPE, not a zoom level
 
 `calendar_mode: monthly` sits in the same option as `focused`/`full`, but it is not another

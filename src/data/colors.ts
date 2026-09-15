@@ -140,29 +140,39 @@ function luminance(r: number, g: number, b: number): number {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 }
 
-/** Contrast ratio of white text on a fill of this luminance. */
-function contrastOnWhite(l: number): number {
-  return 1.05 / (l + 0.05);
+/** WCAG contrast ratio between two relative luminances. */
+function ratio(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
 /**
- * Darken a fill until white text on it reaches `target` contrast.
+ * Darken a fill until it reaches `target` contrast against `against`.
  *
- * The labels here are always white, and Google's palette is tuned for its own
- * UI, which puts DARK text on those fills — white on Flamingo `#e67c73` is only
- * 2.9:1, which is why the untouched palette reads as washed out. Scaling the
- * channels keeps the hue and only removes lightness, which is the same move
- * Google's dark mode makes.
+ * Two jobs, same arithmetic. The block labels here are always white, and
+ * Google's palette is tuned for its own UI, which puts DARK text on those fills
+ * — white on Flamingo `#e67c73` is only 2.9:1, which is why the untouched
+ * palette reads as washed out. The other job is a coloured mark sitting on a
+ * LIGHT surface: today's month cell inverts to near-white, and a bin colour
+ * picked to read on a dark card all but vanishes on it.
+ *
+ * `against` defaults to white, which is both the white-label case and a close
+ * enough stand-in for any pale surface. Scaling the channels keeps the hue and
+ * only removes lightness, which is the same move Google's dark mode makes.
  *
  * Returns the colour unchanged when it already passes, or when `target` is 0.
  */
-export function darkenForContrast(hex: string, target: number): string {
+export function darkenForContrast(hex: string, target: number, against = '#ffffff'): string {
   const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex);
   if (!m || !(target > 1)) return hex;
   const r = parseInt(m[1], 16);
   const g = parseInt(m[2], 16);
   const b = parseInt(m[3], 16);
-  if (contrastOnWhite(luminance(r, g, b)) >= target) return hex;
+
+  const bg = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(against);
+  const bgLum = bg
+    ? luminance(parseInt(bg[1], 16), parseInt(bg[2], 16), parseInt(bg[3], 16))
+    : 1;
+  if (ratio(bgLum, luminance(r, g, b)) >= target) return hex;
 
   // Luminance falls monotonically as the channels scale down, so bisect for the
   // LARGEST factor that still passes — the least darkening that does the job.
@@ -170,12 +180,16 @@ export function darkenForContrast(hex: string, target: number): string {
   let hi = 1;
   for (let i = 0; i < 24; i++) {
     const mid = (lo + hi) / 2;
-    if (contrastOnWhite(luminance(r * mid, g * mid, b * mid)) >= target) lo = mid;
+    if (ratio(bgLum, luminance(r * mid, g * mid, b * mid)) >= target) lo = mid;
     else hi = mid;
   }
   const k = lo;
+  // FLOOR, not round. The bisection finds a factor that passes, but rounding a
+  // channel back UP raises the luminance again and lands the result a hair
+  // under the target it just promised — 2.99:1 for a 3:1 ask. Flooring can only
+  // darken, so the promise holds.
   const hx = (v: number) =>
-    Math.max(0, Math.min(255, Math.round(v * k)))
+    Math.max(0, Math.min(255, Math.floor(v * k)))
       .toString(16)
       .padStart(2, '0');
   return `#${hx(r)}${hx(g)}${hx(b)}`;
