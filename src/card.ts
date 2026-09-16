@@ -75,7 +75,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.1.0';
+const CARD_VERSION = '3.1.1';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -5537,7 +5537,14 @@ export class SimpleScheduleCard extends LitElement {
        is redundant next to a date range it would otherwise push onto its own
        line. */
     .narrow {
-      padding: 13px 13px 14px;
+      /* The inset is carried by the VARIABLE, not by a literal. .mgrid bleeds
+         out by calc(-1 * var(--ssc-pad)), so a hardcoded padding here left the
+         bleed reaching 18px past a 13px inset: 5px of overflow down each side.
+         That overflow is what "pushed the first and last columns off the edges"
+         and cost the compact month its bleed altogether. Keep the two spellings
+         of the inset as ONE number or the bug comes straight back. */
+      --ssc-pad: 13px;
+      padding: var(--ssc-pad) var(--ssc-pad) 14px;
       /* The list's week animation is a 34% slide. Without this it becomes
          page-wide overflow and the phone grows a scrollbar along the bottom
          every time the week changes. */
@@ -6911,12 +6918,14 @@ export class SimpleScheduleCard extends LitElement {
       position: relative;
       margin: 0 calc(-1 * var(--ssc-pad));
     }
-    /* No bleed on a phone. Reaching past the card's inset is a flourish a wide
-       card can afford; at 394px it just pushed the first and last columns off
-       the edges. */
-    .mgrid.compact {
-      margin: 0;
-    }
+    /* The phone bleeds too, and deliberately: a month is furniture that reaches
+       the frame at any width, and seven columns on a 390px screen want those
+       26px more than the gutter does. This was pinned back to margin:0 for a
+       while because the bleed OVERSHOT - --ssc-pad was 18px against .narrow's
+       hardcoded 13px inset - which read as "no bleed on a phone" when the real
+       fault was the two numbers disagreeing. .narrow now sets --ssc-pad to its
+       own inset, so -13px against 13px lands exactly on the card's edges with
+       nothing to clip. Do not re-add a margin:0 here; fix the inset instead. */
     /* Banded like the week grid's day column, so the header reads as the same
        piece of fixed furniture rather than as a line of text above a grid. */
     .mhead {

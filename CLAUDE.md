@@ -429,8 +429,18 @@ breakpoint it scales down instead (`_isCompactMonth`), and `render()` dispatches
   but its bounds are plain px (`MONTH_COMPACT_MIN_H`/`MAX_H`), because a compact cell is not a
   stack of rows and `heightFor()` has nothing to say about it. The fit/trim reasoning is skipped
   entirely after the height settles.
-- **No bleed when compact.** `.mgrid`'s negative margin reaches past the card's inset, which a
-  wide card can afford; at 394px it pushed the first and last columns off the edges.
+- **The compact month bleeds too, and the inset must be ONE number.** This was written down as
+  "no bleed when compact" after the bleed pushed the first and last columns off the edges at
+  394px — but that was never about width. `.mgrid` bleeds by `calc(-1 * var(--ssc-pad))` while
+  `.narrow` set its inset as a hardcoded `13px`, so the bleed reached 18px past a 13px padding:
+  5px of overflow down each side. The cure was `margin: 0` on `.mgrid.compact`, which traded the
+  overflow for a 13px gutter and left the phone as the one place a month did not reach the frame.
+  `.narrow` now declares `--ssc-pad: 13px` and derives its padding from it, so -13px against 13px
+  lands exactly on the card's edges. Verified at 390px across six months, 5- and 6-row: grid
+  spans 0→390, zero clipped cells, `scrollWidth` never exceeds the viewport through the month
+  slide, and the day panel still clamps inside the card from the leftmost cell. If this ever
+  overflows again, the two spellings of the inset have drifted apart — fix that, do not re-add
+  `margin: 0`.
 - The phone keeps the month's NAME in the header. The narrow layout blanks the range for week
   shapes because every day heading in the list carries its own date — a month has no such
   headings and its cells are bare numbers, so nothing else on screen would say which month it is.
