@@ -141,6 +141,14 @@ export interface SimpleScheduleCardConfig {
    */
   event_colors?: Record<string, string>;
   /**
+   * Events whose uid starts with this are READ-ONLY in edit mode: the form opens
+   * with every field locked and no Save, and Delete is the only live action. For
+   * events another system owns and keeps in step - a timetable mirror, say - where
+   * an edit made here would only be put back. The uid is the right key because no
+   * one can see it or change it, unlike a title or a note. Empty (default) = off.
+   */
+  read_only_uid_prefix?: string;
+  /**
    * Minimum contrast ratio between a block's fill and its white label. Fills
    * lighter than this are darkened until they pass. 4.5 is WCAG AA for body
    * text; lower it (3.5 is still readable) for a brighter grid, or set 0 to use

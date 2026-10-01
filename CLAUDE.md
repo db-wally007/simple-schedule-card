@@ -1187,6 +1187,30 @@ down: pyscript walks an AST rather than executing Python, runs piled up on each 
 core sat at 100% until the container was restarted. Navigate the known path, keep the interval
 long, hold the `_RUNNING` guard, and measure natively before scheduling anything.
 
+### Read-only events are keyed on the UID, because nothing else reaches the card
+
+`read_only_uid_prefix` opens matching events with every field locked, no Save, and Delete
+the only action - built for `bakalari/bakalari_sync.py`, whose lessons are a mirror that
+puts any edit back within the hour, so letting the form edit one would only be a lie.
+
+The obvious marker, a Google `extendedProperties.private` tag, CANNOT work and was checked
+rather than assumed: Home Assistant's `CalendarEvent` carries eight fields and drops it, and
+`gcal_sync` drops it from `.storage/google.*` too (no `extended` key anywhere in the store),
+so not even the colour helper could pass it on. The description also reaches the card, but
+anyone can edit it. The UID is `<event id>@google.com`, the sync chooses the id, and nobody
+can see or change it - so the id IS the tag. The prefix is eight letters (`bakalari`)
+because Google's own ids are random base32hex: `bak` would match one hand-made event in
+~33,000.
+
+Read-only is enforced in `_patchDraft`, `_togglePicker` and `_saveDraft`, not just in the
+template, so no path through the UI can change one. The form keeps its look - the title and
+date/time chips take `pointer-events: none` rather than `disabled`, so their values do not
+grey out, and the folds become plain rows without a chevron. The all-day box is the one
+control that IS `disabled`: it lives inside a `<label>`, and a tap on the row toggled it
+through the label regardless of its own pointer-events - the draft refused the change but the
+box drew itself ticked. A red "Locked" badge sits top-right to say why nothing reacts. Delete
+keeps its two-tap confirm: a deleted mirrored lesson never comes back.
+
 ## Conventions
 
 - `getStubConfig()` and the README option table must both list **every** option with its real

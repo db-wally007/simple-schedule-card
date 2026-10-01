@@ -75,7 +75,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.1.1';
+const CARD_VERSION = '3.2.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -91,6 +91,7 @@ const DEFAULTS = {
   lane_mode: 'by_source' as const,
   time_format: 'auto' as const,
   min_contrast: 4.5,
+  read_only_uid_prefix: '' as string,
   show_refresh: true,
   show_mode_toggles: true,
   mode_toggle_icons: 'crop' as const,
@@ -227,6 +228,12 @@ interface EventDraft {
   eventId: string;
   /** Creating rather than changing: no id yet, no delete, no recurrence scope. */
   isNew: boolean;
+  /**
+   * Owned by another system (read_only_uid_prefix): every field locked, no Save,
+   * Delete the only action. Enforced in _patchDraft / _togglePicker / _saveDraft
+   * as well as in the form, so no path through the UI can change one.
+   */
+  readOnly: boolean;
   recurring: boolean;
   summary: string;
   startDate: string;
@@ -1108,6 +1115,12 @@ export class SimpleScheduleCard extends LitElement {
   }
 
   /** Build the form from an event. */
+  /** Owned by another system - see read_only_uid_prefix. */
+  private _isReadOnly(ev: ScheduleEvent): boolean {
+    const prefix = this._config?.read_only_uid_prefix ?? DEFAULTS.read_only_uid_prefix;
+    return !!prefix && (ev.uid ?? '').startsWith(prefix);
+  }
+
   private _openEditor(ev: ScheduleEvent): void {
     const eventId = this._googleId(ev);
     if (!eventId) {
@@ -1122,6 +1135,7 @@ export class SimpleScheduleCard extends LitElement {
       entity: ev.entity,
       eventId,
       isNew: false,
+      readOnly: this._isReadOnly(ev),
       recurring: this._isRecurring(ev),
       summary: ev.summary,
       startDate: from.date,
@@ -1181,6 +1195,7 @@ export class SimpleScheduleCard extends LitElement {
       entity,
       eventId: '',
       isNew: true,
+      readOnly: false,
       // "recurring" is about the event on Google, which this one is not yet; it
       // is what puts the scope question on the EDIT form. A repeat rule set here
       // is carried in `repeat` and applies from the moment it is created.
@@ -1760,6 +1775,7 @@ export class SimpleScheduleCard extends LitElement {
 
   /** Open one inline picker, closing whichever was open. iOS shows one at a time. */
   private _togglePicker(field: Exclude<PickerField, null>): void {
+    if (this._draft?.readOnly) return;
     this._confirmDelete = false;
     if (this._openPicker === field) {
       this._closePicker();
@@ -1822,7 +1838,9 @@ export class SimpleScheduleCard extends LitElement {
   }
 
   private _patchDraft(patch: Partial<EventDraft>): void {
-    if (!this._draft) return;
+    // The single door every field change goes through, so a read-only event is
+    // refused here whatever the form does or does not render.
+    if (!this._draft || this._draft.readOnly) return;
     this._draft = { ...this._draft, ...patch };
     // Any edit invalidates a delete the user was halfway through confirming.
     this._confirmDelete = false;
@@ -2003,7 +2021,7 @@ export class SimpleScheduleCard extends LitElement {
 
   private async _saveDraft(): Promise<void> {
     const draft = this._draft;
-    if (!draft || this._busy) return;
+    if (!draft || this._busy || draft.readOnly) return;
     if (!draft.summary.trim()) {
       this._editError = 'A title is required.';
       return;
@@ -3965,6 +3983,18 @@ export class SimpleScheduleCard extends LitElement {
     /** For a fold that can hold an open month grid, which outgrows the default. */
     tall = false,
   ): TemplateResult {
+    // Read-only: the same row with its value, but nothing to open - no chevron
+    // promising a fold, no fold behind it.
+    if (this._draft?.readOnly) {
+      return html`
+        <div class="ed-group">
+          <div class="ed-row ed-disclose static">
+            <span class="ed-lbl">${label}</span>
+            <span class="ed-sub">${summary}</span>
+          </div>
+        </div>
+      `;
+    }
     return html`
       <div class="ed-group">
         <button
@@ -4014,6 +4044,7 @@ export class SimpleScheduleCard extends LitElement {
         <span class="ed-vals picks">
           <button
             class="ed-chip ${this._openPicker === dateField ? 'on' : ''}"
+            tabindex=${d.readOnly ? '-1' : '0'}
             @click=${() => this._togglePicker(dateField)}
           >
             ${dateLabel}
@@ -4025,7 +4056,7 @@ export class SimpleScheduleCard extends LitElement {
             class="ed-chip time ${d.allDay ? 'gone' : ''} ${this._openPicker === timeField
               ? 'on'
               : ''}"
-            tabindex=${d.allDay ? '-1' : '0'}
+            tabindex=${d.allDay || d.readOnly ? '-1' : '0'}
             aria-hidden=${d.allDay ? 'true' : 'false'}
             @click=${() => {
               if (!d.allDay) this._togglePicker(timeField);
@@ -5032,7 +5063,9 @@ export class SimpleScheduleCard extends LitElement {
       >
         ${this._renderMapModal()} ${this._renderCustomModal()}
         <div
-          class="sheet editor ${this._mapOpen || this._customOpen ? 'behind' : ''}"
+          class="sheet editor ${d.readOnly ? 'ro' : ''} ${this._mapOpen || this._customOpen
+            ? 'behind'
+            : ''}"
           style="--accent:${accent}"
           @click=${(e: Event) => e.stopPropagation()}
           @touchstart=${(e: TouchEvent) => this._onDragStart(e)}
@@ -5040,14 +5073,19 @@ export class SimpleScheduleCard extends LitElement {
           @touchend=${(e: TouchEvent) => this._onDragEnd(e)}
           @touchcancel=${(e: TouchEvent) => this._onDragEnd(e)}
         >
+          <div class="ed-title-row">
           <input
             class="ed-title"
             .value=${d.summary}
             placeholder=${d.isNew ? 'New event' : 'Title'}
             aria-label="Title"
+            ?readonly=${d.readOnly}
+            tabindex=${d.readOnly ? '-1' : '0'}
             @input=${(e: Event) =>
               this._patchDraft({ summary: (e.target as HTMLInputElement).value })}
           />
+          ${d.readOnly ? html`<div class="ed-lock">Locked</div>` : nothing}
+          </div>
 
           <div class="ed-group">
             <label class="ed-row">
@@ -5055,6 +5093,8 @@ export class SimpleScheduleCard extends LitElement {
               <input
                 type="checkbox"
                 class="ed-check"
+                tabindex=${d.readOnly ? '-1' : '0'}
+                ?disabled=${d.readOnly}
                 .checked=${d.allDay}
                 @change=${(e: Event) =>
                   this._setAllDay((e.target as HTMLInputElement).checked)}
@@ -5064,7 +5104,7 @@ export class SimpleScheduleCard extends LitElement {
             ${this._renderPickerRow('Ends', 'endDate', 'endTime')}
           </div>
 
-          ${d.recurring
+          ${d.recurring && !d.readOnly
             ? html`
                 <div class="ed-group">
                   <div class="ed-head">Applies to</div>
@@ -5262,22 +5302,25 @@ export class SimpleScheduleCard extends LitElement {
             <button class="ed-btn" ?disabled=${this._busy} @click=${() => this._closeEditor()}>
               Cancel
             </button>
-            <button
-              class="ed-btn primary"
-              ?disabled=${this._busy}
-              @click=${() => void this._saveDraft()}
-            >
-              <!-- Silent during a delete: that button is doing the talking,
-                   and two buttons announcing different jobs at once is one
-                   of them lying. -->
-              ${this._busy && !this._confirmDelete
-                ? d.isNew
-                  ? 'Adding…'
-                  : 'Saving…'
-                : d.isNew
-                  ? 'Add'
-                  : 'Save'}
-            </button>
+            <!-- No Save on a read-only event: there is nothing it could save. -->
+            ${d.readOnly
+              ? nothing
+              : html`<button
+                  class="ed-btn primary"
+                  ?disabled=${this._busy}
+                  @click=${() => void this._saveDraft()}
+                >
+                  <!-- Silent during a delete: that button is doing the talking,
+                       and two buttons announcing different jobs at once is one
+                       of them lying. -->
+                  ${this._busy && !this._confirmDelete
+                    ? d.isNew
+                      ? 'Adding…'
+                      : 'Saving…'
+                    : d.isNew
+                      ? 'Add'
+                      : 'Save'}
+                </button>`}
           </div>
         </div>
       </div>
@@ -7546,6 +7589,29 @@ export class SimpleScheduleCard extends LitElement {
       letter-spacing: -0.3px;
       padding: 2px 0 10px;
       outline: none;
+      /* A flex item now (.ed-title-row). An input will not shrink below its
+         default size otherwise, and the Locked badge would push out of the sheet. */
+      min-width: 0;
+    }
+    /* The title and, on a read-only event, the Locked badge. A flex row so the badge
+       is centred on the title's TEXT by layout, not by a pixel offset: an input's
+       height differs between browsers, so a fixed top sat level in Chrome and down
+       on the underline in Safari. */
+    .ed-title-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    /* Read-only: the underline moves from the input to the row, so it runs under the
+       badge too, and the input drops its padding so its box IS the text line - which
+       is what align-items then centres the badge on. */
+    .sheet.editor.ro .ed-title-row {
+      padding: 2px 0 10px;
+      border-bottom: 1px solid var(--ssc-line-strong);
+    }
+    .sheet.editor.ro .ed-title {
+      padding: 0;
+      border-bottom: none;
     }
     .ed-title:focus {
       border-bottom-color: var(--accent);
@@ -8608,6 +8674,38 @@ export class SimpleScheduleCard extends LitElement {
       width: 20px;
       height: 20px;
       accent-color: var(--accent);
+    }
+    /* A read-only event (read_only_uid_prefix): the same form, but nothing in it
+       reacts. The title and the chips take pointer-events rather than disabled, so
+       their text does not turn grey - the values ARE the information here. The
+       all-day box is the exception and IS disabled: it sits inside a <label>, and a
+       tap anywhere on the row toggles it through the label whatever its own
+       pointer-events say. The draft refused the change, but the box drew itself
+       ticked anyway, which read as editable. */
+    .sheet.editor.ro .ed-title,
+    .sheet.editor.ro .ed-chip {
+      pointer-events: none;
+    }
+    /* Visibly off. Browsers barely dim a disabled checkbox on their own - Chrome
+       measured near-identical - so it still looked tickable. */
+    .sheet.editor.ro .ed-check {
+      opacity: 0.35;
+    }
+    .ed-disclose.static {
+      cursor: default;
+    }
+    /* Says WHY nothing on the form reacts. The red of Delete, as a tinted badge at the
+       right end of the title row (see .ed-title-row) - square, like everything else. */
+    .ed-lock {
+      flex: 0 0 auto;
+      padding: 4px 10px;
+      border: 1px solid rgba(255, 71, 51, 0.6);
+      background: rgba(255, 71, 51, 0.16);
+      color: rgba(255, 71, 51, 1);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 20px;
+      pointer-events: none;
     }
     .ed-row.scope {
       cursor: pointer;

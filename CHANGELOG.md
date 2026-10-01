@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-10-02
+
+A school timetable can now come straight from **Bakalari**, and the card knows to leave it alone.
+
+### Added
+
+- **`read_only_uid_prefix`.** Events whose uid starts with it open read-only in edit mode: every
+  field locked, no Save, a red **Locked** badge beside the title, and Delete the only action.
+  Meant for events another system owns and keeps in step. Keyed on the uid because it is the one
+  marker that reaches the card and that nobody can see or edit - Google's hidden
+  extended properties are dropped by Home Assistant on the way.
+- **Bakalari -> Google Calendar mirror** (`bakalari/bakalari_sync.py`, run hourly by
+  `pyscript/bakalari_sync.py`). Mirrors a pupil's timetable from a school's Bakalari API into the
+  Google calendar the card already shows: lessons exactly as Bakalari has them (split lessons
+  included), titles in plain ASCII, cancelled lessons removed. Mirrored lessons cannot be edited -
+  a change made anywhere is put back on the next run - and a deleted one never comes back.
+  Events the family adds by hand are never touched. Credentials come from the environment only;
+  settings live in the `pyscript:` block. A state-machine test ships alongside
+  (`bakalari/test_bakalari_sync.py`).
+
+## [3.1.1] - 2026-09-15
+
+### Fixed
+
+- The compact month grid reaches the card's edges on a phone. `.narrow` set its inset as a
+  literal 13px against an 18px `--ssc-pad`, so the month's bleed overshot by 5px a side and had
+  been switched off on phones altogether.
+
 ## [3.1.0] - 2026-09-15
 
 The month grid reaches the **phone**, and the month mode shipped in 3.0.0 gets the pass of

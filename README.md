@@ -111,6 +111,7 @@ time_format: '24'
 | `layout` | `auto` \| `grid` \| `list` | `auto` | `auto` picks by the card's own measured width. |
 | `layout_breakpoint` | number | `560` | Width in px below which `auto` uses the list. |
 | `event_colors` | map | `{}` | Colour by event title, e.g. `Lunch: '#f4c542'`. Matched case-insensitively on the whole summary. An explicit override that beats everything, including the colour helper. |
+| `read_only_uid_prefix` | string | `''` | Events whose uid starts with this open read-only in edit mode: every field locked, no Save, Delete the only action. For events another system owns and keeps in step, such as the Bakalari timetable mirror (`bakalari`). Off when empty. |
 | `min_contrast` | number | `4.5` | Minimum contrast between a block's fill and its white label; lighter fills are darkened until they pass. `3.5` for a brighter grid, `0` to use Google's palette untouched. |
 | `color_helper` | boolean \| string | `true` | Use the per-event colours published by the pyscript helper. `false` ignores it; a string points at a different path. |
 
