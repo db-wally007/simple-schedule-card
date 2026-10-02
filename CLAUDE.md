@@ -20,6 +20,8 @@ src/data/week.ts             week windows, the time axis, event parsing
 src/data/lanes.ts            column assignment
 src/data/colors.ts           per-calendar colour resolution
 src/data/calendar-source.ts  the WebSocket subscription
+src/data/drum.ts             the time drum's physics (throw, decay, rubber band, cylinder)
+src/drum.ts                  the time drum itself: one column of the iOS-style picker
 tests/                       vitest over the four pure modules
 dist/simple-schedule-card.js the built bundle. COMMITTED on purpose (HACS installs it).
 ```
@@ -964,18 +966,32 @@ Both open inline under the row, one at a time, the way iOS does it.
 
 Things worth keeping right if they are touched:
 
-- A wheel is positioned by `scrollTop`, which means nothing until the column exists and has a
-  height. `_wheelsPending` defers it to the `updated()` after the render.
-- The selection is read back on a DEBOUNCED `scroll`, not on `scrollend` — Safari only learned
-  that event recently and this has to work on the family's phones now.
-- `.wheel-pad` at both ends is what lets the first and last values reach the centre band.
-- **A drum built for a thumb is unusable with a mouse** unless it is given the two things a mouse
-  expects. Clicking a row scrolls to it, and one notch of the wheel is one row over whichever
-  column is hovered — hours if the pointer is over hours, minutes if it is over minutes. Both go
-  through `_spinWheel`, which only scrolls the column; the debounced `scroll` handler is still the
-  single path to the draft, so there is one place where a row becomes a value however it was
-  chosen. The `wheel` handler must `preventDefault` or the scroll runs on into the sheet and the
-  dashboard behind it.
+- **The time drum is NOT a scroll container, and must not go back to being one.** It was two
+  native scroll-snap columns and failed twice. On the touch tablet the sheet's rubber-band handler
+  (`_onDragMove`) measured the SHEET, found nowhere to go, and cancelled the touch - so a drag on
+  the drum stretched the sheet and the numbers never moved. And where it did scroll, it slid
+  linearly and stopped dead. It is now `src/drum.ts` (a `Drum` per column, kept in `_drums`)
+  over the pure physics in `src/data/drum.ts`, pinned in `tests/drum.spec.ts`.
+- The drum owns its gesture outright: `touch-action: none` on `.wheel-col`, pointer capture, and
+  `_onDragStart` ignores any touch that starts inside `.wheel`. Its state is one number, `offset`,
+  written straight to the rows' transforms every frame - never through Lit.
+- Motion: a flick coasts and decelerates EXPONENTIALLY into a row (`KINETIC_TIME_MS` 325, gain
+  0.8 - the classic iOS-style kinetic constants); a slow release, a tap, a wheel notch or an arrow
+  key glides (`GLIDE_TIME_MS`); a drag past either end rubber-bands with iOS's formula and bounces
+  back. Measured on a flick: 0.96 -> 0.61 -> 0.24 -> 0.07 px/ms at 50/200/500/900ms, landing
+  exactly on a row. A touch on a SPINNING drum only stops it - it does not also pick the row under
+  the finger.
+- Looks: every row is drawn on a cylinder (`cylinder()`): squashed and faded towards the rim, the
+  selected row full strength. Rows sit absolutely on the centre line and start `visibility:
+  hidden` - otherwise all of them show stacked there for the frame before the drum's first paint.
+  A tap uses `rowAt()`, the inverse, because near the rim a row is not drawn where a flat list
+  would put it.
+- Mouse: one notch (deltaMode lines, or |deltaY| >= 50) is one row, retargeted from where a move
+  in flight is HEADING so a quick spin adds up; a trackpad's small-delta stream is followed pixel
+  by pixel and settles once it pauses. The `wheel` listener is non-passive and must
+  `preventDefault`, or the sheet and the dashboard scroll along.
+- ONE path to the draft: `onSettle` -> `_commitWheel`, once the drum is at rest on a row, however
+  it got there. The column carries its `data-kind`/`data-field`, read at settle time.
 - Moving the start carries the end with it (`_patchStart`), preserving the duration. Picking a
   start after the end is the easiest mistake in a form like this, and an error message afterwards
   is a worse answer than the behaviour every calendar app already has.

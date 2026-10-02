@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing, type PropertyValues, type TemplateResul
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { CalendarSubscriptions } from './data/calendar-source';
+import { Drum } from './drum';
 import {
   DEFAULT_COLOR_HELPER_URL,
   type EventColorMap,
@@ -75,7 +76,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.2.0';
+const CARD_VERSION = '3.3.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -866,8 +867,8 @@ export class SimpleScheduleCard extends LitElement {
       for (const a of this._staleAnims) a.cancel();
       this._staleAnims = [];
     }
-    // A wheel is positioned by scrollTop, which only means anything once the
-    // column exists and has its height. This is the first moment that is true.
+    // A drum can only attach to a column that exists, and this is the first
+    // moment one does.
     if (this._wheelsPending) {
       this._wheelsPending = false;
       this._positionWheels();
@@ -1796,7 +1797,7 @@ export class SimpleScheduleCard extends LitElement {
       const [y, m] = value.split('-').map(Number);
       this._pickerMonth = { y: y || new Date().getFullYear(), m: (m || 1) - 1 };
     }
-    // The wheels are positioned by scrollTop once they exist — see updated().
+    // The drums attach once their columns exist — see updated().
     this._wheelsPending = true;
   }
 
@@ -1965,6 +1966,13 @@ export class SimpleScheduleCard extends LitElement {
   }
 
   private _onDragStart(e: TouchEvent): void {
+    // The time drum owns its gesture (src/drum.ts). Left to this handler, a drag
+    // on it measured the SHEET, found nowhere to go, and cancelled the touch - so
+    // the sheet stretched and the numbers never moved.
+    if ((e.target as Element | null)?.closest?.('.wheel')) {
+      this._rubberFrom = null;
+      return;
+    }
     this._rubberFrom = e.touches.length === 1 ? e.touches[0].clientY : null;
   }
 
@@ -3791,62 +3799,61 @@ export class SimpleScheduleCard extends LitElement {
    * than in a modal on top of a modal.
    * ------------------------------------------------------------------ */
 
-  /** Snap a wheel column to the row nearest its resting position. */
-  private _onWheelScroll(ev: Event, kind: 'hour' | 'minute', field: 'startTime' | 'endTime'): void {
-    const el = ev.currentTarget as HTMLElement;
-    window.clearTimeout(this._wheelTimers[kind]);
-    // Debounced rather than driven by `scrollend`, which Safari only learned
-    // recently and this has to work on the family's phones today.
-    this._wheelTimers[kind] = window.setTimeout(() => {
-      const index = Math.round(el.scrollTop / WHEEL_ITEM_H);
-      const d = this._draft;
-      if (!d) return;
-      const [h, m] = (d[field] || '00:00').split(':').map(Number);
-      const hour = kind === 'hour' ? Math.min(23, Math.max(0, index)) : h;
-      const minute = kind === 'minute' ? Math.min(59, Math.max(0, index)) : m;
-      const p = (n: number) => String(n).padStart(2, '0');
-      const next = `${p(hour)}:${p(minute)}`;
-      if (next === d[field]) return;
-      if (field === 'startTime') this._patchStart({ startTime: next });
-      else this._patchDraft({ endTime: next });
-    }, 140);
-  }
-
-  private _wheelTimers: Record<string, number> = {};
-
-  /** Put every open wheel at its selected row. Called from updated(). */
   /**
-   * Send a drum to one row, which is how a MOUSE drives this thing.
-   *
-   * The wheels were built for a thumb and only ever responded to a drag, which
-   * on a desktop leaves a control you have to fling with a trackpad to set a
-   * time. Both routes below just scroll the column; the existing debounced
-   * scroll handler is what commits the value, so there is one path to the draft
-   * however the row was chosen.
+   * A drum came to rest on a row: the ONE path a time takes from the drum into the
+   * draft, however the row was reached - drag, flick, tap, wheel or key.
    */
-  private _spinWheel(col: HTMLElement, index: number, max: number): void {
-    const to = Math.min(max, Math.max(0, index)) * WHEEL_ITEM_H;
-    col.scrollTo({ top: to, behavior: this._reducedMotion ? 'auto' : 'smooth' });
+  private _commitWheel(kind: 'hour' | 'minute', field: 'startTime' | 'endTime', index: number): void {
+    const d = this._draft;
+    if (!d) return;
+    const [h, m] = (d[field] || '00:00').split(':').map(Number);
+    const hour = kind === 'hour' ? Math.min(23, Math.max(0, index)) : h;
+    const minute = kind === 'minute' ? Math.min(59, Math.max(0, index)) : m;
+    const p = (n: number) => String(n).padStart(2, '0');
+    const next = `${p(hour)}:${p(minute)}`;
+    if (next === d[field]) return;
+    if (field === 'startTime') this._patchStart({ startTime: next });
+    else this._patchDraft({ endTime: next });
   }
 
-  /** One notch of the mouse wheel is one row, over whichever column is hovered. */
-  private _onWheelTick(e: WheelEvent, max: number): void {
-    const dir = Math.sign(e.deltaY);
-    if (!dir) return;
-    // Owned here: without this the scroll runs on and the panel, the sheet or
-    // the dashboard behind it moves as well.
-    e.preventDefault();
-    e.stopPropagation();
-    const col = e.currentTarget as HTMLElement;
-    this._spinWheel(col, Math.round(col.scrollTop / WHEEL_ITEM_H) + dir, max);
-  }
+  /** One drum per column element, for as long as that element lives. */
+  private _drums = new WeakMap<HTMLElement, Drum>();
 
+  /**
+   * Give every open column its drum, or bring an existing one to the draft's value.
+   * Called from updated(), the first moment the columns exist.
+   */
   private _positionWheels(): void {
     const cols = this.renderRoot?.querySelectorAll<HTMLElement>('.wheel-col');
     if (!cols?.length) return;
     for (const col of cols) {
       const index = Number(col.dataset.index ?? 0);
-      col.scrollTop = index * WHEEL_ITEM_H;
+      const existing = this._drums.get(col);
+      if (existing) {
+        existing.sync(index);
+        continue;
+      }
+      this._drums.set(
+        col,
+        new Drum(
+          col,
+          {
+            rowH: WHEEL_ITEM_H,
+            radius: (WHEEL_ITEM_H * WHEEL_ROWS) / 2,
+            max: Number(col.dataset.max),
+            reduced: () => this._reducedMotion,
+            // Read off the element at settle time, so a column can never commit
+            // into a field it was not rendered for.
+            onSettle: (i) =>
+              this._commitWheel(
+                col.dataset.kind as 'hour' | 'minute',
+                col.dataset.field as 'startTime' | 'endTime',
+                i,
+              ),
+          },
+          index,
+        ),
+      );
     }
   }
 
@@ -3863,45 +3870,40 @@ export class SimpleScheduleCard extends LitElement {
       const twelve = n % 12 === 0 ? 12 : n % 12;
       return `${twelve} ${n < 12 ? 'AM' : 'PM'}`;
     };
+    // Every gesture on a column is the drum's (src/drum.ts) - nothing is bound here.
+    // The rows carry no state of their own either: what is selected is wherever the
+    // drum has turned to, drawn by its transforms.
     return html`
       <div class="wheel" style="--wheel-h:${WHEEL_ITEM_H * WHEEL_ROWS}px">
         <div class="wheel-band"></div>
         <div
           class="wheel-col"
+          tabindex="0"
+          role="spinbutton"
+          aria-label="Hour"
+          aria-valuemin="0"
+          aria-valuemax="23"
           data-index=${h}
-          @scroll=${(e: Event) => this._onWheelScroll(e, 'hour', field)}
-          @wheel=${(e: WheelEvent) => this._onWheelTick(e, 23)}
+          data-max="23"
+          data-kind="hour"
+          data-field=${field}
         >
-          <div class="wheel-pad"></div>
-          ${hours.map(
-            (n) => html`<div
-              class="wheel-item ${n === h ? 'sel' : ''}"
-              @click=${(e: Event) =>
-                this._spinWheel((e.currentTarget as HTMLElement).parentElement!, n, 23)}
-            >
-              ${hourLabel(n)}
-            </div>`,
-          )}
-          <div class="wheel-pad"></div>
+          ${hours.map((n) => html`<div class="wheel-item">${hourLabel(n)}</div>`)}
         </div>
         <div class="wheel-sep">:</div>
         <div
           class="wheel-col"
+          tabindex="0"
+          role="spinbutton"
+          aria-label="Minute"
+          aria-valuemin="0"
+          aria-valuemax="59"
           data-index=${m}
-          @scroll=${(e: Event) => this._onWheelScroll(e, 'minute', field)}
-          @wheel=${(e: WheelEvent) => this._onWheelTick(e, 59)}
+          data-max="59"
+          data-kind="minute"
+          data-field=${field}
         >
-          <div class="wheel-pad"></div>
-          ${minutes.map(
-            (n) => html`<div
-              class="wheel-item ${n === m ? 'sel' : ''}"
-              @click=${(e: Event) =>
-                this._spinWheel((e.currentTarget as HTMLElement).parentElement!, n, 59)}
-            >
-              ${pad(n)}
-            </div>`,
-          )}
-          <div class="wheel-pad"></div>
+          ${minutes.map((n) => html`<div class="wheel-item">${pad(n)}</div>`)}
         </div>
       </div>
     `;
@@ -7851,8 +7853,11 @@ export class SimpleScheduleCard extends LitElement {
     }
 
     /* ---- time drum ----
-       Two scroll-snap columns with a fixed band across the middle. The padding
-       rows are what let the first and last values reach the centre. */
+       Two cylinders with a fixed band across the middle, driven by src/drum.ts.
+       Not scroll containers any more: a native scroll-snap column slid linearly and
+       stopped dead, and on a touch screen the sheet's own drag handling took the
+       gesture off it. Each row sits on the centre line and is moved ONLY by the
+       drum's transform, so nothing lays out while it spins. */
     .wheel {
       position: relative;
       display: flex;
@@ -7873,37 +7878,38 @@ export class SimpleScheduleCard extends LitElement {
     }
     .wheel-col {
       flex: 0 1 120px;
-      overflow-y: scroll;
-      scroll-snap-type: y mandatory;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
+      position: relative;
+      overflow: hidden;
+      /* The drum's gesture, all of it: no browser pan, no zoom, no text selection,
+         and so nothing for the sheet or the page to scroll instead. */
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      cursor: grab;
+      outline: none;
       text-align: center;
     }
-    .wheel-col::-webkit-scrollbar {
-      display: none;
+    .wheel-col.grabbing {
+      cursor: grabbing;
     }
-    .wheel-pad {
-      height: calc(var(--wheel-h) / 2 - 22px);
+    .wheel-col:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--accent);
     }
     .wheel-item {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
       height: 44px;
+      margin-top: -22px;
       line-height: 44px;
-      scroll-snap-align: center;
-      /* A row is a target, not just something to drag past — see _spinWheel. */
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
       font-size: 20px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      opacity: 0.45;
-      transition: opacity 0.15s ease;
-    }
-    .wheel-item:hover {
-      opacity: 0.8;
-    }
-    .wheel-item.sel {
-      opacity: 1;
       font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      /* Hidden until the drum places it. Every row starts on the centre line, so
+         without this they would all show there, stacked, for the first frame. */
+      visibility: hidden;
     }
     .wheel-sep {
       align-self: center;

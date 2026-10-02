@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-10-02
+
+The time drum in the edit form is rebuilt as an iOS-style picker.
+
+### Fixed
+
+- **The time drum did not work on a touch screen.** The edit sheet's own drag handling - the
+  rubber band that keeps the page behind it still - measured the sheet, found it had nowhere to
+  go, and cancelled the touch, so a drag on the drum stretched the sheet and the numbers never
+  moved. The drum now owns its gesture outright (`touch-action: none`, pointer capture), and the
+  sheet leaves any touch that starts on it alone.
+
+### Changed
+
+- **The drum moves like iOS's.** It was a native scroll-snap column that slid at a constant
+  speed and stopped dead. Now a flick coasts and decelerates exponentially into a row, a drag past
+  either end rubber-bands and springs back, a tap glides to the row under the finger, and a touch
+  on a spinning drum stops it. Rows are drawn on a cylinder - squashed and faded towards the rim,
+  the chosen row full strength.
+- A mouse wheel moves one row per notch, a trackpad scrolls smoothly and settles on a row, and
+  the arrow keys step it. The physics lives in `src/data/drum.ts` and is pinned by tests.
+
 ## [3.2.0] - 2026-10-02
 
 A school timetable can now come straight from **Bakalari**, and the card knows to leave it alone.
