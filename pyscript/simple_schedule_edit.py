@@ -430,11 +430,37 @@ async def _repoll(entity_id):
         log.warning(f"simple_schedule_edit: re-poll failed: {err}")
 
 
+async def _respond(impl, **kwargs):
+    """
+    Run one service body and REPORT the outcome: {"ok": true, ...} or
+    {"ok": false, "error": "..."}.
+
+    pyscript catches any exception raised inside a service and only logs it - the
+    caller gets an empty, successful-looking reply. Measured: a call with no
+    arguments raised "entity_id and event_id are both required", and Home
+    Assistant answered HTTP 200. So the card's form never saw a failed save: it
+    waited for a change that was never coming. Every service returns through here
+    instead, and the card reads `ok`.
+    """
+    try:
+        result = await impl(**kwargs)
+    except Exception as err:
+        log.error(f"simple_schedule_edit: {err}")
+        return {"ok": False, "error": str(err)}
+    out = {"ok": True}
+    if isinstance(result, dict):
+        out.update(result)
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Services
+#
+# Each one is a thin public entry point - the description Home Assistant shows,
+# and a call through _respond - over a private body that may raise freely.
 # --------------------------------------------------------------------------- #
 
-@service
+@service(supports_response="optional")
 async def simple_schedule_event_update(
     entity_id=None,
     event_id=None,
@@ -515,6 +541,35 @@ fields:
       select:
         options: ["1","2","3","4","5","6","7","8","9","10","11"]
 """
+    return await _respond(
+        _event_update,
+        entity_id=entity_id,
+        event_id=event_id,
+        scope=scope,
+        summary=summary,
+        start=start,
+        end=end,
+        all_day=all_day,
+        description=description,
+        location=location,
+        rrule=rrule,
+        color_id=color_id,
+    )
+
+
+async def _event_update(
+    entity_id=None,
+    event_id=None,
+    scope=SCOPE_INSTANCE,
+    summary=None,
+    start=None,
+    end=None,
+    all_day=False,
+    description=None,
+    location=None,
+    rrule=None,
+    color_id=None,
+):
     if not entity_id or not event_id:
         raise ValueError("entity_id and event_id are both required")
 
@@ -599,7 +654,7 @@ def _uncapped(recurrence):
     return out
 
 
-@service
+@service(supports_response="optional")
 async def simple_schedule_event_delete(entity_id=None, event_id=None, scope=SCOPE_INSTANCE):
     """yaml
 name: Simple Schedule — delete event
@@ -622,6 +677,10 @@ fields:
       select:
         options: [instance, future, series]
 """
+    return await _respond(_event_delete, entity_id=entity_id, event_id=event_id, scope=scope)
+
+
+async def _event_delete(entity_id=None, event_id=None, scope=SCOPE_INSTANCE):
     if not entity_id or not event_id:
         raise ValueError("entity_id and event_id are both required")
 
@@ -653,7 +712,7 @@ fields:
     return {"id": target, "scope": scope}
 
 
-@service
+@service(supports_response="optional")
 async def simple_schedule_event_create(
     entity_id=None,
     summary=None,
@@ -709,6 +768,31 @@ fields:
       select:
         options: ["1","2","3","4","5","6","7","8","9","10","11"]
 """
+    return await _respond(
+        _event_create,
+        entity_id=entity_id,
+        summary=summary,
+        start=start,
+        end=end,
+        all_day=all_day,
+        description=description,
+        location=location,
+        rrule=rrule,
+        color_id=color_id,
+    )
+
+
+async def _event_create(
+    entity_id=None,
+    summary=None,
+    start=None,
+    end=None,
+    all_day=False,
+    description=None,
+    location=None,
+    rrule=None,
+    color_id=None,
+):
     if not entity_id or not summary or not start or not end:
         raise ValueError("entity_id, summary, start and end are all required")
 
@@ -722,7 +806,7 @@ fields:
     return {"id": result.get("id"), "summary": result.get("summary")}
 
 
-@service
+@service(supports_response="optional")
 async def simple_schedule_event_probe(entity_id=None, event_id=None, path=None):
     """yaml
 name: Simple Schedule — probe event
@@ -740,6 +824,10 @@ fields:
     selector:
       text:
 """
+    return await _respond(_event_probe, entity_id=entity_id, event_id=event_id, path=path)
+
+
+async def _event_probe(entity_id=None, event_id=None, path=None):
     if not entity_id:
         raise ValueError("entity_id is required")
     calendar = await _calendar_id(entity_id)
@@ -757,9 +845,61 @@ fields:
     # question was "where is this event's colour", and a field the list did not
     # mention cannot be ruled out by a probe that never prints it.
     out = dict(event)
-    # Logged as well as returned: a pyscript @service is not registered with
-    # supports_response, so a caller over the REST API cannot read the return
-    # value at all. The log is the only way to see what Google actually said.
+    # Logged as well as returned: a caller over the REST API cannot read a
+    # service's response, and this is a debugging tool first.
     log.warning(f"simple_schedule_edit: probe {event_id} -> {out}")
     return out
+
+
+@service(supports_response="optional")
+async def simple_schedule_edit_check():
+    """yaml
+name: Simple Schedule — check the edit backend
+description: >-
+  Confirms the edit services can still do their job, WITHOUT changing anything:
+  the Google integration is set up, its login still works (refreshing the token
+  if it has expired), and every Google calendar entity is still a calendar the
+  account can see. Returns ok, or the reason it cannot. Run it on a schedule from
+  a script, so a revoked login or a removed calendar shows up BEFORE somebody
+  tries to save an edit.
+"""
+    return await _respond(_edit_check)
+
+
+async def _edit_check():
+    # One authenticated call proves the credentials, the token refresh and the
+    # network path together, and its answer is the list to check against.
+    listing = await _api("GET", "/users/me/calendarList", params={"maxResults": "250"})
+    visible = set()
+    for item in listing.get("items", []):
+        visible.add(item.get("id"))
+
+    entry = await _google_entry()
+    prefix = (entry or {}).get("unique_id") or ""
+    if not prefix:
+        raise ValueError("the Google config entry has no account id")
+
+    # ONE pass over the registry, not a _calendar_id() per entity: each of those
+    # walks the whole registry again, and pyscript loops are expensive.
+    checked = 0
+    missing = []
+    for ent in _read_json(ENTITY_REGISTRY)["data"]["entities"]:
+        if ent.get("platform") != "google" or ent.get("disabled_by"):
+            continue
+        if not str(ent.get("entity_id", "")).startswith("calendar."):
+            continue
+        unique = ent.get("unique_id") or ""
+        # Another Google account's calendar: not this backend's to edit.
+        if not unique.startswith(prefix + "-"):
+            continue
+        checked += 1
+        if unique[len(prefix) + 1:] not in visible:
+            missing.append(ent.get("entity_id"))
+    if not checked:
+        raise ValueError("no Google calendar entities found")
+    if missing:
+        raise ValueError(
+            "no longer visible to the Google account: " + ", ".join(missing)
+        )
+    return {"calendars": checked}
 

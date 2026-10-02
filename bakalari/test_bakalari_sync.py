@@ -239,6 +239,15 @@ try:
 except bs.SyncError:
     check("16 Bakalari outage raises and the calendar is untouched", G.events == snapshot)
 
+os.environ.pop("BAKALARI_PASSWORD")
+try:
+    run()
+    check("18 missing credentials is a FAILURE, not a quiet skip", False)
+except bs.SyncError as err:
+    # By the reason, not just the type: the outage stub above raises SyncError too.
+    check("18 missing credentials is a FAILURE, not a quiet skip", "not set" in str(err))
+os.environ["BAKALARI_PASSWORD"] = "pass"
+
 check("17 an event the sync did not create is never touched",
       G.events["lunch"] == {"id": "lunch", "etag": "L", "status": "confirmed",
                             "summary": "Lunch"})

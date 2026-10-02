@@ -40,8 +40,9 @@ written to disk. Google: the Google integration's own OAuth token from .storage,
 refreshed in memory only, as pyscript/simple_schedule_edit.py does - no second login.
 
 Exit status: 0 with a JSON summary as the LAST stdout line (the runner parses it), 1
-on an error. Missing credentials is not an error: it exits 0 with "skipped", so the
-hourly run stays quiet until they are configured.
+on an error with the reason on stderr. Missing credentials IS an error: a sync that
+cannot run has failed, and the monitoring has to see it - a quiet skip is exactly
+how a lost credential would go unnoticed for weeks.
 """
 
 import argparse
@@ -385,7 +386,7 @@ def run(dry_run):
     username = os.environ.get("BAKALARI_USERNAME")
     password = os.environ.get("BAKALARI_PASSWORD")
     if not username or not password:
-        return {"skipped": "BAKALARI_USERNAME / BAKALARI_PASSWORD not set"}
+        raise SyncError("BAKALARI_USERNAME / BAKALARI_PASSWORD are not set in the environment")
 
     now = datetime.datetime.now(TIMEZONE)
     this_monday = now.date() - datetime.timedelta(days=now.weekday())

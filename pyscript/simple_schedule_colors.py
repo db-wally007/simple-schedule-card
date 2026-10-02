@@ -66,8 +66,26 @@ Configuration (all optional), under `pyscript:` in configuration.yaml:
         "5": "#e7ba51"
       simple_schedule_colors_sync_calendars: false   # stop touching the registry
                                                      # (colour AND name)
+      simple_schedule_colors_schedule: false   # no built-in timer - see below
 
-Exposes `pyscript.simple_schedule_colors_sync` to refresh on demand.
+Exposes `pyscript.simple_schedule_colors_sync` to refresh on demand. It RETURNS the
+outcome - {"ok": true, ...} or {"ok": false, "error": "..."} - because pyscript
+catches any exception raised inside a service and only logs it; a caller never
+sees one. Every problem a run meets (Google unreachable, a store that cannot be
+read, NO events found - which is what a Home Assistant upgrade changing the store
+layout looks like) fails the run, with all the reasons in `error`.
+
+Monitoring: by default the helper schedules itself (at startup and every 15
+minutes), and that leaves no run history anywhere. To have failures seen, set
+`simple_schedule_colors_schedule: false` and run it from a Home Assistant SCRIPT
+on an automation's schedule, stopping the script with an error when `ok` is false:
+
+    - action: pyscript.simple_schedule_colors_sync
+      response_variable: colours
+    - if: "{{ not (colours is mapping and colours.ok | default(false)) }}"
+      then:
+        - stop: Colour sync failed
+          error: true
 """
 
 import glob
@@ -107,6 +125,14 @@ _RUNNING = False
 # entity_id -> the Google summary we have already reloaded for, so a rename that
 # never converges cannot put the config entry into a reload loop.
 _NAME_RELOAD_TRIED = {}
+# Every problem met by the run in flight. Each one fails the run; see _problem.
+_PROBLEMS = []
+
+
+def _problem(message):
+    """Log a problem AND fail the run with it - a warning alone reaches no one."""
+    log.warning(f"simple_schedule_colors: {message}")
+    _PROBLEMS.append(message)
 
 
 # pyscript sandboxes builtins.open (it does not write), so all file I/O here is
@@ -170,11 +196,12 @@ def _fetch_palettes():
     """
     service = _google_service()
     if service is None:
+        _problem("the Google integration is not loaded")
         return {}, {}
     try:
         colors = service.async_get_colors()
     except Exception as err:  # noqa: BLE001
-        log.warning(f"simple_schedule_colors: could not fetch colour palette: {err}")
+        _problem(f"could not fetch Google's colour palette: {err}")
         return {}, {}
     events = {k: v.background for k, v in (colors.event or {}).items() if v.background}
     calendars = {k: v.background for k, v in (colors.calendar or {}).items() if v.background}
@@ -251,11 +278,15 @@ def _extract(data, palette, by_uid, by_recurrence_id):
 
 
 def _sync():
+    """One run. Returns {"ok": ..., "error"?: ..., counts} - see the module docstring."""
     global _RUNNING
     if _RUNNING:
+        # Not a failure: the run in flight will report for both.
         log.warning("simple_schedule_colors: previous sync still running, skipping")
-        return None
+        return {"ok": True, "skipped": "previous sync still running"}
     _RUNNING = True
+    # clear(), not a rebinding: pyscript would need a `global` for that.
+    _PROBLEMS.clear()
     try:
         started = time.monotonic()
         event_palette_google, calendar_palette = _fetch_palettes()
@@ -269,7 +300,7 @@ def _sync():
         try:
             _, reload_entries = _sync_calendar_meta(calendar_palette)
         except Exception as err:  # noqa: BLE001 - event colours must still publish
-            log.warning(f"simple_schedule_colors: calendar metadata sync failed: {err}")
+            _problem(f"calendar metadata sync failed: {err}")
 
         # Prefer Home Assistant's IN-MEMORY store. LocalCalendarStore buffers
         # writes to disk for STORAGE_SAVE_DELAY_SECONDS (120s), so the file on
@@ -285,7 +316,7 @@ def _sync():
             try:
                 data = store.async_load()
             except Exception as err:  # noqa: BLE001
-                log.warning(f"simple_schedule_colors: in-memory store unreadable: {err}")
+                _problem(f"in-memory store unreadable: {err}")
                 continue
             stores += 1
             seen += _extract(data, palette, by_uid, by_recurrence_id)
@@ -294,7 +325,7 @@ def _sync():
             for path in task.executor(glob.glob, STORAGE_GLOB):
                 store_file = _read_json(path)
                 if store_file is None:
-                    log.warning(f"simple_schedule_colors: could not read {path}")
+                    _problem(f"could not read {path}")
                     continue
                 stores += 1
                 seen += _extract(store_file.get("data"), palette, by_uid, by_recurrence_id)
@@ -321,14 +352,21 @@ def _sync():
             try:
                 hass.config_entries.async_reload(entry_id)
             except Exception as err:  # noqa: BLE001
-                log.warning(f"simple_schedule_colors: entry reload failed: {err}")
+                _problem(f"entry reload failed: {err}")
 
-        if not seen:
-            log.warning(
-                "simple_schedule_colors: no events found. The google store layout may "
-                "have changed on a Home Assistant upgrade; see _extract()."
+        if not stores:
+            _problem("no Google calendar store found")
+        elif not seen:
+            # The one that matters most: the card silently loses every colour.
+            _problem(
+                "no events found - the google store layout may have changed on a "
+                "Home Assistant upgrade; see _extract()"
             )
-        return elapsed_ms
+        result = {"ok": not _PROBLEMS, "events_seen": seen, "stores": stores,
+                  "elapsed_ms": elapsed_ms}
+        if _PROBLEMS:
+            result["error"] = "; ".join(_PROBLEMS)
+        return result
     finally:
         _RUNNING = False
 
@@ -422,7 +460,7 @@ def _sync_calendar_meta(calendar_palette):
         try:
             listing = service.async_list_calendars()
         except Exception as err:  # noqa: BLE001 - never break the colour publish
-            log.warning(f"simple_schedule_colors: could not list calendars: {err}")
+            _problem(f"could not list calendars: {err}")
             continue
 
         # unique_id is "<account>-<calendar_id>", so the calendar id is a suffix.
@@ -471,16 +509,31 @@ def _sync_calendar_meta(calendar_palette):
     return updated, reload_entries
 
 
-@service
+def _run():
+    """_sync, with anything it raised turned into a failed result."""
+    try:
+        return _sync()
+    except Exception as err:  # noqa: BLE001 - a raise here would only reach the log
+        log.error(f"simple_schedule_colors: sync failed: {err}")
+        return {"ok": False, "error": f"sync failed: {err}"}
+
+
+@service(supports_response="optional")
 def simple_schedule_colors_sync():
-    """Rebuild the per-event colour map now."""
-    _sync()
+    """Rebuild the per-event colour map now. Returns ok, and the counts or the error."""
+    return _run()
+
+
+def _scheduled():
+    """The built-in schedule, unless a Home Assistant automation has taken it over."""
+    return _cfg("schedule", True) is not False
 
 
 @time_trigger("startup")
 def simple_schedule_colors_startup():
     """Publish once at startup so the card has colours on the first paint."""
-    _sync()
+    if _scheduled():
+        _run()
 
 
 # Every 15 minutes, matching the google coordinator's own sync interval -- the
@@ -489,4 +542,5 @@ def simple_schedule_colors_startup():
 # _RUNNING guard is belt and braces.
 @time_trigger("cron(*/15 * * * *)")
 def simple_schedule_colors_tick():
-    _sync()
+    if _scheduled():
+        _run()

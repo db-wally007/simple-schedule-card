@@ -4,6 +4,38 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.0] - 2026-10-02
+
+Every pyscript helper can now be monitored, and a failed save finally says so.
+
+### Fixed
+
+- **A save the backend failed looked like one that worked.** pyscript catches any exception
+  raised inside a service and only logs it, so Home Assistant answered a failed call with an
+  ordinary success - measured: a call that raised "entity_id and event_id are both required"
+  came back HTTP 200. The form waited for a change that was never coming. Every edit service now
+  RETURNS `{ok, error}` and the form shows the error. A new card still works with an older
+  backend, which gives no reply.
+
+### Added
+
+- **Monitoring for every helper.** Each pyscript action returns `{"ok": true, ...}` or
+  `{"ok": false, "error": "..."}`, so a Home Assistant script can stop with `error: true` and
+  record a failed run - see "Monitoring it" in the README.
+- **`pyscript.simple_schedule_edit_check`** - changes nothing; confirms the edit backend's
+  Google login still works and every Google calendar is still reachable, so a revoked login
+  shows up before somebody tries to save.
+- **`simple_schedule_colors_schedule: false`** turns off the colour helper's built-in timer, for
+  running it from a script instead. The colour helper now fails a run on any problem it meets,
+  including **no events found** - what a Home Assistant upgrade changing the Google store looks
+  like, and which used to cost the card every colour without a word.
+
+### Changed
+
+- **The Bakalari mirror has no built-in schedule.** Run `pyscript.bakalari_sync_run` from a
+  script on an automation, so its failures are recorded. Missing credentials now FAIL the run
+  instead of skipping it quietly - a sync that cannot run must not look fine.
+
 ## [3.3.0] - 2026-10-02
 
 The time drum in the edit form is rebuilt as an iOS-style picker.

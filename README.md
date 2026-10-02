@@ -483,6 +483,27 @@ Optional. Requires [pyscript](https://github.com/custom-components/pyscript).
    startup and every 15 minutes — the same interval the Google integration itself syncs on,
    so nothing is gained by going faster.
 
+**Monitoring it.** pyscript keeps no run history and only logs a failure, so a helper that
+schedules itself fails silently. The action therefore returns its outcome —
+`{"ok": true, ...}` or `{"ok": false, "error": "..."}`, where a failure includes **no events
+found**, which is what a Home Assistant upgrade changing the Google store looks like. To have
+failures recorded, set `simple_schedule_colors_schedule: false` and run it from a script on an
+automation's schedule, stopping the script with an error when `ok` is false:
+
+```yaml
+- action: pyscript.simple_schedule_colors_sync
+  response_variable: colours
+- if: "{{ not (colours is mapping and colours.ok | default(false)) }}"
+  then:
+    - stop: Colour sync failed
+      error: true
+```
+
+The edit helper has the same contract — every action returns `ok` and the card shows `error`
+in the form — and adds `pyscript.simple_schedule_edit_check`, which changes nothing and
+confirms the Google login still works and every Google calendar is still reachable. Run it
+the same way, hourly, so a revoked login shows up before somebody tries to save.
+
 It also keeps each **calendar's** own colour and **name** in step with Google. Home Assistant
 copies both once, when the calendar entity is first registered, and never looks again — so
 recolouring or renaming a calendar in Google otherwise has no effect. The helper lists the

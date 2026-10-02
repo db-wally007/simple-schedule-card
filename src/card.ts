@@ -76,7 +76,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.3.0';
+const CARD_VERSION = '3.4.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -1850,16 +1850,24 @@ export class SimpleScheduleCard extends LitElement {
   /**
    * Call one of the pyscript services and report what came back.
    *
-   * pyscript raises on failure and Home Assistant turns that into a rejected
-   * call, so an error here is the real reason rather than a guess. It is shown
-   * in the form instead of being thrown away, because the alternative is a Save
-   * button that silently does nothing.
+   * The services RETURN their outcome, {ok, error}, and this reads it. They used
+   * to raise and this caught the rejection - except no rejection ever came:
+   * pyscript catches an exception inside a service and only logs it, so Home
+   * Assistant answers a failed call with an ordinary success. Measured: a call
+   * that raised "entity_id and event_id are both required" came back HTTP 200.
+   * A save Google refused looked exactly like one that worked, and the form sat
+   * waiting for a change that was never coming. The error is shown in the form,
+   * because the alternative is a Save button that silently does nothing.
    */
   private async _callEdit(service: string, data: Record<string, unknown>): Promise<boolean> {
     this._busy = true;
     this._editError = null;
     try {
-      await this.hass.callService('pyscript', service, data);
+      const reply = await this._callForReply(service, data);
+      if (reply && reply.ok === false) {
+        this._editError = String(reply.error ?? 'The change could not be saved.').slice(0, 300);
+        return false;
+      }
       return true;
     } catch (err) {
       const message = (err as { message?: string })?.message ?? String(err);
@@ -1869,6 +1877,36 @@ export class SimpleScheduleCard extends LitElement {
     // _busy is NOT cleared here. The write landing is not the end of the job —
     // the week still has to catch up with it — and dropping the flag in between
     // would flick the button back to Save for a frame. The callers own it.
+  }
+
+  /**
+   * A pyscript service's reply, or null from a backend too old to give one.
+   *
+   * The pyscript files are installed separately from the card, so a new card can
+   * meet an old backend - whose services are registered without responses, and
+   * Home Assistant refuses a call that asks one of those for a reply. That one
+   * refusal falls back to the plain call, which can only ever report success:
+   * exactly what the old backend gave before.
+   */
+  private async _callForReply(
+    service: string,
+    data: Record<string, unknown>,
+  ): Promise<{ ok?: boolean; error?: string } | null> {
+    try {
+      const res = await this.hass.callWS({
+        type: 'call_service',
+        domain: 'pyscript',
+        service,
+        service_data: data,
+        return_response: true,
+      });
+      return (res?.response as { ok?: boolean; error?: string } | undefined) ?? null;
+    } catch (err) {
+      const message = (err as { message?: string })?.message ?? String(err);
+      if (!/response/i.test(message)) throw err;
+      await this.hass.callService('pyscript', service, data);
+      return null;
+    }
   }
 
   /** The scope to send: meaningless for a one-off, so pinned to the occurrence. */

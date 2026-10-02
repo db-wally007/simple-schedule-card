@@ -312,6 +312,17 @@ Colour is in the fingerprint, so a colour-only edit is noticed too — but the c
 a helper republishes, so `colourChanged` also has to re-run the helper inside the loop. Without
 that the loop has nothing to see and times out.
 
+**pyscript SWALLOWS exceptions raised inside a service** - it logs them and the call returns
+an ordinary success. Measured (pyscript 2.1.0): `simple_schedule_event_delete` with no
+arguments raised "entity_id and event_id are both required" and Home Assistant answered
+HTTP 200. `_callEdit` used to rely on the rejection, so a save Google refused looked exactly
+like one that worked. Every service in `pyscript/` is now
+`@service(supports_response="optional")` and RETURNS `{ok, error}` - the edit services via
+`_respond()` over a private body that may raise freely - and `_callForReply` reads it, falling
+back to a plain call only when an OLD backend refuses to give a reply. Never go back to
+relying on an exception reaching the card. The same `ok` is what lets a Home Assistant script
+stop with `error: true`, which is how these helpers are monitored (README, "Monitoring it").
+
 `_callEdit` deliberately does NOT clear `_busy`; the callers own it, because the write landing is
 not the end of the job and dropping the flag in between flicks the button back to Save for a
 frame.

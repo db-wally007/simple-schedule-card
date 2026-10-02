@@ -1389,7 +1389,7 @@ var ss = Object.defineProperty, ns = Object.getOwnPropertyDescriptor, y = (e, t,
     (o = e[a]) && (n = (s ? o(t, i, n) : o(n)) || n);
   return s && n && ss(t, i, n), n;
 };
-const as = "3.3.0", k = {
+const as = "3.4.0", k = {
   days: "auto",
   day_start: "07:00",
   day_end: "15:00",
@@ -2089,18 +2089,47 @@ let b = class extends Q {
   /**
    * Call one of the pyscript services and report what came back.
    *
-   * pyscript raises on failure and Home Assistant turns that into a rejected
-   * call, so an error here is the real reason rather than a guess. It is shown
-   * in the form instead of being thrown away, because the alternative is a Save
-   * button that silently does nothing.
+   * The services RETURN their outcome, {ok, error}, and this reads it. They used
+   * to raise and this caught the rejection - except no rejection ever came:
+   * pyscript catches an exception inside a service and only logs it, so Home
+   * Assistant answers a failed call with an ordinary success. Measured: a call
+   * that raised "entity_id and event_id are both required" came back HTTP 200.
+   * A save Google refused looked exactly like one that worked, and the form sat
+   * waiting for a change that was never coming. The error is shown in the form,
+   * because the alternative is a Save button that silently does nothing.
    */
   async _callEdit(e, t) {
     this._busy = !0, this._editError = null;
     try {
-      return await this.hass.callService("pyscript", e, t), !0;
+      const i = await this._callForReply(e, t);
+      return i && i.ok === !1 ? (this._editError = String(i.error ?? "The change could not be saved.").slice(0, 300), !1) : !0;
     } catch (i) {
       const s = i?.message ?? String(i);
       return this._editError = s.replace(/^[\s\S]*ValueError:\s*/, "").slice(0, 300), !1;
+    }
+  }
+  /**
+   * A pyscript service's reply, or null from a backend too old to give one.
+   *
+   * The pyscript files are installed separately from the card, so a new card can
+   * meet an old backend - whose services are registered without responses, and
+   * Home Assistant refuses a call that asks one of those for a reply. That one
+   * refusal falls back to the plain call, which can only ever report success:
+   * exactly what the old backend gave before.
+   */
+  async _callForReply(e, t) {
+    try {
+      return (await this.hass.callWS({
+        type: "call_service",
+        domain: "pyscript",
+        service: e,
+        service_data: t,
+        return_response: !0
+      }))?.response ?? null;
+    } catch (i) {
+      const s = i?.message ?? String(i);
+      if (!/response/i.test(s)) throw i;
+      return await this.hass.callService("pyscript", e, t), null;
     }
   }
   /** The scope to send: meaningless for a one-off, so pinned to the occurrence. */
