@@ -193,7 +193,16 @@ hyphen, because an address may contain one and a wrong split edits the wrong cal
 Recurring scope is the part that matters for a timetable:
 
 - `instance` PATCHes the occurrence's own id (`<master>_<utc stamp>`).
-- `series` PATCHes the master.
+- `series` PATCHes the master - but NEVER with the opened occurrence's own date (`_patch_series`).
+  The card sends the occurrence's start/end on every save, and PATCHing them straight onto the
+  master made the series BEGIN on that occurrence: on 2026-10-07 a title change saved from the
+  fourth Wednesday of a weekly "Gymnastics" series deleted the first three. `_series_times`
+  applies only the DELTA the user made to the occurrence's times (a rename moves nothing; 18:00
+  -> 17:30 shifts every occurrence and keeps the first date). An occurrence that is already an
+  exception gets the non-time fields too, or it visibly keeps its old title; a plain occurrence
+  is left alone, because patching it would detach it. Verified live, exact sequence: instance
+  edit on week 4, then series rename from week 4 -> start unchanged, weeks 1-3 intact, week 4
+  renamed; a later time shift moved the exception along with the rest.
 - `future` has no Google operation behind it. What Google's own UI does, and what this does, is
   cap the existing series with an `UNTIL` one second before the occurrence — and for an edit,
   start a NEW series from it carrying every field the edit did not mention. So a future-scoped

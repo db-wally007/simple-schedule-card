@@ -1389,7 +1389,7 @@ var ss = Object.defineProperty, ns = Object.getOwnPropertyDescriptor, y = (e, t,
     (o = e[a]) && (n = (s ? o(t, i, n) : o(n)) || n);
   return s && n && ss(t, i, n), n;
 };
-const as = "3.4.0", k = {
+const as = "3.4.1", k = {
   days: "auto",
   day_start: "07:00",
   day_end: "15:00",

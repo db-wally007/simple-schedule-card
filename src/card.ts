@@ -76,7 +76,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.4.0';
+const CARD_VERSION = '3.4.1';
 
 const DEFAULTS = {
   days: 'auto' as const,

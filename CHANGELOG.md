@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-10-07
+
+### Fixed
+
+- **"All events" moved the whole series to the occurrence it was saved from.** The card sends
+  the opened occurrence's date and time with every save, and the backend wrote them straight
+  onto the series - so the series then BEGAN on that occurrence, and every earlier one vanished.
+  A title change saved from the fourth week of a weekly series deleted the first three. Now only
+  what the user actually changed is applied: a rename leaves the series' dates alone, and a time
+  change (18:00 to 17:30) shifts every occurrence while the series keeps its first date. An
+  occurrence that was edited on its own earlier follows the change too, instead of keeping its
+  old title.
+
 ## [3.4.0] - 2026-10-02
 
 Every pyscript helper can now be monitored, and a failed save finally says so.

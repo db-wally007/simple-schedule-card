@@ -583,15 +583,123 @@ async def _event_update(
 
     if scope == SCOPE_FUTURE:
         result = await _split_series(calendar, event_id, body)
+    elif scope == SCOPE_SERIES:
+        result = await _patch_series(calendar, event_id, body)
     else:
-        target = _master_id(event_id) if scope == SCOPE_SERIES else event_id
         result = await _api(
-            "PATCH", f"/calendars/{quoted}/events/{urllib.parse.quote(target)}", body
+            "PATCH", f"/calendars/{quoted}/events/{urllib.parse.quote(event_id)}", body
         )
 
     await _repoll(entity_id)
     log.info(f"simple_schedule_edit: updated {event_id} on {entity_id} ({scope})")
     return {"id": result.get("id"), "summary": result.get("summary"), "scope": scope}
+
+
+def _wall(when):
+    """A Google start/end as (wall-clock datetime or date, is_all_day)."""
+    if when.get("date"):
+        return datetime.date.fromisoformat(when["date"]), True
+    # Google writes dateTime with the offset of the event's own zone, so dropping
+    # the offset leaves the wall-clock time - which is what an edit form shows.
+    parsed = datetime.datetime.fromisoformat(str(when["dateTime"]).replace("Z", "+00:00"))
+    return parsed.replace(tzinfo=None), False
+
+
+def _google_time(value, zone):
+    if isinstance(value, datetime.datetime):
+        return {"dateTime": value.isoformat(), "timeZone": zone}
+    return {"date": value.isoformat()}
+
+
+def _series_times(master, instance, times):
+    """
+    The master's new start/end for an "All events" save made from `instance`.
+
+    Only the CHANGE the user made to the occurrence's times is carried over: a save
+    that leaves the times alone leaves the series' dates exactly where they were,
+    and 18:00 -> 17:30 moves every occurrence by -30 minutes. Switching all-day on
+    or off keeps the series' first DATE and takes the form's time of day.
+    """
+    new_start, new_all_day = _wall(times.get("start") or instance["start"])
+    new_end, _ = _wall(times.get("end") or instance["end"])
+    was_start, was_all_day = _wall(instance["start"])
+    base, base_all_day = _wall(master["start"])
+    zone = (
+        master["start"].get("timeZone")
+        or instance["start"].get("timeZone")
+        or hass.config.time_zone
+    )
+    span = new_end - new_start
+    if new_all_day == was_all_day == base_all_day:
+        start = base + (new_start - was_start)
+    else:
+        first = base if base_all_day else base.date()
+        start = first if new_all_day else datetime.datetime.combine(first, new_start.time())
+    return {"start": _google_time(start, zone), "end": _google_time(start + span, zone)}
+
+
+def _same(a, b):
+    """Field equality for Google, where an absent text field and "" are the same."""
+    return (a or None) == (b or None)
+
+
+async def _patch_series(calendar, event_id, body):
+    """
+    "All events": change the SERIES - without moving where it begins.
+
+    The card sends the date and time of the occurrence it opened on every save, and
+    those used to be PATCHed straight onto the master. That made the series BEGIN
+    on that occurrence: a title change saved from the fourth week deleted the first
+    three. It happened on 2026-10-07 - a weekly "Gymnastics" series lost three
+    Wednesdays to a rename. Times now go through _series_times, which applies only
+    what the user changed.
+
+    The occurrence itself is brought in line too when it is an EXCEPTION (edited on
+    its own earlier): Google keeps an exception's overridden fields through a
+    series change, so the one occurrence on screen would visibly not change. A
+    plain occurrence already inherits from the master and is left alone - patching
+    it would detach it.
+    """
+    quoted = urllib.parse.quote(calendar)
+    master_id = _master_id(event_id)
+    times = {}
+    rest = {}
+    for key, value in body.items():
+        if key in ("start", "end"):
+            times[key] = value
+        else:
+            rest[key] = value
+
+    patch = dict(rest)
+    if times:
+        if master_id == event_id:
+            # Opened on the series itself: its own times ARE the series' times.
+            patch.update(times)
+        else:
+            instance = await _api(
+                "GET", f"/calendars/{quoted}/events/{urllib.parse.quote(event_id)}"
+            )
+            master = await _series_master(calendar, master_id)
+            patch.update(_series_times(master, instance, times))
+
+    result = await _api(
+        "PATCH", f"/calendars/{quoted}/events/{urllib.parse.quote(master_id)}", patch
+    )
+
+    if master_id != event_id:
+        current = await _api(
+            "GET", f"/calendars/{quoted}/events/{urllib.parse.quote(event_id)}"
+        )
+        stale = {}
+        for key, value in rest.items():
+            # An occurrence cannot carry a rule of its own.
+            if key != "recurrence" and not _same(current.get(key), value):
+                stale[key] = value
+        if stale:
+            await _api(
+                "PATCH", f"/calendars/{quoted}/events/{urllib.parse.quote(event_id)}", stale
+            )
+    return result
 
 
 async def _split_series(calendar, event_id, body):
