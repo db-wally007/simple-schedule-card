@@ -76,7 +76,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.5.0';
+const CARD_VERSION = '3.5.1';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -220,6 +220,49 @@ type PickerField = 'startDate' | 'startTime' | 'endDate' | 'endTime' | 'untilDat
 /** Row height of a wheel column, and how many rows show at once. Both in px. */
 const WHEEL_ITEM_H = 44;
 const WHEEL_ROWS = 5;
+
+/**
+ * Home Assistant's navigation, mirrored, so the back chevron knows whether there is
+ * a page of the app behind this one.
+ *
+ * The chevron used to push its configured `back` path every time, so a calendar
+ * reached from an alert's link went "back" to Home instead of to the alert - and
+ * pushing also left the calendar sitting in the browser's history behind that.
+ * Back is now history.back() whenever the previous entry is one of the app's own
+ * pages, and the `back` path only when there is none: opened directly, a reload, a
+ * link that started the app on this page.
+ *
+ * The browser will not say what is behind it, so this keeps its own trail from the
+ * moment the module loads - once per page load, at module level, because the card
+ * on the page being left is gone by the time the next one could ask. Home Assistant
+ * and the cards on it navigate with pushState plus a "location-changed" event
+ * (replace in its detail for a replace); the browser's own back and forward arrive
+ * as "popstate". Entries are PATHS: a view rewriting its own query string - the
+ * alerts card does, silently - is still the same page to come back to.
+ */
+const navTrail = { stack: [location.pathname], at: 0 };
+window.addEventListener('location-changed', (e) => {
+  const now = location.pathname;
+  // Already where the trail says - a popstate handled first, or a re-announcement.
+  if (now === navTrail.stack[navTrail.at]) return;
+  if ((e as CustomEvent<{ replace?: boolean }>).detail?.replace) {
+    navTrail.stack[navTrail.at] = now;
+    return;
+  }
+  navTrail.stack.splice(navTrail.at + 1);
+  navTrail.stack.push(now);
+  navTrail.at += 1;
+});
+window.addEventListener('popstate', () => {
+  const now = location.pathname;
+  if (navTrail.stack[navTrail.at - 1] === now) navTrail.at -= 1;
+  else if (navTrail.stack[navTrail.at + 1] === now) navTrail.at += 1;
+  else if (now !== navTrail.stack[navTrail.at]) {
+    // Somewhere the trail never saw: start again from here rather than guess.
+    navTrail.stack = [now];
+    navTrail.at = 0;
+  }
+});
 
 /** The edit form's values, split into the fields the inputs actually bind to. */
 interface EventDraft {
@@ -1155,8 +1198,16 @@ export class SimpleScheduleCard extends LitElement {
     this._stickyIo.observe(sentinel);
   }
 
-  /** back: the same navigation Home Assistant's own links and page-switcher-card do. */
+  /**
+   * back: a REAL back to the page the user came from when that was a page of the
+   * app (see navTrail), so a calendar opened from an alert returns to the alert.
+   * The configured path is the fallback for when nothing is behind this page.
+   */
   private _goBack(): void {
+    if (navTrail.at > 0) {
+      history.back();
+      return;
+    }
     const path = this._config?.back;
     if (!path) return;
     history.pushState(null, '', path);

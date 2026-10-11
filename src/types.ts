@@ -149,9 +149,11 @@ export interface SimpleScheduleCardConfig {
    */
   read_only_uid_prefix?: string;
   /**
-   * Phone layout only: a navigation path. Draws a back chevron at the start of the
-   * header row that goes there - for a card that is a page of its own. It belongs
-   * to the header, so it stays pinned with it while the page scrolls.
+   * Phone layout only: draws a back chevron at the start of the header row, for a
+   * card that is a page of its own. It goes BACK to whatever page of the app the
+   * user came from - an alert's link, Home, a room - and to this path only when
+   * nothing is behind the page (opened directly, or after a reload). It belongs to
+   * the header, so it stays pinned with it while the page scrolls.
    */
   back?: string;
   /**

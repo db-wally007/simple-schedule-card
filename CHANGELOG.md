@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2026-10-11
+
+### Fixed
+
+- **The back chevron went to its configured page, not back.** A calendar opened from an alert's
+  link went "back" to Home instead of to the alert - and because it navigated forward to get
+  there, the browser's own Back then landed on the calendar again. It is now a real back to
+  whichever page of the app the user came from; the `back` path is only the fallback for when
+  nothing is behind the page (opened directly, or after a reload). The card keeps a small trail
+  of the app's own navigation to tell the two apart, since a browser will not say what is behind
+  the current page.
+
 ## [3.5.0] - 2026-10-11
 
 The phone header, redesigned around a page you can scroll.
