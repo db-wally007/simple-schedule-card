@@ -149,6 +149,12 @@ export interface SimpleScheduleCardConfig {
    */
   read_only_uid_prefix?: string;
   /**
+   * Phone layout only: a navigation path. Draws a back chevron at the start of the
+   * header row that goes there - for a card that is a page of its own. It belongs
+   * to the header, so it stays pinned with it while the page scrolls.
+   */
+  back?: string;
+  /**
    * Minimum contrast ratio between a block's fill and its white label. Fills
    * lighter than this are darkened until they pass. 4.5 is WCAG AA for body
    * text; lower it (3.5 is still readable) for a brighter grid, or set 0 to use

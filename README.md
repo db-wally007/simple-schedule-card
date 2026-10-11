@@ -112,6 +112,7 @@ time_format: '24'
 | `layout_breakpoint` | number | `560` | Width in px below which `auto` uses the list. |
 | `event_colors` | map | `{}` | Colour by event title, e.g. `Lunch: '#f4c542'`. Matched case-insensitively on the whole summary. An explicit override that beats everything, including the colour helper. |
 | `read_only_uid_prefix` | string | `''` | Events whose uid starts with this open read-only in edit mode: every field locked, no Save, Delete the only action. For events another system owns and keeps in step, such as the Bakalari timetable mirror (`bakalari`). Off when empty. |
+| `back` | string | `''` | Phone layout only: a navigation path. Draws a back chevron at the start of the header that goes there — for a card that is a page of its own. It stays pinned with the header (on a phone the header always pins to the top as the page scrolls, turning to frosted glass once content is beneath it). |
 | `min_contrast` | number | `4.5` | Minimum contrast between a block's fill and its white label; lighter fills are darkened until they pass. `3.5` for a brighter grid, `0` to use Google's palette untouched. |
 | `color_helper` | boolean \| string | `true` | Use the per-event colours published by the pyscript helper. `false` ignores it; a string points at a different path. |
 

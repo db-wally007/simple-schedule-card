@@ -76,7 +76,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.4.1';
+const CARD_VERSION = '3.5.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -93,6 +93,7 @@ const DEFAULTS = {
   time_format: 'auto' as const,
   min_contrast: 4.5,
   read_only_uid_prefix: '' as string,
+  back: '' as string,
   show_refresh: true,
   show_mode_toggles: true,
   mode_toggle_icons: 'crop' as const,
@@ -800,6 +801,9 @@ export class SimpleScheduleCard extends LitElement {
 
   public connectedCallback(): void {
     super.connectedCallback();
+    // Re-attached without a render (a cached view coming back): no updated() will
+    // run to arm the glass observer, so arm it here.
+    if (this.hasUpdated) this._watchSticky();
     // Nothing on screen tracks the clock any more; this only has to notice the
     // date rolling over so the week window follows it.
     this._tick = setInterval(() => {
@@ -840,6 +844,11 @@ export class SimpleScheduleCard extends LitElement {
 
   public disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._stickyIo?.disconnect();
+    this._stickyIo = undefined;
+    // Forgotten, so a card that is reattached (Home Assistant caches views) arms a
+    // fresh observer on its sentinel instead of believing the old one still runs.
+    this._stickySentinel = undefined;
     if (this._tick) clearInterval(this._tick);
     this._tick = undefined;
     if (this._spinTimer) clearTimeout(this._spinTimer);
@@ -873,6 +882,7 @@ export class SimpleScheduleCard extends LitElement {
       this._wheelsPending = false;
       this._positionWheels();
     }
+    this._watchSticky();
     this._animatePicker();
     this._flipPlay();
     // NOT on a bare hass update. Home Assistant sets `hass` on every state
@@ -1116,6 +1126,43 @@ export class SimpleScheduleCard extends LitElement {
   }
 
   /** Build the form from an event. */
+  /** The phone's pinned header has content under it, so it is drawn as glass. */
+  @state() private _glassy = false;
+  private _stickyIo?: IntersectionObserver;
+  private _stickySentinel?: Element;
+
+  /**
+   * The pinned header turns to glass once content is under it - iOS's scroll-edge
+   * look, by the same mechanism page-switcher-card uses: a 1px sentinel sits where
+   * the header starts, and the header is glassy whenever the sentinel has scrolled
+   * out of view. An observer rather than a scroll listener, so it fires once per
+   * crossing instead of on every frame of a scroll. Called from updated(); only
+   * re-arms when the sentinel itself was added, removed or replaced.
+   */
+  private _watchSticky(): void {
+    const sentinel = this.renderRoot?.querySelector('.sticky-sentinel') ?? undefined;
+    if (sentinel === this._stickySentinel) return;
+    this._stickyIo?.disconnect();
+    this._stickyIo = undefined;
+    this._stickySentinel = sentinel;
+    if (!sentinel) {
+      this._glassy = false;
+      return;
+    }
+    this._stickyIo = new IntersectionObserver(([entry]) => {
+      this._glassy = !entry.isIntersecting;
+    });
+    this._stickyIo.observe(sentinel);
+  }
+
+  /** back: the same navigation Home Assistant's own links and page-switcher-card do. */
+  private _goBack(): void {
+    const path = this._config?.back;
+    if (!path) return;
+    history.pushState(null, '', path);
+    window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
+  }
+
   /** Owned by another system - see read_only_uid_prefix. */
   private _isReadOnly(ev: ScheduleEvent): boolean {
     const prefix = this._config?.read_only_uid_prefix ?? DEFAULTS.read_only_uid_prefix;
@@ -2593,12 +2640,10 @@ export class SimpleScheduleCard extends LitElement {
     return html`
       <ha-card>
         <div
-          class="panel ${list ? 'narrow' : ''} ${this._reducedMotion ? 'reduce' : ''} ${this
-            ._flash
-            ? this._flashOut
-              ? 'flash-out'
-              : 'flash'
-            : ''}"
+          class="panel ${list ? 'narrow' : ''} ${this
+            ._reducedMotion
+            ? 'reduce'
+            : ''} ${this._flash ? (this._flashOut ? 'flash-out' : 'flash') : ''}"
           style=${this._hostWidth > 0 ? `--ssc-w:${this._hostWidth}px` : nothing}
         >
           ${this._renderHead(w.days)}
@@ -2788,27 +2833,36 @@ export class SimpleScheduleCard extends LitElement {
         ${range}<span class="pill">${this._weekLabel}</span>
       </div>
     `;
+    // Both only in edit mode, and both in the same breath: the pill says the card
+    // is armed, and the + is the one thing that mode offers which pressing the grid
+    // cannot reach on a phone, where the list layout has no timeline to press.
+    // Beside the calendar name on a wide card; at the right end of the nav row on
+    // a phone, where the name is centred and anything beside it pushes it off.
+    const editBits = this._editMode
+      ? html`
+          <span class="pill edit-pill">Edit Mode</span>
+          <button
+            class="pill add-pill"
+            aria-label="Add event"
+            title="Add event"
+            @click=${() => this._openCreator(this._nowSlot)}
+          >
+            <ha-icon icon="mdi:plus"></ha-icon>
+          </button>
+        `
+      : nothing;
+    const back = list ? (cfg.back ?? DEFAULTS.back) : '';
     return html`
-      <div class="head ${this._sheetOpen ? 'dimmed' : ''}">
+      ${list ? html`<div class="sticky-sentinel"></div>` : nothing}
+      <div class="head ${this._sheetOpen ? 'dimmed' : ''} ${this._glassy ? 'glassy' : ''}">
         <div class="titles">
-          ${this._renderPicker()}
-          <!-- Both only in edit mode, and both in the same breath: the pill says
-               the card is armed, and the + is the one thing that mode offers
-               which pressing the grid cannot reach on a phone, where the list
-               layout has no timeline to press. -->
-          ${this._editMode
-            ? html`
-                <span class="pill edit-pill">Edit Mode</span>
-                <button
-                  class="pill add-pill"
-                  aria-label="Add event"
-                  title="Add event"
-                  @click=${() => this._openCreator(this._nowSlot)}
-                >
-                  <ha-icon icon="mdi:plus"></ha-icon>
-                </button>
-              `
+          ${back
+            ? html`<button class="back-btn" aria-label="Back" @click=${() => this._goBack()}>
+                <ha-icon icon="mdi:chevron-left"></ha-icon>
+              </button>`
             : nothing}
+          ${this._renderPicker()}
+          ${list ? nothing : editBits}
         </div>
         <!-- MONTH MODE ONLY. There the period is the answer to "which month am
              I in", it changes under you as you page, and at 15px under the
@@ -2849,6 +2903,7 @@ export class SimpleScheduleCard extends LitElement {
             <ha-icon icon="mdi:chevron-right"></ha-icon>
           </button>
           ${(cfg.show_refresh ?? DEFAULTS.show_refresh) ? this._renderToolsMenu() : nothing}
+          ${list && this._editMode ? html`<div class="edit-tools">${editBits}</div>` : nothing}
           </div>
           ${monthRangeHome === 'right' ? rangeBlock : nothing}
         </div>
@@ -5522,7 +5577,10 @@ export class SimpleScheduleCard extends LitElement {
       background: var(--ha-card-background, var(--card-background-color, #1c1c1e));
       border-radius: 0;
       color: var(--ssc-fg);
-      overflow: hidden;
+      /* clip, not hidden. Both clip the same, but hidden also makes the card a
+         SCROLL CONTAINER, and a sticky header pins to the nearest one - a box that
+         never scrolls - so the phone header silently stopped pinning. */
+      overflow: clip;
       position: relative;
     }
     .panel {
@@ -5627,11 +5685,14 @@ export class SimpleScheduleCard extends LitElement {
          and cost the compact month its bleed altogether. Keep the two spellings
          of the inset as ONE number or the bug comes straight back. */
       --ssc-pad: 13px;
-      padding: var(--ssc-pad) var(--ssc-pad) 14px;
+      /* No top padding: the pinned header carries the top inset itself. */
+      padding: 0 var(--ssc-pad) 14px;
       /* The list's week animation is a 34% slide. Without this it becomes
          page-wide overflow and the phone grows a scrollbar along the bottom
-         every time the week changes. */
-      overflow-x: hidden;
+         every time the week changes. clip rather than hidden, for the same reason
+         as ha-card: hidden would make this a scroll container and unpin the
+         sticky header. */
+      overflow-x: clip;
     }
     /* The phone header WRAPS: the calendar name takes the first row and the
        week nav sits under it. On one row, four 44px buttons leave about 69px
@@ -5644,23 +5705,113 @@ export class SimpleScheduleCard extends LitElement {
          margin, so the block moves down without the header growing. */
       margin-bottom: 6px;
     }
+    /* The calendar name is LEFT-aligned on a phone, like everything under it - the
+       nav row, the month's name, the list. Centring it was built twice and
+       rejected twice: on the whole card and on the space beside a back button, a
+       centred name lines up with nothing else in the header and reads as floating.
+       With back set, the chevron starts the row and the name follows it, as one
+       "back, then title" unit.
+       Edit mode's pill and + live in the nav row instead (.edit-tools), out of the
+       title row.
+       The calendar list is NOT positioned with a transform: a box that is
+       transformed, clips its content and fades in and out stops repainting its
+       text in Safari after a few openings - the names went blank. It opens from
+       the name's left edge, at least as wide as the button. */
     .narrow .titles {
       flex: 1 1 100%;
+    }
+    /* back: a plain white chevron in a 46px target. Pulled 3px left so the arrow
+       is centred exactly over the nav row's first arrow below it, and the right
+       margin sets 28px from the arrow's TIP to the avatar, measured - the glyph
+       sits in the middle of its 46px box, so the box edges say nothing about
+       the visible gap. Settled by eye: 17px read as crowded, 36px as two
+       separate things, 30px still a touch wide. */
+    .back-btn {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      margin: 0 -3.6px 0 -3px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: var(--ssc-fg);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .back-btn ha-icon {
+      --mdc-icon-size: 38px;
+    }
+    /* The phone header PINS to the top and the page scrolls under it - always, in
+       every phone shape; it was an option and the option was taken out. This is
+       page-switcher-card's iOS bar rebuilt, so the two read as one family: same
+       top inset (clear of the status bar), same glass. It is transparent at rest
+       and turns to glass only once content is under it (.glassy, from the
+       sentinel - see _watchSticky).
+       This is the card's ONE backdrop-filter, and it is deliberate: blur was
+       taken out everywhere else as a performance hog on the low-end wall tablet,
+       but this is phone-only - the tablet layout never pins.
+       The header carries the card's top inset itself (.narrow has no top
+       padding), so its glass reaches the top edge. Full-bleed sideways too: the
+       negative margins reach the card's edges so the glass spans the whole width,
+       and the padding puts the content back where it was.
+       z-index 5: above the schedule scrolling under it, below the sheet's scrim
+       (10), so an open event still dims the header with everything else. */
+    .narrow .head {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      margin-left: calc(-1 * var(--ssc-pad));
+      margin-right: calc(-1 * var(--ssc-pad));
+      padding: max(13px, calc(env(safe-area-inset-top, 0px) + 6px)) var(--ssc-pad) 10px;
+      border-bottom: 0.5px solid transparent;
+      transition:
+        background 0.25s ease,
+        border-color 0.25s ease,
+        transform 260ms var(--ssc-glide),
+        opacity 260ms var(--ssc-glide);
+    }
+    .narrow .head.glassy {
+      background: color-mix(
+        in srgb,
+        var(--ha-card-background, var(--card-background-color, #1c1c1e)) 72%,
+        transparent
+      );
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-bottom-color: rgba(255, 255, 255, 0.09);
+    }
+    .sticky-sentinel {
+      height: 1px;
+      margin-bottom: -1px;
+    }
+    /* The nav row spans the card so edit mode's pill and + can sit at its right
+       end, opposite the arrows. */
+    .narrow .head-right .tools {
+      align-self: stretch;
+    }
+    .edit-tools {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     /* Left-aligned once wrapped. Right-aligning a full-width second row put
        the week nav on the opposite side of the card from the calendar name it
        belongs to, with a gap between them; under the name it reads as one
        header block. */
     /* The header wraps on a phone, so the buttons and the week range sit UNDER
-       the calendar name rather than beside it. That block is pushed down 12px
-       from the name and left only 8px clear of the schedule below (the shared
-       .head margin is 14px), so it reads as belonging to the week it labels
-       rather than floating between the two. Moving it down without also closing
-       the gap underneath would just make the header taller. */
+       the calendar name rather than beside it. That block sits 5px below the
+       name on top of the row gap - 17px between the two rows, measured - and
+       only 8px clear of the schedule below (the shared .head margin is 14px), so
+       it reads as belonging to the week it labels rather than floating between
+       the two. Settled by eye from 24px between the rows, which read as two
+       headers. */
     .narrow .head-right {
       flex: 1 1 100%;
       align-items: flex-start;
-      margin-top: 12px;
+      margin-top: 5px;
     }
     .narrow .head-right .range {
       justify-content: flex-start;
@@ -5678,8 +5829,12 @@ export class SimpleScheduleCard extends LitElement {
       width: 28px;
       height: 28px;
     }
+    /* On a phone the range carries text only in a MONTH - the week shapes show the
+       pill alone - so this sizes the month's name. It was 13px, the smallest thing
+       in the header, for the one label that says which month the grid is. */
     .narrow .range {
-      font-size: 13px;
+      font-size: 18px;
+      font-weight: 600;
       white-space: nowrap;
     }
     .narrow .pill {

@@ -1257,7 +1257,11 @@ keeps its two-tap confirm: a deleted mirrored lesson never comes back.
   **assert the loaded bundle URL contains the expected version first**. Skipping that check has
   produced falsely passing tests in this config.
 - No `backdrop-filter`. Per-card blur was removed across the whole parent config as a kiosk
-  performance hog.
+  performance hog. ONE deliberate exception: the pinned phone header's glass (phone layout only,
+  always on - it was an opt-in `sticky_header` option and the user had it removed; matches
+  page-switcher-card's iOS bar). The tablet layout never pins, so the kiosk never pays.
+  Sticky needs `ha-card` and `.narrow` on `overflow: clip`, not `hidden` - `hidden` makes them
+  scroll containers and the header silently stops pinning.
 - Animate transform and opacity only, and pair every animated rule with
   `@media (prefers-reduced-motion: reduce)`.
 

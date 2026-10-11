@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.0] - 2026-10-11
+
+The phone header, redesigned around a page you can scroll.
+
+### Added
+
+- **`back`** - a navigation path. On a phone the card draws a back chevron at the start of its
+  header that goes there, for a card that is a page of its own. It belongs to the header, so it
+  stays with it while the page scrolls - a dashboard no longer has to float a separate button
+  over the card's corner.
+
+### Changed
+
+- **The phone header pins to the top** and the page scrolls under it, turning to frosted glass
+  once content is beneath it - the iOS scroll-edge look, matching page-switcher-card. Always on
+  in the phone layout; the tablet layout never pins.
+- The calendar name sits beside the back chevron, left-aligned like everything under it, with
+  the controls row tucked closer beneath it.
+- In edit mode on a phone, the Edit Mode pill and + sit at the right end of the controls row
+  instead of beside the calendar name.
+- A month's name in the phone header is 18px semibold - it was 13px, the smallest thing in the
+  header, for the one label that says which month the grid is.
+
+### Fixed
+
+- The calendar list's names could go blank in Safari after a few openings. The list is no longer
+  positioned with a transform, which Safari stops repainting text inside once the box also clips
+  and fades.
+
 ## [3.4.1] - 2026-10-07
 
 ### Fixed
