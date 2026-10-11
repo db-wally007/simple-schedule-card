@@ -262,7 +262,7 @@ G.elementStyles = [], G.shadowRootOptions = { mode: "open" }, G[Q("elementProper
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const ze = globalThis, Ve = (e) => e, _e = ze.trustedTypes, Ze = _e ? _e.createPolicy("lit-html", { createHTML: (e) => e }) : void 0, Ot = "$lit$", P = `lit$${Math.random().toFixed(9).slice(2)}$`, At = "?" + P, ns = `<${At}>`, W = document, ee = () => W.createComment(""), te = (e) => e === null || typeof e != "object" && typeof e != "function", Fe = Array.isArray, as = (e) => Fe(e) || typeof e?.[Symbol.iterator] == "function", $e = `[ 	
+const ze = globalThis, Ve = (e) => e, _e = ze.trustedTypes, Ze = _e ? _e.createPolicy("lit-html", { createHTML: (e) => e }) : void 0, At = "$lit$", P = `lit$${Math.random().toFixed(9).slice(2)}$`, Ot = "?" + P, ns = `<${Ot}>`, W = document, ee = () => W.createComment(""), te = (e) => e === null || typeof e != "object" && typeof e != "function", Fe = Array.isArray, as = (e) => Fe(e) || typeof e?.[Symbol.iterator] == "function", $e = `[ 	
 \f\r]`, Z = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Qe = /-->/g, Je = />/g, I = RegExp(`>|${$e}(?:([^\\s"'>=/]+)(${$e}*=${$e}*(?:[^ 	
 \f\r"'\`<>=]|("|')|))|$)`, "g"), et = /'/g, tt = /"/g, Ct = /^(?:script|style|textarea|title)$/i, os = (e) => (t, ...s) => ({ _$litType$: e, strings: t, values: s }), d = os(1), X = Symbol.for("lit-noChange"), m = Symbol.for("lit-nothing"), st = /* @__PURE__ */ new WeakMap(), H = W.createTreeWalker(W, 129);
 function Pt(e, t) {
@@ -277,7 +277,7 @@ const rs = (e, t) => {
     let l, c, p = -1, u = 0;
     for (; u < r.length && (o.lastIndex = u, c = o.exec(r), c !== null); ) u = o.lastIndex, o === Z ? c[1] === "!--" ? o = Qe : c[1] !== void 0 ? o = Je : c[2] !== void 0 ? (Ct.test(c[2]) && (n = RegExp("</" + c[2], "g")), o = I) : c[3] !== void 0 && (o = I) : o === I ? c[0] === ">" ? (o = n ?? Z, p = -1) : c[1] === void 0 ? p = -2 : (p = o.lastIndex - c[2].length, l = c[1], o = c[3] === void 0 ? I : c[3] === '"' ? tt : et) : o === tt || o === et ? o = I : o === Qe || o === Je ? o = Z : (o = I, n = void 0);
     const g = o === I && e[h + 1].startsWith("/>") ? " " : "";
-    a += o === Z ? r + ns : p >= 0 ? (i.push(l), r.slice(0, p) + Ot + r.slice(p) + P + g) : r + P + (p === -2 ? h : g);
+    a += o === Z ? r + ns : p >= 0 ? (i.push(l), r.slice(0, p) + At + r.slice(p) + P + g) : r + P + (p === -2 ? h : g);
   }
   return [Pt(e, a + (e[s] || "<?>") + (t === 2 ? "</svg>" : t === 3 ? "</math>" : "")), i];
 };
@@ -293,7 +293,7 @@ class se {
     }
     for (; (n = H.nextNode()) !== null && r.length < h; ) {
       if (n.nodeType === 1) {
-        if (n.hasAttributes()) for (const p of n.getAttributeNames()) if (p.endsWith(Ot)) {
+        if (n.hasAttributes()) for (const p of n.getAttributeNames()) if (p.endsWith(At)) {
           const u = c[o++], g = n.getAttribute(p).split(P), f = /([.?@])?(.*)/.exec(u);
           r.push({ type: 1, index: a, name: f[2], strings: g, ctor: f[1] === "." ? ls : f[1] === "?" ? ds : f[1] === "@" ? cs : ke }), n.removeAttribute(p);
         } else p.startsWith(P) && (r.push({ type: 6, index: a }), n.removeAttribute(p));
@@ -305,7 +305,7 @@ class se {
             n.append(p[u], ee());
           }
         }
-      } else if (n.nodeType === 8) if (n.data === At) r.push({ type: 2, index: a });
+      } else if (n.nodeType === 8) if (n.data === Ot) r.push({ type: 2, index: a });
       else {
         let p = -1;
         for (; (p = n.data.indexOf(P, p + 1)) !== -1; ) r.push({ type: 7, index: a }), p += P.length - 1;
@@ -799,13 +799,13 @@ function rt(e, t) {
   const s = Math.abs(e);
   return Math.sign(e) * (1 - 1 / (s * Es / t + 1)) * t;
 }
-function Os(e, t) {
+function As(e, t) {
   const s = e.filter((o) => t - o.t <= Ms);
   if (s.length < 2) return 0;
   const i = s[0], n = s[s.length - 1], a = n.t - i.t;
   return a > 0 ? (n.y - i.y) / a : 0;
 }
-function As(e, t, s) {
+function Os(e, t, s) {
   const i = e / t;
   if (Math.abs(i) >= Math.PI / 2) return null;
   const n = Math.cos(i), a = Math.max(0, 1 - Math.abs(e) / s);
@@ -881,7 +881,7 @@ class Fs {
         this.animate(this.offset < 0 ? 0 : r, Rs);
         return;
       }
-      const c = -Os(a.samples, n.timeStamp);
+      const c = -As(a.samples, n.timeStamp);
       n.type === "pointerup" && Math.abs(c) >= zs ? this.animate(Ds(this.offset, c, o, r), Nt) : this.glideTo(this.nearest());
     }, this.onWheel = (n) => {
       if (n.preventDefault(), n.stopPropagation(), this.drag) return;
@@ -908,7 +908,7 @@ class Fs {
   paint() {
     const { rowH: t, radius: s, max: i } = this.o, n = Math.ceil(s * Math.PI / 2 / t) + 1, a = this.offset / t, o = Math.max(0, Math.floor(a) - n), h = Math.min(this.items.length - 1, Math.ceil(a) + n), r = /* @__PURE__ */ new Set();
     for (let c = o; c <= h; c++) {
-      const p = As(c * t - this.offset, s, t);
+      const p = Os(c * t - this.offset, s, t);
       if (!p) continue;
       const u = this.items[c];
       u.style.transform = `translateY(${p.y.toFixed(2)}px) scale(${p.scaleX.toFixed(4)}, ${p.scaleY.toFixed(4)})`, u.style.opacity = p.opacity.toFixed(3), u.style.visibility = "visible", r.add(c);
@@ -1314,9 +1314,9 @@ function Js(e, t, s, i, n, a = "Dark") {
   for (let x = g; x <= _; x++)
     if (!(x < 0 || x >= l))
       for (let S = u; S <= f; S++) {
-        const U = (S % l + l) % l, Y = S * R - h, E = x * R - r, O = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
-        c.push({ url: `${O}/World_${a}_Gray_Base/MapServer/tile/${s}/${x}/${U}`, left: Y, top: E }), p.push({
-          url: `${O}/World_${a}_Gray_Reference/MapServer/tile/${s}/${x}/${U}`,
+        const U = (S % l + l) % l, Y = S * R - h, E = x * R - r, A = "https://services.arcgisonline.com/ArcGIS/rest/services/Canvas";
+        c.push({ url: `${A}/World_${a}_Gray_Base/MapServer/tile/${s}/${x}/${U}`, left: Y, top: E }), p.push({
+          url: `${A}/World_${a}_Gray_Reference/MapServer/tile/${s}/${x}/${U}`,
           left: Y,
           top: E
         });
@@ -1389,7 +1389,7 @@ var ni = Object.defineProperty, ai = Object.getOwnPropertyDescriptor, y = (e, t,
     (o = e[a]) && (n = (i ? o(t, s, n) : o(n)) || n);
   return i && n && ni(t, s, n), n;
 };
-const oi = "3.5.1", k = {
+const oi = "3.5.2", k = {
   days: "auto",
   day_start: "07:00",
   day_end: "15:00",
@@ -1450,20 +1450,20 @@ function bi(e) {
   const t = /* @__PURE__ */ new Date(`${e}T00:00`);
   return t.setDate(t.getDate() + 1), z(t).date;
 }
-const vt = 520, xt = 10, ve = 15, Oe = 30, yi = {
+const vt = 520, xt = 10, ve = 15, Ae = 30, yi = {
   1: "first",
   2: "second",
   3: "third",
   4: "fourth",
   [-1]: "last"
-}, wi = 220, _i = 4, vi = 2, Yt = 62, xi = 104, ki = "#ededed", $i = 3, Ti = 18, kt = 12, $t = 1, Ae = 3, Bt = 8, qt = 8, Tt = Bt + qt, Mi = 33, Ei = 18, Mt = 268, A = 8;
+}, wi = 220, _i = 4, vi = 2, Yt = 62, xi = 104, ki = "#ededed", $i = 3, Ti = 18, kt = 12, $t = 1, Oe = 3, Bt = 8, qt = 8, Tt = Bt + qt, Mi = 33, Ei = 18, Mt = 268, O = 8;
 function Di(e) {
   return Math.max(0, Math.floor(e / ve) * ve);
 }
 function fe(e) {
   return { axis: "y", start: e, span: 0, kind: "label", ghost: () => "" };
 }
-const Si = 64, Oi = 20, Ai = 172, Ci = 18, ge = {
+const Si = 64, Ai = 20, Oi = 172, Ci = 18, ge = {
   crop: {
     monthly: "mdi:calendar-month",
     focused: "mdi:crop",
@@ -1730,6 +1730,12 @@ let b = class extends J {
    * out of view. An observer rather than a scroll listener, so it fires once per
    * crossing instead of on every frame of a scroll. Called from updated(); only
    * re-arms when the sentinel itself was added, removed or replaced.
+   *
+   * The sentinel lives OUTSIDE ha-card. The header reaches up through the view's
+   * status-bar padding (see .narrow .head), so its start is above the card, and
+   * ha-card clips: a sentinel inside it was clipped out of view at rest, and an
+   * observer reads a clipped-away target as scrolled away - glass on an unscrolled
+   * page.
    */
   _watchSticky() {
     const e = this.renderRoot?.querySelector(".sticky-sentinel") ?? void 0;
@@ -1801,7 +1807,7 @@ let b = class extends J {
    * name — a calendar chooser inside the sheet would be a second picker
    * answering a question the header has already answered.
    */
-  _openCreator(e, t = Oe) {
+  _openCreator(e, t = Ae) {
     const s = this._active?.entity;
     if (!s) return;
     const i = z(e), n = z(new Date(e.getTime() + t * 6e4));
@@ -1884,17 +1890,17 @@ let b = class extends J {
       s();
       return;
     }
-    const u = r + o + h + c + l + (this._monthTight ? Tt : 0), g = (D) => Math.ceil(u + D * p + (D - 1) * l), f = this._isCompactMonth, _ = f ? Yt : g($t + 1), x = f ? xi : g(Ae + 1), S = Math.max(1, Math.ceil(e.children.length / 7)), U = window.innerHeight - e.getBoundingClientRect().top - Ti;
-    let E = Math.floor(Math.min(x, Math.max(_, U / S))) * S, O = !1;
-    if (Math.abs(E - this._monthGridH) >= S && (this._monthSeen.has(E) && (E = Math.min(...this._monthSeen, E)), this._monthSeen.add(E), this._monthSeen.size > _i && (E = Math.min(...this._monthSeen)), E !== this._monthGridH && (this._monthGridH = E, e.style.setProperty("--mgrid-h", `${E}px`), O = !0)), f) {
-      O ? this._monthLaidOut !== t && this.requestUpdate() : s();
+    const u = r + o + h + c + l + (this._monthTight ? Tt : 0), g = (D) => Math.ceil(u + D * p + (D - 1) * l), f = this._isCompactMonth, _ = f ? Yt : g($t + 1), x = f ? xi : g(Oe + 1), S = Math.max(1, Math.ceil(e.children.length / 7)), U = window.innerHeight - e.getBoundingClientRect().top - Ti;
+    let E = Math.floor(Math.min(x, Math.max(_, U / S))) * S, A = !1;
+    if (Math.abs(E - this._monthGridH) >= S && (this._monthSeen.has(E) && (E = Math.min(...this._monthSeen, E)), this._monthSeen.add(E), this._monthSeen.size > _i && (E = Math.min(...this._monthSeen)), E !== this._monthGridH && (this._monthGridH = E, e.style.setProperty("--mgrid-h", `${E}px`), A = !0)), f) {
+      A ? this._monthLaidOut !== t && this.requestUpdate() : s();
       return;
     }
     const ae = (this._monthGridH || E) / S, oe = (D) => Math.min(
-      Ae + 1,
+      Oe + 1,
       Math.max($t + 1, Math.floor((ae - D + l) / (p + l)))
     ), re = oe(u), he = oe(u - Tt), B = he > re, le = B ? he : re, v = le !== this._monthFit, $ = B !== this._monthTight;
-    $ && (this._monthTight = B), v && (this._monthFit = le), !O && !v && !$ ? this._monthLaidOut !== t && (this._monthLaidOut = t) : this._monthLaidOut !== t && !v && !$ && this.requestUpdate();
+    $ && (this._monthTight = B), v && (this._monthFit = le), !A && !v && !$ ? this._monthLaidOut !== t && (this._monthLaidOut = t) : this._monthLaidOut !== t && !v && !$ && this.requestUpdate();
   }
   /**
    * A tap anywhere in a month cell opens that DAY, never one event.
@@ -1953,7 +1959,7 @@ let b = class extends J {
     if (!t || !s) return;
     const i = s.getBoundingClientRect(), n = t.offsetWidth, a = t.offsetHeight;
     if (!n || !a) return;
-    const o = i.left + e.left, h = i.top + e.top, r = this.getBoundingClientRect(), l = Math.max(A, r.left + A), c = Math.min(window.innerWidth - A, r.right - A) - n, p = Math.max(A, r.top + A), u = Math.min(window.innerHeight - A, r.bottom - A) - a, g = Math.max(l, Math.min(o, c)), f = Math.max(p, Math.min(h, u)), _ = Math.round(e.left + (g - o)), x = Math.round(e.top + (f - h));
+    const o = i.left + e.left, h = i.top + e.top, r = this.getBoundingClientRect(), l = Math.max(O, r.left + O), c = Math.min(window.innerWidth - O, r.right - O) - n, p = Math.max(O, r.top + O), u = Math.min(window.innerHeight - O, r.bottom - O) - a, g = Math.max(l, Math.min(o, c)), f = Math.max(p, Math.min(h, u)), _ = Math.round(e.left + (g - o)), x = Math.round(e.top + (f - h));
     _ === e.left && x === e.top || (this._dayPeek = { ...e, left: _, top: x });
   }
   _closeDayPeek() {
@@ -2070,7 +2076,7 @@ let b = class extends J {
       c <= t && c > n && (n = c), l > t && l < a && (a = l);
     }
     const o = Math.max(Di(t), n), h = a - o;
-    return { from: o, to: o + (h > 0 ? Math.min(Oe, h) : Oe) };
+    return { from: o, to: o + (h > 0 ? Math.min(Ae, h) : Ae) };
   }
   _pressCancel() {
     this._pressTimer && clearTimeout(this._pressTimer), this._pressTimer = void 0, this._pressFrom = null, this._press && (this._press = null), window.removeEventListener("pointermove", this._onPressMove, !0), window.removeEventListener("pointerup", this._onPressEnd, !0), window.removeEventListener("pointercancel", this._onPressEnd, !0), window.removeEventListener("scroll", this._onPressEnd, !0);
@@ -2647,6 +2653,7 @@ let b = class extends J {
       (h) => h.entity === s && h.start < t.end && h.end > t.start
     ), n = i.filter((h) => !h.allDay), a = _s(n, e.day_start ?? k.day_start, e.day_end ?? k.day_end), o = this._mode === "list";
     return d`
+      ${o ? d`<div class="sticky-sentinel"></div>` : m}
       <ha-card>
         <div
           class="panel ${o ? "narrow" : ""} ${this._reducedMotion ? "reduce" : ""} ${this._flash ? this._flashOut ? "flash-out" : "flash" : ""}"
@@ -2795,7 +2802,6 @@ let b = class extends J {
           </button>
         ` : m, r = i ? t.back ?? k.back : "";
     return d`
-      ${i ? d`<div class="sticky-sentinel"></div>` : m}
       <div class="head ${this._sheetOpen ? "dimmed" : ""} ${this._glassy ? "glassy" : ""}">
         <div class="titles">
           ${r ? d`<button class="back-btn" aria-label="Back" @click=${() => this._goBack()}>
@@ -3126,7 +3132,7 @@ let b = class extends J {
           ${e.map((r, l) => {
       const c = C(t, r).sort(
         (x, S) => x.start.getTime() - S.start.getTime()
-      ), p = s ? i : Math.min(i, Ae), u = c.slice(0, c.length > p ? Math.min(i - 1, p) : p), g = c.length - u.length, f = r.getMonth() !== a, _ = Math.floor(l / 7) * ue;
+      ), p = s ? i : Math.min(i, Oe), u = c.slice(0, c.length > p ? Math.min(i - 1, p) : p), g = c.length - u.length, f = r.getMonth() !== a, _ = Math.floor(l / 7) * ue;
       return d`
               <div
                 class="mcell ${f ? "out" : ""} ${N(r, this._now) ? "today" : ""}"
@@ -3167,10 +3173,10 @@ let b = class extends J {
   }
   /** Days down the left, time across the top — the printed-timetable shape. */
   _renderRowsGrid(e, t, s) {
-    const i = this._config, n = i.day_height ?? k.day_height, a = i.hour_width ?? k.hour_width, o = this._calendarMode === "full", h = o ? 0 : s.start, r = o ? 24 * 60 : s.end, l = r - h, c = this._widthMode === "adaptive", p = Math.round(l / 60 * a), u = c ? "%" : "px", g = c ? 100 : p, f = (v) => (v - h) / l * (c ? 100 : p), _ = f(h + hi) - f(h), x = c ? yt / Math.max(1, this._axisPx || p) * 100 : yt, S = e.map((v) => C(t.filter(($) => !$.allDay), v)), U = this._active ? [this._active.entity] : [], Y = pt(S, i.lane_mode ?? k.lane_mode, U), E = Y.columns * n, O = e.map((v) => C(t.filter(($) => $.allDay), v)), ae = [];
+    const i = this._config, n = i.day_height ?? k.day_height, a = i.hour_width ?? k.hour_width, o = this._calendarMode === "full", h = o ? 0 : s.start, r = o ? 24 * 60 : s.end, l = r - h, c = this._widthMode === "adaptive", p = Math.round(l / 60 * a), u = c ? "%" : "px", g = c ? 100 : p, f = (v) => (v - h) / l * (c ? 100 : p), _ = f(h + hi) - f(h), x = c ? yt / Math.max(1, this._axisPx || p) * 100 : yt, S = e.map((v) => C(t.filter(($) => !$.allDay), v)), U = this._active ? [this._active.entity] : [], Y = pt(S, i.lane_mode ?? k.lane_mode, U), E = Y.columns * n, A = e.map((v) => C(t.filter(($) => $.allDay), v)), ae = [];
     for (let v = Math.ceil(h / 60) * 60; v <= r; v += 60) ae.push(v);
-    const oe = Math.max(160, (this._hostWidth || 1e3) - Ai - Ci * 2), re = c ? oe / (l / 60) : a, he = Math.max(1, Math.ceil(Si / re)), B = ae.filter((v, $) => $ % he === 0), le = e.findIndex((v) => N(v, this._now));
-    return this._focusPx = o && !c ? Math.max(0, Math.round((s.start - Oi - h) / l * p)) : 0, d`
+    const oe = Math.max(160, (this._hostWidth || 1e3) - Oi - Ci * 2), re = c ? oe / (l / 60) : a, he = Math.max(1, Math.ceil(Si / re)), B = ae.filter((v, $) => $ % he === 0), le = e.findIndex((v) => N(v, this._now));
+    return this._focusPx = o && !c ? Math.max(0, Math.round((s.start - Ai - h) / l * p)) : 0, d`
       <div
         class="rgrid dir-${this._navDir} ${this._receded ? "dimmed" : ""} ${this._editMode ? "editing" : ""}"
         style="--row-h:${E}px; --lane-h:${n}px"
@@ -3247,7 +3253,7 @@ let b = class extends J {
         (M) => d`<div class="rline" style="left:${f(M)}${u}"></div>`
       )}
                     </div>
-                    ${O[$].map(
+                    ${A[$].map(
         (M) => d`
                         <div
                           class="ev rev"
@@ -4806,6 +4812,11 @@ b.styles = Kt`
       /* The card's own inset. Named because the month grid cancels it to reach
          the card's edges - see .mgrid - and the two must not drift apart. */
       --ssc-pad: 18px;
+      /* The status bar's height on a phone - the same inset Home Assistant pads
+         the view with, so the pinned header can reach up through exactly that. */
+      --ssc-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+      /* The pinned header's sentinel is positioned against the host. */
+      position: relative;
       --ssc-font: system-ui, 'SF Pro Display', 'SF Pro Text', Inter, 'Helvetica Neue', Roboto,
         sans-serif;
       --ssc-fg: var(--primary-text-color, #fff);
@@ -4961,6 +4972,11 @@ b.styles = Kt`
          as ha-card: hidden would make this a scroll container and unpin the
          sticky header. */
       overflow-x: clip;
+      /* Keeps the pinned header's negative top margin (it reaches up through
+         the status bar) on the header. Without it the margin collapses out
+         through this, ha-card and the host - overflow: clip does not stop that,
+         unlike hidden - and drags the whole card up, away from the sentinel. */
+      display: flow-root;
     }
     /* The phone header WRAPS: the calendar name takes the first row and the
        week nav sits under it. On one row, four 44px buttons leave about 69px
@@ -5024,15 +5040,26 @@ b.styles = Kt`
        padding), so its glass reaches the top edge. Full-bleed sideways too: the
        negative margins reach the card's edges so the glass spans the whole width,
        and the padding puts the content back where it was.
+       Upward too, through the status bar. Home Assistant already starts the view
+       below an iPhone's status bar (#view's padding), and the header used to add
+       the status bar AGAIN as its own padding - measured 42px lower than the
+       other views' back chevrons at rest, then jumping 59px up as it pinned. Now
+       it reaches up through the view's padding (--ssc-safe-top), so it stands
+       where it pins, and its glass covers the status bar once content scrolls
+       under it. 23px below the status bar puts the back chevron level with the
+       dashboard's other views (Lights, Thermostats) and page-switcher-card's
+       "top: 24" bar. The part above the card is clipped by ha-card - only ever
+       empty view padding.
        z-index 5: above the schedule scrolling under it, below the sheet's scrim
        (10), so an open event still dims the header with everything else. */
     .narrow .head {
       position: sticky;
       top: 0;
       z-index: 5;
+      margin-top: calc(-1 * var(--ssc-safe-top));
       margin-left: calc(-1 * var(--ssc-pad));
       margin-right: calc(-1 * var(--ssc-pad));
-      padding: max(13px, calc(env(safe-area-inset-top, 0px) + 6px)) var(--ssc-pad) 10px;
+      padding: calc(var(--ssc-safe-top) + 23px) var(--ssc-pad) 10px;
       border-bottom: 0.5px solid transparent;
       transition:
         background 0.25s ease,
@@ -5050,9 +5077,14 @@ b.styles = Kt`
       backdrop-filter: blur(20px) saturate(180%);
       border-bottom-color: rgba(255, 255, 255, 0.09);
     }
+    /* Where the header starts: the top of the status bar, above the card. */
     .sticky-sentinel {
+      position: absolute;
+      top: calc(-1 * var(--ssc-safe-top));
+      left: 0;
+      width: 1px;
       height: 1px;
-      margin-bottom: -1px;
+      pointer-events: none;
     }
     /* The nav row spans the card so edit mode's pill and + can sit at its right
        end, opposite the arrows. */

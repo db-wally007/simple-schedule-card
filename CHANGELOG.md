@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.2] - 2026-10-11
+
+### Fixed
+
+- **The pinned phone header counted an iPhone's status bar twice.** Home Assistant already
+  starts the view below the status bar, and the header added the status bar again as its own
+  padding - so at rest it sat 42px lower than the dashboard's other back chevrons, then jumped
+  59px up as it pinned. It now reaches up through the view's padding instead: it stands exactly
+  where it pins, 23px below the status bar, and its glass covers the status bar once content
+  scrolls under it.
+- The header's glass could switch on before anything was scrolled. Its sentinel now sits outside
+  the card, which clips - and a clipped sentinel reads to the observer as scrolled away.
+
 ## [3.5.1] - 2026-10-11
 
 ### Fixed

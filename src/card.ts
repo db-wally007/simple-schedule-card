@@ -76,7 +76,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.5.1';
+const CARD_VERSION = '3.5.2';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -1181,6 +1181,12 @@ export class SimpleScheduleCard extends LitElement {
    * out of view. An observer rather than a scroll listener, so it fires once per
    * crossing instead of on every frame of a scroll. Called from updated(); only
    * re-arms when the sentinel itself was added, removed or replaced.
+   *
+   * The sentinel lives OUTSIDE ha-card. The header reaches up through the view's
+   * status-bar padding (see .narrow .head), so its start is above the card, and
+   * ha-card clips: a sentinel inside it was clipped out of view at rest, and an
+   * observer reads a clipped-away target as scrolled away - glass on an unscrolled
+   * page.
    */
   private _watchSticky(): void {
     const sentinel = this.renderRoot?.querySelector('.sticky-sentinel') ?? undefined;
@@ -2689,6 +2695,7 @@ export class SimpleScheduleCard extends LitElement {
     const list = this._mode === 'list';
 
     return html`
+      ${list ? html`<div class="sticky-sentinel"></div>` : nothing}
       <ha-card>
         <div
           class="panel ${list ? 'narrow' : ''} ${this
@@ -2904,7 +2911,6 @@ export class SimpleScheduleCard extends LitElement {
       : nothing;
     const back = list ? (cfg.back ?? DEFAULTS.back) : '';
     return html`
-      ${list ? html`<div class="sticky-sentinel"></div>` : nothing}
       <div class="head ${this._sheetOpen ? 'dimmed' : ''} ${this._glassy ? 'glassy' : ''}">
         <div class="titles">
           ${back
@@ -5589,6 +5595,11 @@ export class SimpleScheduleCard extends LitElement {
       /* The card's own inset. Named because the month grid cancels it to reach
          the card's edges - see .mgrid - and the two must not drift apart. */
       --ssc-pad: 18px;
+      /* The status bar's height on a phone - the same inset Home Assistant pads
+         the view with, so the pinned header can reach up through exactly that. */
+      --ssc-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+      /* The pinned header's sentinel is positioned against the host. */
+      position: relative;
       --ssc-font: system-ui, 'SF Pro Display', 'SF Pro Text', Inter, 'Helvetica Neue', Roboto,
         sans-serif;
       --ssc-fg: var(--primary-text-color, #fff);
@@ -5744,6 +5755,11 @@ export class SimpleScheduleCard extends LitElement {
          as ha-card: hidden would make this a scroll container and unpin the
          sticky header. */
       overflow-x: clip;
+      /* Keeps the pinned header's negative top margin (it reaches up through
+         the status bar) on the header. Without it the margin collapses out
+         through this, ha-card and the host - overflow: clip does not stop that,
+         unlike hidden - and drags the whole card up, away from the sentinel. */
+      display: flow-root;
     }
     /* The phone header WRAPS: the calendar name takes the first row and the
        week nav sits under it. On one row, four 44px buttons leave about 69px
@@ -5807,15 +5823,26 @@ export class SimpleScheduleCard extends LitElement {
        padding), so its glass reaches the top edge. Full-bleed sideways too: the
        negative margins reach the card's edges so the glass spans the whole width,
        and the padding puts the content back where it was.
+       Upward too, through the status bar. Home Assistant already starts the view
+       below an iPhone's status bar (#view's padding), and the header used to add
+       the status bar AGAIN as its own padding - measured 42px lower than the
+       other views' back chevrons at rest, then jumping 59px up as it pinned. Now
+       it reaches up through the view's padding (--ssc-safe-top), so it stands
+       where it pins, and its glass covers the status bar once content scrolls
+       under it. 23px below the status bar puts the back chevron level with the
+       dashboard's other views (Lights, Thermostats) and page-switcher-card's
+       "top: 24" bar. The part above the card is clipped by ha-card - only ever
+       empty view padding.
        z-index 5: above the schedule scrolling under it, below the sheet's scrim
        (10), so an open event still dims the header with everything else. */
     .narrow .head {
       position: sticky;
       top: 0;
       z-index: 5;
+      margin-top: calc(-1 * var(--ssc-safe-top));
       margin-left: calc(-1 * var(--ssc-pad));
       margin-right: calc(-1 * var(--ssc-pad));
-      padding: max(13px, calc(env(safe-area-inset-top, 0px) + 6px)) var(--ssc-pad) 10px;
+      padding: calc(var(--ssc-safe-top) + 23px) var(--ssc-pad) 10px;
       border-bottom: 0.5px solid transparent;
       transition:
         background 0.25s ease,
@@ -5833,9 +5860,14 @@ export class SimpleScheduleCard extends LitElement {
       backdrop-filter: blur(20px) saturate(180%);
       border-bottom-color: rgba(255, 255, 255, 0.09);
     }
+    /* Where the header starts: the top of the status bar, above the card. */
     .sticky-sentinel {
+      position: absolute;
+      top: calc(-1 * var(--ssc-safe-top));
+      left: 0;
+      width: 1px;
       height: 1px;
-      margin-bottom: -1px;
+      pointer-events: none;
     }
     /* The nav row spans the card so edit mode's pill and + can sit at its right
        end, opposite the arrows. */

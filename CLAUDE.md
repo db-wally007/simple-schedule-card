@@ -1262,6 +1262,16 @@ keeps its two-tap confirm: a deleted mirrored lesson never comes back.
   page-switcher-card's iOS bar). The tablet layout never pins, so the kiosk never pays.
   Sticky needs `ha-card` and `.narrow` on `overflow: clip`, not `hidden` - `hidden` makes them
   scroll containers and the header silently stops pinning.
+- The pinned header must NOT add the status bar to its own padding: Home Assistant already
+  pads `#view` by the iPhone safe-area inset, so `env(safe-area-inset-top)` in the header counts
+  it twice (42px low at rest, then a 59px jump as it pins). It reaches UP through that padding
+  instead (`--ssc-safe-top`, negative margin + padding), 23px below the status bar = level with
+  the dashboard's Bubble back chevrons. Two traps: `.narrow` must be `display: flow-root` or the
+  negative margin collapses out through `ha-card` (`overflow: clip` is not a BFC) and drags the
+  whole card up; and the glass sentinel sits OUTSIDE `ha-card`, because `ha-card` clips and an
+  IntersectionObserver reads a clipped target as scrolled away. Headless Chromium reports a 0
+  inset, so the bug is invisible there - emulate with CDP
+  `Emulation.setSafeAreaInsetsOverride` (top 59 / 47).
 - Animate transform and opacity only, and pair every animated rule with
   `@media (prefers-reduced-motion: reduce)`.
 
