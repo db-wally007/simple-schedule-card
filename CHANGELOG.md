@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.6.0] - 2026-11-02
+
+### Added
+
+- **Alerts on events.** The edit form ends with an Alert section: any number of alerts on an
+  event, each with how long before it starts (at the start, 5 minutes, 1 hour, 1 day, or any
+  other time on a drum), which events it is for, who gets a push, which dashboards show a
+  banner, and its priority. An event with an alert carries a small bell. Alerts are made by the
+  Alert2 integration through its calendar reminder API (the `db-wally007/hass-alert2` fork) -
+  the card never writes an alert rule itself, and without the integration the section says why
+  and the rest of the card is unaffected. `alerts: false` leaves the section out.
+- **Applies to** for an alert: just this event, every repeat of a series, or **every event with
+  the title** - now and later, compared trimmed and in any case. That last one covers events
+  linked only by name, such as a mirrored timetable where each lesson is its own event; it is
+  shared, and the form says so.
+- **Banner on → Show on: Every page | Home page.** A banner can show on every page of the chosen
+  dashboards, or only on each one's Home page (`/<dashboard>/home`) and not over a pop-up there.
+  The closed list's chip says so ("Tablet · Home page").
+- Read-only events (`read_only_uid_prefix`) keep a live Alert section: the event stays locked,
+  its alerts do not, and Save then saves only them. Deleting an event deletes its own alerts.
+
 ## [3.5.2] - 2026-10-11
 
 ### Fixed

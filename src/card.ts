@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
 import { CalendarSubscriptions } from './data/calendar-source';
 import { Drum } from './drum';
@@ -14,6 +15,30 @@ import {
   resolveColor,
 } from './data/colors';
 import { placeWeek } from './data/lanes';
+import {
+  DEFAULT_OFFSET_MINS,
+  OFFSET_PRESETS,
+  alertingErrorText,
+  alertsSummary,
+  clockOf,
+  deleteReminders,
+  errorMessage,
+  fetchTargets,
+  firstOccurrenceId,
+  hasReminderKey,
+  offsetLabel,
+  reminderKeys,
+  remindersFor,
+  saveReminder,
+  splitOffset,
+  subscribeReminders,
+  uidOf,
+  type AlertTargets,
+  type AlertingStatus,
+  type Reminder,
+  type ReminderMatch,
+  type ReminderPriority,
+} from './data/alerting';
 import {
   describe as describeRepeat,
   matchPreset,
@@ -76,7 +101,7 @@ import type {
  * entity and gets its own colour, and in by_source mode its own column.
  */
 
-const CARD_VERSION = '3.5.2';
+const CARD_VERSION = '3.6.0';
 
 const DEFAULTS = {
   days: 'auto' as const,
@@ -93,6 +118,7 @@ const DEFAULTS = {
   time_format: 'auto' as const,
   min_contrast: 4.5,
   read_only_uid_prefix: '' as string,
+  alerts: true,
   back: '' as string,
   show_refresh: true,
   show_mode_toggles: true,
@@ -214,8 +240,46 @@ const GOOGLE_EVENT_COLORS: Array<[string, string, string]> = [
   ['11', '#dc2127', 'Tomato'],
 ];
 
+/**
+ * An alert's own pickers - its time before, who is pushed to, where a banner shows -
+ * each named after the alert it belongs to (AlertDraft.key).
+ */
+type AlertPickerField = `al-${'off' | 'who' | 'push' | 'ban'}:${string}`;
+
 /** Which field's inline picker is open, if any. */
-type PickerField = 'startDate' | 'startTime' | 'endDate' | 'endTime' | 'untilDate' | null;
+type PickerField =
+  | 'startDate'
+  | 'startTime'
+  | 'endDate'
+  | 'endTime'
+  | 'untilDate'
+  | AlertPickerField
+  | null;
+
+/** One alert on the event, as the form edits it. See src/data/alerting.ts. */
+interface AlertDraft {
+  /** Stable while the form is open: `r<ui_id>` for a saved one, `n<count>` for a new one. */
+  key: string;
+  /** The integration's id for a saved one; null until it is. */
+  uiId: number | null;
+  offsetMins: number;
+  match: ReminderMatch;
+  /**
+   * By title: the title it is for. Null on one not saved yet, which takes the event's
+   * title at save time - so a title typed after choosing it is the one used.
+   */
+  title: string | null;
+  /** "user:<id>" / "user:*", as the Alerts editor's Push to. */
+  push: string[];
+  /** Dashboard url paths, as its Banner on. */
+  banner: string[];
+  /** The banner on those dashboards' Home pages only, as its Home page only. */
+  bannerHome: boolean;
+  priority: ReminderPriority;
+}
+
+/** The colours the alerting cards give the two priorities. */
+const PRIORITY_COLOR: Record<ReminderPriority, string> = { high: '#F85149', low: '#EFC53F' };
 
 /** Row height of a wheel column, and how many rows show at once. Both in px. */
 const WHEEL_ITEM_H = 44;
@@ -311,6 +375,40 @@ interface EventDraft {
    * would be a lie, and saving it would clobber a rule the user never saw.
    */
   canRepeat: boolean;
+  /**
+   * The event as Home Assistant names it to a calendar trigger - what an alert is
+   * tied to. Empty for a new event until it has been made.
+   */
+  uid: string;
+  /** Set for one occurrence of a series. */
+  recurrenceId: string;
+  /** Its alerts. Unlike every field above, these stay editable on a read-only event. */
+  alerts: AlertDraft[];
+  /** The alerts the form opened with (alertsPrint), so a change can be told from a redraw. */
+  alertsWas: string;
+  /** The event's own fields the form opened with (eventPrint) - see _eventMoved. */
+  eventWas: string;
+}
+
+/** What a save would write to the EVENT, as one string. See _eventMoved. */
+function eventPrint(d: EventDraft): string {
+  return JSON.stringify([
+    d.summary,
+    d.startDate,
+    d.startTime,
+    d.endDate,
+    d.endTime,
+    d.allDay,
+    d.location,
+    d.description,
+    d.colorId,
+    d.repeat,
+  ]);
+}
+
+/** The alerts as a save compares them. */
+function alertsPrint(alerts: AlertDraft[]): string {
+  return JSON.stringify(alerts);
 }
 
 /** A Date split the way <input type="date"> and <input type="time"> want it. */
@@ -752,6 +850,31 @@ export class SimpleScheduleCard extends LitElement {
   @state() private _colorOpen = false;
   /** The repeat options, folded the same way. New events only. */
   @state() private _repeatOpen = false;
+  /** The Alert fold. */
+  @state() private _alertsOpen = false;
+  /** Which alert's settings are open in it (AlertDraft.key) - one at a time. */
+  @state() private _alertOpen: string | null = null;
+  /** An alert whose time before is set on the drum rather than picked from the list. */
+  @state() private _alertCustom: string | null = null;
+  /** Every reminder the alerting integration holds, kept current by its subscription. */
+  @state() private _reminders: Reminder[] = [];
+  /** Whether alerting can be used, and if not, why. */
+  @state() private _alerting: AlertingStatus = { state: 'loading' };
+  /** Who an alert can tell - read again each time the form opens, like the Alerts editor. */
+  @state() private _alertTargets: AlertTargets | null = null;
+  /** _reminders as lookup keys, for the bells on the blocks. */
+  private _remKeys = new Set<string>();
+  private _remUnsub?: () => void;
+  /**
+   * Held across the subscribe's await. updated() runs on every state change in the
+   * house, and a guard that only looked at _remUnsub would start a second
+   * subscription in the gap - the calendar subscribe storm all over again.
+   */
+  private _remSubscribing = false;
+  /** Names new alerts in the form (AlertDraft.key). */
+  private _alertSeq = 0;
+  /** The last pyscript service's reply: a create says the new event's id. */
+  private _editReply: Record<string, unknown> | null = null;
   /** The custom-recurrence window, and the rule it is editing (a working copy). */
   @state() private _customOpen = false;
   @state() private _custom: Recurrence | null = null;
@@ -906,6 +1029,7 @@ export class SimpleScheduleCard extends LitElement {
     this._setMenu(false);
     this._pressCancel();
     this._subs.stop();
+    this._stopReminders();
   }
 
   protected updated(changed: PropertyValues): void {
@@ -927,6 +1051,7 @@ export class SimpleScheduleCard extends LitElement {
     }
     this._watchSticky();
     this._animatePicker();
+    this._animateAlertEntries();
     this._flipPlay();
     // NOT on a bare hass update. Home Assistant sets `hass` on every state
     // change in the house - which on a busy system is many a second - and none
@@ -945,8 +1070,113 @@ export class SimpleScheduleCard extends LitElement {
       this._focusScroller();
     }
     this._ensureSubscribed();
+    this._ensureReminders();
     void this._ensureColors();
     void this._ensureEventColors();
+  }
+
+  /* ---- alerts on events (src/data/alerting.ts) ------------------------ */
+
+  private get _alertsOn(): boolean {
+    return (this._config?.alerts ?? DEFAULTS.alerts) !== false;
+  }
+
+  /** Bumped on disconnect, so a subscribe still in flight knows it is no longer wanted. */
+  private _remGen = 0;
+
+  /**
+   * Follow the alerting integration's reminders: once per connected card, and
+   * Home Assistant's connection re-subscribes by itself after a reconnect. A
+   * failure is not retried from here - updated() runs on every state change in
+   * the house - but turned into _alerting, which the Alert section shows; opening
+   * the form, or its Try again, asks once more.
+   */
+  private _ensureReminders(): void {
+    if (!this.hass?.connection || !this._alertsOn) return;
+    if (this._remUnsub || this._remSubscribing || this._alerting.state === 'off') return;
+    this._remSubscribing = true;
+    const gen = this._remGen;
+    subscribeReminders(this.hass, (list) => {
+      if (gen !== this._remGen) return;
+      this._reminders = list;
+      this._remKeys = reminderKeys(list);
+    })
+      .then((unsub) => {
+        if (gen !== this._remGen) {
+          this._dropSub(unsub);
+          return;
+        }
+        this._remUnsub = unsub;
+        this._alerting = { state: 'ok' };
+      })
+      .catch((err: unknown) => {
+        if (gen !== this._remGen) return;
+        this._alerting = {
+          state: 'off',
+          reason: alertingErrorText(err, this.hass?.config?.components),
+        };
+      })
+      .finally(() => {
+        if (gen === this._remGen) this._remSubscribing = false;
+      });
+  }
+
+  private _dropSub(unsub?: () => unknown): void {
+    if (!unsub) return;
+    try {
+      void Promise.resolve(unsub()).catch(() => undefined);
+    } catch {
+      // the connection is already gone, and the subscription with it
+    }
+  }
+
+  private _stopReminders(): void {
+    this._remGen++;
+    this._remSubscribing = false;
+    this._dropSub(this._remUnsub);
+    this._remUnsub = undefined;
+  }
+
+  /** Ask again - after a failure, from the form. */
+  private _retryAlerting(): void {
+    if (this._alerting.state !== 'off') return;
+    this._alerting = { state: 'loading' };
+    this._ensureReminders();
+  }
+
+  /** Who an alert can tell, read afresh each time the form opens. */
+  private _loadAlertTargets(): void {
+    if (!this._alertsOn || !this.hass) return;
+    this._retryAlerting();
+    fetchTargets(this.hass)
+      .then((t) => {
+        this._alertTargets = t;
+      })
+      .catch(() => {
+        // The subscription is what reports alerting as missing; a list that cannot
+        // be read leaves the pickers saying so.
+      });
+  }
+
+  /** The event's alerts, as the form edits them. */
+  private _alertDraftsFor(ev: ScheduleEvent): AlertDraft[] {
+    return remindersFor(ev, this._reminders)
+      .sort((a, b) => a.ui_id - b.ui_id)
+      .map((r) => ({
+        key: `r${r.ui_id}`,
+        uiId: r.ui_id,
+        offsetMins: r.offset_mins,
+        match: r.match,
+        title: r.match === 'title' ? r.title : null,
+        push: [...r.push],
+        banner: [...r.banner],
+        bannerHome: !!r.banner_home,
+        priority: r.priority,
+      }));
+  }
+
+  private _hasAlert(ev: ScheduleEvent): boolean {
+    return hasReminderKey(this._remKeys, ev);
   }
 
   /**
@@ -1258,7 +1488,19 @@ export class SimpleScheduleCard extends LitElement {
       repeat: parsedRule,
       repeatWas: parsedRule,
       canRepeat: !this._seriesRule(ev) || !!parsedRule,
+      uid: ev.uid ?? '',
+      recurrenceId: ev.recurrenceId ?? '',
+      alerts: this._alertDraftsFor(ev),
+      alertsWas: '',
+      eventWas: '',
     };
+    this._draft.alertsWas = alertsPrint(this._draft.alerts);
+    this._draft.eventWas = eventPrint(this._draft);
+    // Open when there is something in it, like Details.
+    this._alertsOpen = this._draft.alerts.length > 0;
+    this._alertOpen = null;
+    this._alertCustom = null;
+    this._loadAlertTargets();
     this._openPicker = null;
     this._pickerClosing = null;
     this._pickerMonth = null;
@@ -1318,7 +1560,17 @@ export class SimpleScheduleCard extends LitElement {
       repeat: null,
       repeatWas: null,
       canRepeat: true,
+      uid: '',
+      recurrenceId: '',
+      alerts: [],
+      alertsWas: alertsPrint([]),
+      eventWas: '',
     };
+    this._draft.eventWas = eventPrint(this._draft);
+    this._alertsOpen = false;
+    this._alertOpen = null;
+    this._alertCustom = null;
+    this._loadAlertTargets();
     this._openPicker = null;
     this._pickerClosing = null;
     this._pickerMonth = null;
@@ -1861,6 +2113,10 @@ export class SimpleScheduleCard extends LitElement {
     this._openPicker = null;
     this._pickerClosing = null;
     this._pickerMonth = null;
+    this._alertOpen = null;
+    this._alertCustom = null;
+    this._alertEntering.clear();
+    this._alertLeaving.clear();
     this._cancelCustom();
     this._closeSheet();
   }
@@ -1879,7 +2135,7 @@ export class SimpleScheduleCard extends LitElement {
   }
 
   /** Open one inline picker, closing whichever was open. iOS shows one at a time. */
-  private _togglePicker(field: Exclude<PickerField, null>): void {
+  private _togglePicker(field: Exclude<PickerField, null | AlertPickerField>): void {
     if (this._draft?.readOnly) return;
     this._confirmDelete = false;
     if (this._openPicker === field) {
@@ -1966,8 +2222,12 @@ export class SimpleScheduleCard extends LitElement {
   private async _callEdit(service: string, data: Record<string, unknown>): Promise<boolean> {
     this._busy = true;
     this._editError = null;
+    this._editReply = null;
     try {
       const reply = await this._callForReply(service, data);
+      // Kept: a create's reply is the only place the new event's id is said, and
+      // its alerts need it.
+      this._editReply = (reply as Record<string, unknown> | null) ?? null;
       if (reply && reply.ok === false) {
         this._editError = String(reply.error ?? 'The change could not be saved.').slice(0, 300);
         return false;
@@ -2169,9 +2429,47 @@ export class SimpleScheduleCard extends LitElement {
     return draft.colorId !== draft.colorIdWas;
   }
 
+  /** Whether the form changed anything the EVENT holds (as opposed to its alerts). */
+  private _eventMoved(draft: EventDraft): boolean {
+    return eventPrint(draft) !== draft.eventWas;
+  }
+
+  private _alertsMoved(draft: EventDraft): boolean {
+    return alertsPrint(draft.alerts) !== draft.alertsWas;
+  }
+
   private async _saveDraft(): Promise<void> {
     const draft = this._draft;
-    if (!draft || this._busy || draft.readOnly) return;
+    if (!draft || this._busy) return;
+    // A read-only event: nothing of the event can be written, but its alerts are
+    // not the event's - they are saved on their own.
+    if (draft.readOnly) {
+      if (!this._alertsMoved(draft)) return;
+      this._busy = true;
+      this._editError = null;
+      let ok = false;
+      try {
+        ok = await this._saveAlerts(draft, { uid: draft.uid, recurrenceId: draft.recurrenceId }, null, false);
+      } finally {
+        this._busy = false;
+      }
+      if (ok) this._closeEditor();
+      return;
+    }
+    // Only the alerts changed: the event is left alone rather than written back as
+    // it was - faster, and no edit lands in its history for nothing.
+    if (!draft.isNew && this._alertsMoved(draft) && !this._eventMoved(draft)) {
+      this._busy = true;
+      this._editError = null;
+      let ok = false;
+      try {
+        ok = await this._saveAlerts(draft, { uid: draft.uid, recurrenceId: draft.recurrenceId }, null, false);
+      } finally {
+        this._busy = false;
+      }
+      if (ok) this._closeEditor();
+      return;
+    }
     if (!draft.summary.trim()) {
       this._editError = 'A title is required.';
       return;
@@ -2234,10 +2532,144 @@ export class SimpleScheduleCard extends LitElement {
       // The write has landed, but the week has not caught up with it yet. The
       // button goes on saying so until it has.
       if (ok) await this._settleAfterWrite(before, this._colourMoved(draft));
+      if (ok && (this._alertsMoved(draft) || draft.alerts.length)) {
+        const reply = this._editReply;
+        const newId = typeof reply?.id === 'string' ? reply.id : '';
+        let ids = { uid: draft.uid, recurrenceId: draft.recurrenceId };
+        let newSeries: string | null = null;
+        if (draft.isNew && newId) {
+          // The event exists now, whatever happens to its alerts next: the form
+          // turns into the edit form for it, so a second Save cannot make it twice.
+          const startAt = new Date(`${draft.startDate}T${draft.allDay ? '00:00' : draft.startTime}`);
+          ids = {
+            uid: uidOf(newId),
+            recurrenceId: draft.repeat ? firstOccurrenceId(newId, startAt, draft.allDay) : '',
+          };
+          if (this._draft) {
+            this._draft = {
+              ...this._draft,
+              isNew: false,
+              eventId: ids.recurrenceId || newId,
+              recurring: !!draft.repeat,
+              uid: ids.uid,
+              recurrenceId: ids.recurrenceId,
+              repeatWas: this._draft.repeat,
+              eventWas: eventPrint(this._draft),
+            };
+          }
+        } else if (
+          !draft.isNew &&
+          draft.recurring &&
+          this._sendScope === 'future' &&
+          newId &&
+          newId.split('_')[0] !== draft.eventId.split('_')[0]
+        ) {
+          // "This and future" split the series: what follows is a NEW series, and
+          // its alerts go with it. The old ones stay on the part left behind, and
+          // the integration clears them away once its events are over.
+          newSeries = newId;
+        }
+        ok = await this._saveAlerts(this._draft ?? draft, ids, newSeries, true);
+      }
     } finally {
       this._busy = false;
     }
     if (ok) this._closeEditor();
+  }
+
+  /**
+   * Write the form's alerts: make the new ones, change the changed ones, remove the
+   * ones taken out. `wroteEvent` only words a failure - the event is saved either way.
+   *
+   * Each saved alert's id goes back into the form at once, so if a later one fails
+   * and Save is pressed again, nothing is made twice.
+   */
+  private async _saveAlerts(
+    draft: EventDraft,
+    ids: { uid: string; recurrenceId: string },
+    newSeries: string | null,
+    wroteEvent: boolean,
+  ): Promise<boolean> {
+    if (!this.hass) return false;
+    if (this._alerting.state !== 'ok') {
+      if (!this._alertsMoved(draft)) return true;
+      this._editError = `${wroteEvent ? 'The event was saved, but its alerts were not: ' : ''}${
+        this._alerting.state === 'off' ? this._alerting.reason : 'Alerting has not answered yet.'
+      }`;
+      return false;
+    }
+    const was: AlertDraft[] = JSON.parse(draft.alertsWas || '[]');
+    const startAt = new Date(`${draft.startDate}T${draft.allDay ? '00:00' : draft.startTime}`);
+    const start = draft.allDay ? `${draft.startDate}T00:00:00` : startAt.toISOString();
+    // A renamed or moved event re-saves its alerts too: they carry its name and time.
+    const eventMoved = this._eventMoved(draft) || draft.isNew;
+    try {
+      for (const a of draft.alerts) {
+        const before = was.find((w) => w.key === a.key);
+        const same = !!before && JSON.stringify(before) === JSON.stringify(a);
+        // One by title is about the title, not this event: a moved or renamed event, or a
+        // split series, leaves it as it is.
+        if (same && (a.match === 'title' || (!newSeries && !eventMoved))) continue;
+        let target: { uid: string | null; recurrence_id: string | null; title: string | null };
+        if (a.match === 'title') {
+          const title = (a.title ?? draft.summary).trim();
+          if (!title) throw new Error('An alert for every event with this title needs a title.');
+          target = { uid: null, recurrence_id: null, title };
+        } else if (newSeries) {
+          target = {
+            uid: uidOf(newSeries),
+            recurrence_id: a.match === 'event' ? firstOccurrenceId(newSeries, startAt, draft.allDay) : null,
+            title: null,
+          };
+        } else {
+          target = { uid: ids.uid, recurrence_id: a.match === 'event' ? ids.recurrenceId || null : null, title: null };
+        }
+        if (a.match !== 'title' && !target.uid) throw new Error('This event has no id an alert could follow.');
+        const res = await saveReminder(this.hass, {
+          ui_id: newSeries && a.match !== 'title' ? undefined : (a.uiId ?? undefined),
+          calendar: draft.entity,
+          ...target,
+          match: a.match,
+          summary: draft.summary.trim(),
+          start,
+          all_day: draft.allDay,
+          offset_mins: a.offsetMins,
+          push: a.push,
+          banner: a.banner,
+          banner_home: a.bannerHome,
+          priority: a.priority,
+          clock: clockOf(this.hass),
+        });
+        // a new one by title now has its title for good - a retry sends the same one
+        this._markAlertSaved(a.key, res.ui_id, a.match === 'title' ? target.title : null);
+      }
+      for (const w of was) {
+        if (w.uiId === null || draft.alerts.some((a) => a.key === w.key)) continue;
+        await deleteReminders(this.hass, { ui_id: w.uiId });
+        this._markAlertSaved(w.key, null);
+      }
+      return true;
+    } catch (err) {
+      this._editError = `${wroteEvent ? 'The event was saved, but its alerts were not: ' : 'The alert could not be saved: '}${errorMessage(err)}`;
+      return false;
+    }
+  }
+
+  /**
+   * One alert written (or removed, `uiId` null): its id into the form, and the
+   * form's "as opened" copy brought up to date, so pressing Save again after a
+   * failure further on repeats nothing that already worked.
+   */
+  private _markAlertSaved(key: string, uiId: number | null, title: string | null = null): void {
+    const d = this._draft;
+    if (!d) return;
+    const alerts = d.alerts.map((a) => (a.key === key ? { ...a, uiId, title } : a));
+    const was: AlertDraft[] = JSON.parse(d.alertsWas || '[]');
+    const now = alerts.find((a) => a.key === key);
+    const nextWas = now
+      ? [...was.filter((w) => w.key !== key), now]
+      : was.filter((w) => w.key !== key);
+    this._draft = { ...d, alerts, alertsWas: alertsPrint(nextWas) };
   }
 
   /** First press arms, second press deletes. Destructive and one-way. */
@@ -2251,11 +2683,13 @@ export class SimpleScheduleCard extends LitElement {
     const before = this._viewFingerprint();
     let ok = false;
     try {
+      const scope = this._sendScope;
       ok = await this._callEdit('simple_schedule_event_delete', {
         entity_id: draft.entity,
         event_id: draft.eventId,
-        scope: this._sendScope,
+        scope,
       });
+      if (ok) this._dropAlertsOf(draft, scope);
       // As with a save: the form stays up until the block has actually gone,
       // rather than handing back a week that still has it in.
       if (ok) await this._settleAfterWrite(before, false);
@@ -2263,6 +2697,22 @@ export class SimpleScheduleCard extends LitElement {
       this._busy = false;
     }
     if (ok) this._closeEditor();
+  }
+
+  /**
+   * The event is gone, and so are its alerts: one occurrence takes its own, a whole
+   * series (or a one-off) every one it had. "This and future" leaves them - the
+   * series still has its earlier events, and the integration removes a reminder
+   * once its events are over. Not waited for: a reminder left behind by a failure
+   * here is cleared the same way.
+   */
+  private _dropAlertsOf(draft: EventDraft, scope: EditScope): void {
+    if (!this.hass || this._alerting.state !== 'ok' || !draft.uid || scope === 'future') return;
+    const which =
+      scope === 'instance' && draft.recurring && draft.recurrenceId
+        ? { calendar: draft.entity, uid: draft.uid, recurrence_id: draft.recurrenceId }
+        : { calendar: draft.entity, uid: draft.uid };
+    deleteReminders(this.hass, which).catch(() => undefined);
   }
 
   /** Alternating keyframe name — see _animEpoch. */
@@ -3624,7 +4074,12 @@ export class SimpleScheduleCard extends LitElement {
                                  ${blockStyle(this._colorForEvent(ev), this._minContrast)}"
                           @click=${() => this._pickEvent(ev)}
                         >
-                          <div class="ev-in"><div class="ev-name">${ev.summary}</div></div>
+                          <div class="ev-in">
+                            <div class="ev-name">${ev.summary}</div>
+                            ${this._hasAlert(ev)
+                              ? html`<ha-icon class="ev-bell" icon="mdi:bell"></ha-icon>`
+                              : nothing}
+                          </div>
                         </div>
                       `,
                     )}
@@ -3653,6 +4108,9 @@ export class SimpleScheduleCard extends LitElement {
                             <div class="ev-time">
                               ${this._fmtTime(ev.start)} – ${this._fmtTime(ev.end)}
                             </div>
+                            ${this._hasAlert(ev)
+                              ? html`<ha-icon class="ev-bell" icon="mdi:bell"></ha-icon>`
+                              : nothing}
                           </div>
                         </div>
                       `;
@@ -3846,6 +4304,9 @@ export class SimpleScheduleCard extends LitElement {
                   : html`<div class="ev-time">
                       ${this._fmtTime(ev.start)} – ${this._fmtTime(ev.end)}
                     </div>`}
+                ${this._hasAlert(ev)
+                  ? html`<ha-icon class="ev-bell" icon="mdi:bell"></ha-icon>`
+                  : nothing}
               </div>
             </div>
           `;
@@ -3926,6 +4387,9 @@ export class SimpleScheduleCard extends LitElement {
                             : html`${this._fmtTime(ev.start)}<br />${this._fmtTime(ev.end)}`}
                         </span>
                         <span class="lr-name">${ev.summary}</span>
+                        ${this._hasAlert(ev)
+                          ? html`<ha-icon class="lr-bell" icon="mdi:bell"></ha-icon>`
+                          : nothing}
                       </div>
                     `,
                   )
@@ -3953,9 +4417,17 @@ export class SimpleScheduleCard extends LitElement {
    * A drum came to rest on a row: the ONE path a time takes from the drum into the
    * draft, however the row was reached - drag, flick, tap, wheel or key.
    */
-  private _commitWheel(kind: 'hour' | 'minute', field: 'startTime' | 'endTime', index: number): void {
+  private _commitWheel(
+    kind: 'day' | 'hour' | 'minute',
+    field: 'startTime' | 'endTime' | AlertPickerField,
+    index: number,
+  ): void {
     const d = this._draft;
     if (!d) return;
+    if (field !== 'startTime' && field !== 'endTime') {
+      this._commitAlertWheel(kind, field.slice(field.indexOf(':') + 1), index);
+      return;
+    }
     const [h, m] = (d[field] || '00:00').split(':').map(Number);
     const hour = kind === 'hour' ? Math.min(23, Math.max(0, index)) : h;
     const minute = kind === 'minute' ? Math.min(59, Math.max(0, index)) : m;
@@ -3996,8 +4468,8 @@ export class SimpleScheduleCard extends LitElement {
             // into a field it was not rendered for.
             onSettle: (i) =>
               this._commitWheel(
-                col.dataset.kind as 'hour' | 'minute',
-                col.dataset.field as 'startTime' | 'endTime',
+                col.dataset.kind as 'day' | 'hour' | 'minute',
+                col.dataset.field as 'startTime' | 'endTime' | AlertPickerField,
                 i,
               ),
           },
@@ -4132,12 +4604,17 @@ export class SimpleScheduleCard extends LitElement {
     open: boolean,
     toggle: () => void,
     content: TemplateResult,
-    /** For a fold that can hold an open month grid, which outgrows the default. */
-    tall = false,
+    /**
+     * For a fold that can hold an open month grid, which outgrows the default -
+     * and 'x' for the Alert fold, whose alerts each open a list of their own.
+     */
+    tall: boolean | 'x' = false,
+    /** Stays open to edits on a read-only event: the Alert fold, which is not the event's. */
+    live = false,
   ): TemplateResult {
     // Read-only: the same row with its value, but nothing to open - no chevron
     // promising a fold, no fold behind it.
-    if (this._draft?.readOnly) {
+    if (this._draft?.readOnly && !live) {
       return html`
         <div class="ed-group">
           <div class="ed-row ed-disclose static">
@@ -4161,7 +4638,7 @@ export class SimpleScheduleCard extends LitElement {
           <span class="ed-sub">${summary}</span>
           <ha-icon class="ed-chev ${open ? 'open' : ''}" icon="mdi:chevron-down"></ha-icon>
         </button>
-        <div class="ed-fold ${open ? 'open' : ''} ${tall ? 'tall' : ''}">
+        <div class="ed-fold ${open ? 'open' : ''} ${tall === 'x' ? 'xtall' : tall ? 'tall' : ''}">
           <div class="ed-fold-in">${content}</div>
         </div>
       </div>
@@ -5182,6 +5659,683 @@ export class SimpleScheduleCard extends LitElement {
     this._patchDraft({ allDay: on });
   }
 
+  /* ---- the Alert section ----------------------------------------------
+   *
+   * Alerts on the event, any number of them: each says how long before the
+   * start, which occurrences (for a series), who gets a push, where a banner
+   * shows, and how loudly - the same receivers as the Alerts editor, read from
+   * the alerting integration. Saved with the form, after the event itself; see
+   * _saveAlerts. The section stays live on a read-only event: the event is
+   * another system's, its alerts are not.
+   * ------------------------------------------------------------------ */
+
+  /** Whether the event repeats, so an alert can be for every occurrence of it. */
+  private get _alertRepeats(): boolean {
+    const d = this._draft;
+    return !!d && (d.recurring || (d.isNew && !!d.repeat));
+  }
+
+  /** One of an alert's pickers, closing whichever was open - one at a time, like the others. */
+  private _toggleAlertPicker(field: AlertPickerField): void {
+    this._confirmDelete = false;
+    if (this._openPicker === field) {
+      this._closePicker();
+      return;
+    }
+    this._pickerClosing = this._openPicker;
+    this._openPicker = field;
+    // the Custom drum attaches once its columns exist - see updated()
+    this._wheelsPending = true;
+  }
+
+  /**
+   * The one door every alert change goes through - NOT _patchDraft, which refuses
+   * everything on a read-only event.
+   */
+  private _patchAlert(key: string, patch: Partial<AlertDraft>): void {
+    const d = this._draft;
+    if (!d) return;
+    this._draft = { ...d, alerts: d.alerts.map((a) => (a.key === key ? { ...a, ...patch } : a)) };
+    this._confirmDelete = false;
+    this._editError = null;
+  }
+
+  /**
+   * A new alert: an hour before, for every occurrence of a series, pushed to
+   * whoever is signed in and setting it (when they have a phone with the app) -
+   * the user of THIS browser, never a fixed person - low priority. It opens,
+   * ready to be changed.
+   */
+  private _addAlert(): void {
+    const d = this._draft;
+    if (!d) return;
+    const me = this.hass?.user?.id;
+    const t = this._alertTargets;
+    const mine =
+      me && t?.users.some((u) => u.id === me && u.devices.length) ? [`${t.user_prefix}${me}`] : [];
+    const key = `n${++this._alertSeq}`;
+    const alert: AlertDraft = {
+      key,
+      uiId: null,
+      offsetMins: DEFAULT_OFFSET_MINS,
+      match: this._alertRepeats ? 'series' : 'event',
+      title: null,
+      push: mine,
+      banner: [],
+      bannerHome: false,
+      priority: 'low',
+    };
+    this._draft = { ...d, alerts: [...d.alerts, alert] };
+    // Two steps, both animated: its row opens into the list (_animateAlertEntries,
+    // after the render), and only then its settings fold open. Whatever alert was
+    // open folds away meanwhile.
+    this._alertOpen = null;
+    this._alertEntering.add(key);
+    this._alertCustom = null;
+    this._closePicker();
+    this._confirmDelete = false;
+    this._editError = null;
+  }
+
+  /** New alerts whose row has yet to open into the list. See _animateAlertEntries. */
+  private _alertEntering = new Set<string>();
+  /** Alerts on their way out, so a second tap cannot start a second exit. */
+  private _alertLeaving = new Set<string>();
+  /** The shared note's last words per alert, kept for its fold-away. */
+  private _sharedLast = new Map<string, string>();
+
+  private _alertItem(key: string): HTMLElement | null {
+    return this.renderRoot?.querySelector(`.al-item[data-key="${key}"]`) as HTMLElement | null;
+  }
+
+  /**
+   * Run from updated(): each new alert's row grows from nothing to its height, then
+   * its settings open. Not CSS: a new element's height is only known by measuring,
+   * and the settings opening at the same moment would change it mid-animation.
+   */
+  private _animateAlertEntries(): void {
+    if (!this._alertEntering.size) return;
+    for (const key of [...this._alertEntering]) {
+      const el = this._alertItem(key);
+      if (!el) continue;
+      this._alertEntering.delete(key);
+      const open = () => {
+        if (this._draft?.alerts.some((a) => a.key === key)) this._alertOpen = key;
+      };
+      if (this._reducedMotion) {
+        open();
+        continue;
+      }
+      el.animate(
+        [
+          { height: '0px', opacity: 0, transform: 'translateY(-6px)' },
+          { height: `${el.offsetHeight}px`, opacity: 1, transform: 'none' },
+        ],
+        { duration: 320, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' },
+      )
+        .finished.then(open)
+        .catch(open);
+    }
+  }
+
+  /**
+   * Its row folds away, then it leaves the draft. Removing it first would make it
+   * vanish in one frame - the rest of the form jumping up into its place.
+   */
+  private _removeAlert(key: string): void {
+    const d = this._draft;
+    if (!d || this._alertLeaving.has(key)) return;
+    if (this._openPicker?.endsWith?.(`:${key}`)) this._closePicker();
+    this._confirmDelete = false;
+    this._editError = null;
+    const drop = () => {
+      this._alertLeaving.delete(key);
+      const now = this._draft;
+      if (!now) return;
+      if (this._alertOpen === key) this._alertOpen = null;
+      this._draft = { ...now, alerts: now.alerts.filter((a) => a.key !== key) };
+    };
+    const el = this._alertItem(key);
+    if (!el || this._reducedMotion) {
+      drop();
+      return;
+    }
+    this._alertLeaving.add(key);
+    el.animate(
+      [
+        { height: `${el.offsetHeight}px`, opacity: 1 },
+        { height: '0px', opacity: 0 },
+      ],
+      { duration: 260, easing: 'cubic-bezier(0.4, 0, 0.9, 1)', fill: 'forwards' },
+    )
+      .finished.then(drop)
+      .catch(drop);
+  }
+
+  /** The Custom drum came to rest: days, hours and minutes make the time before. */
+  private _commitAlertWheel(kind: 'day' | 'hour' | 'minute', key: string, index: number): void {
+    const a = this._draft?.alerts.find((x) => x.key === key);
+    if (!a) return;
+    const p = splitOffset(a.offsetMins);
+    const clamp = (n: number, max: number) => Math.min(max, Math.max(0, n));
+    const days = kind === 'day' ? clamp(index, 27) : p.days;
+    const hours = kind === 'hour' ? clamp(index, 23) : p.hours;
+    const minutes = kind === 'minute' ? clamp(index, 59) : p.minutes;
+    const mins = days * 1440 + hours * 60 + minutes;
+    if (mins !== a.offsetMins) this._patchAlert(key, { offsetMins: mins });
+  }
+
+  /** Who is pushed to, for the chip: "Nobody", "Alex", "Alex + 1 more". */
+  private _pushText(push: string[]): string {
+    if (!push.length) return 'Nobody';
+    const t = this._alertTargets;
+    const name = (id: string) => {
+      if (t && id === t.everyone) return 'Everyone';
+      const user = t?.users.find((u) => `${t.user_prefix}${u.id}` === id);
+      return user?.name ?? id;
+    };
+    if (!t) return push.length === 1 ? '1 chosen' : `${push.length} chosen`;
+    return push.length === 1 ? name(push[0]) : `${name(push[0])} + ${push.length - 1} more`;
+  }
+
+  /**
+   * Where a banner shows, for the chip: "None", "Tablet", "Tablet + 1 more" - and
+   * " · Home page" with Home page only, which the closed list would otherwise hide.
+   */
+  private _bannerText(a: AlertDraft): string {
+    const banner = a.banner;
+    if (!banner.length) return 'None';
+    const name = (id: string) => this._alertTargets?.banner.find((b) => b.id === id)?.name ?? id;
+    const where = banner.length === 1 ? name(banner[0]) : `${name(banner[0])} + ${banner.length - 1} more`;
+    return a.bannerHome ? `${where} · Home page` : where;
+  }
+
+  /** A row of a multi-choice list: a name, a line under it, a tick. */
+  private _renderTickRow(name: string, sub: string, on: boolean, toggle: () => void): TemplateResult {
+    return html`
+      <button
+        class="ed-row scope tick ${on ? 'sel' : ''}"
+        role="checkbox"
+        aria-checked=${on ? 'true' : 'false'}
+        @click=${toggle}
+      >
+        <span class="tick-text">
+          <span class="ed-lbl">${name}</span>
+          ${sub ? html`<span class="tick-sub">${sub}</span>` : nothing}
+        </span>
+        <span class="tick-box">${on ? html`<ha-icon icon="mdi:check"></ha-icon>` : nothing}</span>
+      </button>
+    `;
+  }
+
+  /**
+   * Push to: everyone with the app, or users - each meaning every phone signed in
+   * to the app as them, now and later. A user without a phone is offered only once
+   * picked, so they can be let go; so is a name the integration no longer knows.
+   */
+  private _renderPushList(a: AlertDraft): TemplateResult {
+    const t = this._alertTargets;
+    if (!t) return html`<div class="ed-note">Reading who can be told…</div>`;
+    const rows: Array<{ id: string; name: string; sub: string }> = [
+      {
+        id: t.everyone,
+        name: 'Everyone',
+        sub: `Every phone with the Home Assistant app${t.devices ? ` (${t.devices})` : ''}`,
+      },
+      ...t.users
+        .filter((u) => u.devices.length || a.push.includes(`${t.user_prefix}${u.id}`))
+        .map((u) => ({
+          id: `${t.user_prefix}${u.id}`,
+          name: u.name,
+          sub: u.devices.map((x) => x.name).join(', ') || 'No phone with the app',
+        })),
+    ];
+    for (const id of a.push) {
+      if (!rows.some((r) => r.id === id)) rows.push({ id, name: id, sub: 'No longer found' });
+    }
+    const toggle = (id: string) => {
+      const on = a.push.includes(id);
+      // Everyone and single users exclude each other, as in the Alerts editor.
+      let next = on ? a.push.filter((x) => x !== id) : [...a.push, id];
+      if (!on && id === t.everyone) next = [id];
+      else if (!on) next = next.filter((x) => x !== t.everyone);
+      this._patchAlert(a.key, { push: next });
+    };
+    return html`${rows.map((r) =>
+      this._renderTickRow(r.name, r.sub, a.push.includes(r.id), () => toggle(r.id)),
+    )}`;
+  }
+
+  /**
+   * Banner on: the dashboards, as the Alerts editor lists them - led by where on them it
+   * shows, Every page or Home page (each one's /home alone). That is a switch, not a tick
+   * row: as a row it read as one more dashboard to pick.
+   */
+  private _renderBannerList(a: AlertDraft): TemplateResult {
+    const t = this._alertTargets;
+    if (!t) return html`<div class="ed-note">Reading the dashboards…</div>`;
+    const rows = t.banner.map((b) => ({ id: b.id, name: b.name, sub: `/${b.id}` }));
+    for (const id of a.banner) {
+      if (!rows.some((r) => r.id === id)) rows.push({ id, name: id, sub: 'No longer found' });
+    }
+    if (!rows.length) return html`<div class="ed-note">No dashboards to show a banner on.</div>`;
+    const toggle = (id: string) =>
+      this._patchAlert(a.key, {
+        banner: a.banner.includes(id) ? a.banner.filter((x) => x !== id) : [...a.banner, id],
+      });
+    return html`<div class="ed-row bpages">
+        <span class="ed-lbl">Show on</span>
+        <span class="ed-vals">
+          <span class="seg">
+            ${([
+              [false, 'Every page'],
+              [true, 'Home page'],
+            ] as const).map(
+              ([home, label]) => html`
+                <button
+                  class="seg-btn ${a.bannerHome === home ? 'on' : ''}"
+                  @click=${() => this._patchAlert(a.key, { bannerHome: home })}
+                >
+                  ${label}
+                </button>
+              `,
+            )}
+          </span>
+        </span>
+      </div>${rows.map((r) =>
+      this._renderTickRow(r.name, r.sub, a.banner.includes(r.id), () => toggle(r.id)),
+    )}`;
+  }
+
+  /** The time before: a short list, then Custom on a days / hours / minutes drum. */
+  private _renderOffsetList(a: AlertDraft): TemplateResult {
+    const custom = this._alertCustom === a.key || !OFFSET_PRESETS.includes(a.offsetMins);
+    return html`
+      ${OFFSET_PRESETS.map(
+        (m) => html`
+          <button
+            class="ed-row scope ${!custom && a.offsetMins === m ? 'sel' : ''}"
+            role="radio"
+            aria-checked=${!custom && a.offsetMins === m ? 'true' : 'false'}
+            @click=${() => {
+              this._alertCustom = null;
+              this._patchAlert(a.key, { offsetMins: m });
+              this._closePicker();
+            }}
+          >
+            <span class="ed-lbl">${offsetLabel(m)}</span>
+            <span class="radio"><span class="radio-dot"></span></span>
+          </button>
+        `,
+      )}
+      <button
+        class="ed-row scope ${custom ? 'sel' : ''}"
+        role="radio"
+        aria-checked=${custom ? 'true' : 'false'}
+        @click=${() => {
+          this._alertCustom = a.key;
+          this._wheelsPending = true;
+        }}
+      >
+        <span class="ed-lbl">${custom ? `Custom: ${offsetLabel(a.offsetMins)}` : 'Custom…'}</span>
+        <ha-icon class="ed-chev" icon="mdi:tune-variant"></ha-icon>
+      </button>
+      ${custom ? this._renderOffsetWheel(a) : nothing}
+    `;
+  }
+
+  private _renderOffsetWheel(a: AlertDraft): TemplateResult {
+    const { days, hours, minutes } = splitOffset(a.offsetMins);
+    const field: AlertPickerField = `al-off:${a.key}`;
+    const col = (
+      kind: 'day' | 'hour' | 'minute',
+      max: number,
+      value: number,
+      label: (n: number) => string,
+      aria: string,
+    ) => {
+      const items: number[] = [];
+      for (let i = 0; i <= max; i++) items.push(i);
+      return html`
+        <div
+          class="wheel-col"
+          tabindex="0"
+          role="spinbutton"
+          aria-label=${aria}
+          aria-valuemin="0"
+          aria-valuemax=${max}
+          data-index=${value}
+          data-max=${max}
+          data-kind=${kind}
+          data-field=${field}
+        >
+          ${items.map((n) => html`<div class="wheel-item">${label(n)}</div>`)}
+        </div>
+      `;
+    };
+    // Every gesture on a column is the drum's (src/drum.ts), as on the time drum.
+    return html`
+      <div class="wheel al-wheel" style="--wheel-h:${WHEEL_ITEM_H * WHEEL_ROWS}px">
+        <div class="wheel-band"></div>
+        ${col('day', 27, days, (n) => `${n} ${n === 1 ? 'day' : 'days'}`, 'Days')}
+        ${col('hour', 23, hours, (n) => `${n} h`, 'Hours')}
+        ${col('minute', 59, minutes, (n) => `${n} min`, 'Minutes')}
+      </div>
+    `;
+  }
+
+  /** The title an alert by title is for: its own once saved, else the event's as it stands. */
+  private _alertTitle(a: AlertDraft): string {
+    return (a.title ?? this._draft?.summary ?? '').trim();
+  }
+
+  /** Which events, in a few words - the chip, and the alert's own row. */
+  private _whoText(a: AlertDraft): string {
+    if (a.match === 'series') return 'Every repeat';
+    if (a.match === 'title') {
+      const t = this._alertTitle(a);
+      return t ? `Every “${t}”` : 'Every event with this title';
+    }
+    return 'Just this one';
+  }
+
+  /**
+   * Applies to: this event, every repeat of it (a series only), or every event with its
+   * title - in this calendar, now and later. Each row says what it means in a second
+   * line, because the three differ in a way a single word cannot carry.
+   */
+  private _renderWhoList(a: AlertDraft): TemplateResult {
+    const d = this._draft!;
+    const start = this._draftStart;
+    const when = d.allDay
+      ? `${start.toLocaleDateString(this._lang, { weekday: 'short', day: 'numeric', month: 'short' })} · all day`
+      : `${start.toLocaleDateString(this._lang, { weekday: 'short', day: 'numeric', month: 'short' })} · ${this._fmtTime(start)}`;
+    const title = this._alertTitle(a);
+    const cal = this._nameFor(d.entity);
+    const pick = (match: ReminderMatch) => {
+      this._patchAlert(a.key, {
+        match,
+        // a saved alert keeps the title it has; a new one takes the event's at save time
+        title: match === 'title' ? (a.match === 'title' ? a.title : null) : null,
+      });
+      this._closePicker();
+    };
+    const rows: Array<{ match: ReminderMatch; name: string; sub: string; off?: boolean }> = [
+      { match: 'event', name: 'Just this one', sub: when },
+    ];
+    if (this._alertRepeats) {
+      rows.push({
+        match: 'series',
+        name: 'Every repeat',
+        sub: d.repeat ? describeRepeat(d.repeat, start, this._lang) : 'Every occurrence of this event',
+      });
+    }
+    rows.push(
+      title
+        ? { match: 'title', name: `Every “${title}”`, sub: `Any event called “${title}” in ${cal}, now and later` }
+        : { match: 'title', name: 'Every event with this title', sub: 'Give the event a title first', off: true },
+    );
+    return html`${rows.map(
+      (r) => html`
+        <button
+          class="ed-row scope tick ${a.match === r.match ? 'sel' : ''} ${r.off ? 'off' : ''}"
+          role="radio"
+          aria-checked=${a.match === r.match ? 'true' : 'false'}
+          ?disabled=${!!r.off}
+          @click=${() => pick(r.match)}
+        >
+          <span class="tick-text">
+            <span class="ed-lbl">${r.name}</span>
+            <span class="tick-sub">${r.sub}</span>
+          </span>
+          <span class="radio"><span class="radio-dot"></span></span>
+        </button>
+      `,
+    )}`;
+  }
+
+  /**
+   * Said under Applies to whenever an alert is - or was, when opened - for every event
+   * with a title: such an alert is SHARED, so changing it on one lesson changes it on
+   * all of them, and switching it to "Just this one" takes it from the rest.
+   */
+  private _sharedNote(a: AlertDraft, was: AlertDraft | undefined): string {
+    const cal = this._nameFor(this._draft!.entity);
+    if (a.match === 'title') {
+      const t = this._alertTitle(a);
+      return t
+        ? `Shared by every event called “${t}” in ${cal}, now and later. A change here - or removing it - changes it for all of them.`
+        : 'For every event with this event’s title, once it has one.';
+    }
+    if (was?.match === 'title') {
+      return `This alert was for every “${was.title ?? ''}”. Saved like this, it is for this event only and the others lose it.`;
+    }
+    return '';
+  }
+
+  /** One alert: its row, and - open - its settings. */
+  private _renderAlert(a: AlertDraft, was: AlertDraft | undefined): TemplateResult {
+    const open = this._alertOpen === a.key;
+    const sub = [this._whoText(a), this._pushText(a.push), a.priority === 'high' ? 'High' : 'Low'].join(' · ');
+    const offF: AlertPickerField = `al-off:${a.key}`;
+    const whoF: AlertPickerField = `al-who:${a.key}`;
+    const pushF: AlertPickerField = `al-push:${a.key}`;
+    const banF: AlertPickerField = `al-ban:${a.key}`;
+    const shared = this._sharedNote(a, was);
+    // The words stay while the note folds AWAY, or it would collapse an empty box.
+    if (shared) this._sharedLast.set(a.key, shared);
+    const sharedShown = shared || this._sharedLast.get(a.key) || '';
+    return html`
+      <div class="al-item" data-key=${a.key}>
+      <button
+        class="ed-row ed-disclose al-head"
+        aria-expanded=${open ? 'true' : 'false'}
+        @click=${() => {
+          if (this._openPicker?.startsWith?.('al-')) this._closePicker();
+          this._alertOpen = open ? null : a.key;
+          this._alertCustom = null;
+          this._confirmDelete = false;
+        }}
+      >
+        <ha-icon
+          class="al-bell"
+          icon="mdi:bell-ring-outline"
+          style="--al-prio:${PRIORITY_COLOR[a.priority]}"
+        ></ha-icon>
+        <span class="ed-lbl">${offsetLabel(a.offsetMins)}</span>
+        <span class="ed-sub">${sub}</span>
+        <ha-icon class="ed-chev ${open ? 'open' : ''}" icon="mdi:chevron-down"></ha-icon>
+      </button>
+      <!-- Mounted and collapsed rather than dropped, like the folds, so both
+           directions animate. -->
+      <div class="al-fold ${open ? 'open' : ''}">
+        <div class="al-fold-in">
+          <div class="ed-row">
+            <span class="ed-lbl">Time</span>
+            <span class="ed-vals">
+              <button
+                class="ed-chip ${this._openPicker === offF ? 'on' : ''}"
+                tabindex=${open ? '0' : '-1'}
+                @click=${() => this._toggleAlertPicker(offF)}
+              >
+                ${offsetLabel(a.offsetMins)}
+              </button>
+            </span>
+          </div>
+          ${this._showPicker(offF)
+            ? html`<div class="ed-picker long" data-field=${offF}>${this._renderOffsetList(a)}</div>`
+            : nothing}
+          <div class="ed-row">
+            <span class="ed-lbl">Applies to</span>
+            <span class="ed-vals">
+              <button
+                class="ed-chip al-chip ${this._openPicker === whoF ? 'on' : ''}"
+                tabindex=${open ? '0' : '-1'}
+                @click=${() => this._toggleAlertPicker(whoF)}
+              >
+                ${this._whoText(a)}
+              </button>
+            </span>
+          </div>
+          ${this._showPicker(whoF)
+            ? html`<div class="ed-picker long" data-field=${whoF}>${this._renderWhoList(a)}</div>`
+            : nothing}
+          <!-- Mounted and collapsed rather than dropped, so it folds in and out with
+               the choice that brings it. -->
+          <div class="al-shared ${shared ? 'open' : ''}">
+            <div class="al-shared-in">
+              <div class="al-shared-box">
+                <ha-icon icon="mdi:account-multiple-outline"></ha-icon>
+                <span>${sharedShown}</span>
+              </div>
+            </div>
+          </div>
+          <div class="ed-row">
+            <span class="ed-lbl">Push to</span>
+            <span class="ed-vals">
+              <button
+                class="ed-chip ${this._openPicker === pushF ? 'on' : ''}"
+                tabindex=${open ? '0' : '-1'}
+                @click=${() => this._toggleAlertPicker(pushF)}
+              >
+                ${this._pushText(a.push)}
+              </button>
+            </span>
+          </div>
+          ${this._showPicker(pushF)
+            ? html`<div class="ed-picker long" data-field=${pushF}>${this._renderPushList(a)}</div>`
+            : nothing}
+          <div class="ed-row">
+            <span class="ed-lbl">Banner on</span>
+            <span class="ed-vals">
+              <button
+                class="ed-chip ${this._openPicker === banF ? 'on' : ''}"
+                tabindex=${open ? '0' : '-1'}
+                @click=${() => this._toggleAlertPicker(banF)}
+              >
+                ${this._bannerText(a)}
+              </button>
+            </span>
+          </div>
+          ${this._showPicker(banF)
+            ? html`<div class="ed-picker long" data-field=${banF}>${this._renderBannerList(a)}</div>`
+            : nothing}
+          <div class="ed-row">
+            <span class="ed-lbl">Priority</span>
+            <span class="ed-vals">
+              <span class="seg prio">
+                ${(['low', 'high'] as const).map(
+                  (p) => html`
+                    <button
+                      class="seg-btn ${a.priority === p ? 'on' : ''}"
+                      style="--seg-on:${PRIORITY_COLOR[p]}"
+                      tabindex=${open ? '0' : '-1'}
+                      @click=${() => this._patchAlert(a.key, { priority: p })}
+                    >
+                      ${p === 'high' ? 'High' : 'Low'}
+                    </button>
+                  `,
+                )}
+              </span>
+            </span>
+          </div>
+          <div class="ed-row al-foot">
+            <button
+              class="ed-btn danger small"
+              tabindex=${open ? '0' : '-1'}
+              @click=${() => this._removeAlert(a.key)}
+            >
+              Remove alert
+            </button>
+          </div>
+        </div>
+      </div>
+      </div>
+    `;
+  }
+
+  /** The fold's contents: the alerts and Add - or why there can be none. */
+  private _renderAlerts(): TemplateResult {
+    const d = this._draft!;
+    const st = this._alerting;
+    if (st.state === 'loading') {
+      return html`<div class="al"><div class="ed-note al-note">Looking for alerting…</div></div>`;
+    }
+    if (st.state === 'off') {
+      return html`
+        <div class="al">
+          <div class="ed-note al-note"><b>Alerts are not available.</b> ${st.reason}</div>
+          <div class="ed-row al-foot">
+            <button class="ed-btn small" @click=${() => this._retryAlerting()}>Try again</button>
+          </div>
+        </div>
+      `;
+    }
+    if (!d.isNew && !d.uid) {
+      return html`<div class="al">
+        <div class="ed-note al-note">This event has no id an alert could follow.</div>
+      </div>`;
+    }
+    let was: AlertDraft[] = [];
+    try {
+      was = JSON.parse(d.alertsWas || '[]');
+    } catch {
+      was = [];
+    }
+    // Keyed, so a row is the same element for as long as its alert lives: one folding
+    // away must not hand its element (and its exit animation) to the alert after it.
+    return html`
+      <div class="al">
+        ${repeat(
+          d.alerts,
+          (a) => a.key,
+          (a) => this._renderAlert(a, was.find((w) => w.key === a.key)),
+        )}
+        <button class="ed-row al-add" @click=${() => this._addAlert()}>
+          <ha-icon icon="mdi:plus"></ha-icon>
+          <span class="ed-lbl">${d.alerts.length ? 'Add another alert' : 'Add alert'}</span>
+        </button>
+        ${d.readOnly
+          ? html`<div class="ed-note al-note">
+              The event is locked, its alerts are not - they are saved on their own.
+            </div>`
+          : nothing}
+      </div>
+    `;
+  }
+
+  private _renderAlertSection(): TemplateResult | typeof nothing {
+    if (!this._alertsOn) return nothing;
+    const d = this._draft!;
+    const st = this._alerting;
+    const summary =
+      st.state === 'off'
+        ? 'Not available'
+        : st.state === 'loading'
+          ? '…'
+          : alertsSummary(d.alerts.map((a) => a.offsetMins));
+    return this._renderFold(
+      'Alert',
+      summary,
+      this._alertsOpen,
+      () => {
+        this._alertsOpen = !this._alertsOpen;
+      },
+      this._renderAlerts(),
+      'x',
+      true,
+    );
+  }
+
+  /** The detail sheet's line: "30 minutes before", or "1 day, 30 min" for several. */
+  private _alertWords(ev: ScheduleEvent): string {
+    const mine = remindersFor(ev, this._reminders);
+    if (!mine.length) return '';
+    return mine.length === 1
+      ? offsetLabel(mine[0].offset_mins)
+      : alertsSummary(mine.map((r) => r.offset_mins));
+  }
+
   /**
    * The edit form.
    *
@@ -5429,6 +6583,7 @@ export class SimpleScheduleCard extends LitElement {
               </div>
             `,
           )}
+          ${this._renderAlertSection()}
 
           ${this._editError
             ? html`<div class="ed-error">${this._editError}</div>`
@@ -5454,8 +6609,9 @@ export class SimpleScheduleCard extends LitElement {
             <button class="ed-btn" ?disabled=${this._busy} @click=${() => this._closeEditor()}>
               Cancel
             </button>
-            <!-- No Save on a read-only event: there is nothing it could save. -->
-            ${d.readOnly
+            <!-- No Save on a read-only event while there is nothing it could save:
+                 only its alerts can change, and Save appears once they have. -->
+            ${d.readOnly && !this._alertsMoved(d)
               ? nothing
               : html`<button
                   class="ed-btn primary"
@@ -5517,6 +6673,13 @@ export class SimpleScheduleCard extends LitElement {
             ? html`<div class="sh-row repeat">
                 <ha-icon icon="mdi:repeat"></ha-icon>
                 <span>${this._repeatWords(ev)}</span>
+              </div>`
+            : nothing}
+          <!-- Its alerts, when it has any: set in the edit form's Alert section. -->
+          ${this._alertWords(ev)
+            ? html`<div class="sh-row repeat">
+                <ha-icon icon="mdi:bell-ring-outline"></ha-icon>
+                <span>${this._alertWords(ev)}</span>
               </div>`
             : nothing}
           ${ev.location ? html`<div class="sh-row">${ev.location}</div>` : nothing}
@@ -9165,6 +10328,239 @@ export class SimpleScheduleCard extends LitElement {
       color: #fff;
     }
 
+    /* ---- the Alert section ----
+       Its folds open to their REAL height, by a grid row going 0fr -> 1fr, not by
+       max-height. Its contents run from one row to several alerts with lists open,
+       and a max-height ceiling high enough for that finished the visible opening
+       in a sixth of its time - a snap, measured, rather than an opening. A browser
+       that cannot animate grid rows still opens and closes it, without the motion. */
+    .ed-fold.xtall {
+      display: grid;
+      grid-template-rows: 0fr;
+      max-height: none;
+      transition:
+        grid-template-rows 0.36s var(--ssc-week-ease),
+        opacity 0.2s ease;
+    }
+    .ed-fold.xtall.open {
+      grid-template-rows: 1fr;
+      max-height: none;
+    }
+    .ed-fold.xtall > .ed-fold-in {
+      min-height: 0;
+      overflow: hidden;
+    }
+    /* A read-only event locks its chips (see .sheet.editor.ro .ed-chip); its alerts
+       are not the event's and stay live. */
+    .sheet.editor.ro .al .ed-chip {
+      pointer-events: auto;
+    }
+    .al-bell {
+      flex: 0 0 auto;
+      --mdc-icon-size: 22px;
+      color: var(--al-prio);
+    }
+    .al-head .ed-lbl {
+      min-width: 0;
+    }
+    /* An alert's settings: mounted and collapsed, like the folds - to their real
+       height, as the Alert fold above. */
+    .al-fold {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      background: rgba(0, 0, 0, 0.14);
+      transition:
+        grid-template-rows 0.36s var(--ssc-week-ease),
+        opacity 0.2s ease;
+    }
+    .al-fold.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+    .al-fold-in {
+      min-height: 0;
+      overflow: hidden;
+      transform: translateY(-10px) scale(0.97);
+      opacity: 0;
+      transition:
+        transform 0.44s var(--ssc-spring),
+        opacity 0.3s ease;
+    }
+    .al-fold.open .al-fold-in {
+      transform: none;
+      opacity: 1;
+    }
+    .al-foot {
+      justify-content: flex-end;
+    }
+    /* One alert: its row and its settings. Clipped, because a new one grows from
+       nothing and a removed one folds to nothing (both by script, measured). */
+    .al-item {
+      overflow: hidden;
+    }
+    /* Applies to's value can be a whole title ("Every “Gymnastics”"): it ends in an
+       ellipsis rather than pushing the row wider than a phone. */
+    .al-chip {
+      max-width: min(62vw, 320px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tick-text .ed-lbl {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    /* An alert shared by every event with a title says so - folding in and out with
+       the choice, like the folds: mounted, collapsed, the content springing. */
+    .al-shared {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition:
+        grid-template-rows 0.36s var(--ssc-week-ease),
+        opacity 0.2s ease;
+    }
+    .al-shared.open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+    /* The grid item has no padding of its own: a 0fr row collapses content, not padding. */
+    .al-shared-in {
+      min-height: 0;
+      overflow: hidden;
+      transform: translateY(-8px);
+      transition: transform 0.44s var(--ssc-spring);
+    }
+    .al-shared-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px 11px;
+      border-top: 1px solid var(--ssc-line);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .al-shared.open .al-shared-in {
+      transform: none;
+    }
+    .al-shared-box ha-icon {
+      flex: 0 0 auto;
+      --mdc-icon-size: 20px;
+      margin-top: -1px;
+    }
+    .al-add {
+      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      border-top: 1px solid var(--ssc-line);
+      background: transparent;
+      color: var(--ssc-fg);
+      font: inherit;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s ease;
+    }
+    .al-add:first-child {
+      border-top: none;
+    }
+    .al-add:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .al-add ha-icon {
+      flex: 0 0 auto;
+      --mdc-icon-size: 22px;
+    }
+    .al-note b {
+      font-weight: 700;
+    }
+    /* An alert's lists (the time before with its drum, who, where) outgrow the
+       date and time pickers' ceiling. */
+    .ed-picker.long {
+      animation-name: pickerOpenLong;
+    }
+    @keyframes pickerOpenLong {
+      from {
+        max-height: 0;
+        opacity: 0;
+      }
+      to {
+        max-height: 1100px;
+        opacity: 1;
+      }
+    }
+    .al-wheel {
+      border-top: 1px solid var(--ssc-line);
+    }
+    /* Priority wears the alerting cards' own colours, not the event's. */
+    .seg.prio .seg-btn.on {
+      background: var(--seg-on);
+      border-color: var(--seg-on);
+      color: #16161a;
+    }
+    /* A multi-choice row: a name, a line about it, a square tick. */
+    .tick-text {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    /* Wraps rather than ending in an ellipsis: on a phone, "Any event called ... in
+       Alex's Calendar, now and later" is the line that says what the choice MEANS. */
+    .tick-sub {
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.3;
+      opacity: 0.8;
+      overflow-wrap: anywhere;
+    }
+    .tick-box {
+      flex: 0 0 auto;
+      margin-left: auto;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      box-shadow: inset 0 0 0 2px var(--ssc-line-strong);
+      transition:
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.42s var(--ssc-spring);
+    }
+    .scope.sel .tick-box {
+      background: var(--accent);
+      box-shadow: none;
+      color: var(--ssc-today-cell-fg, #16161a);
+      transform: scale(1.08);
+    }
+    .tick-box ha-icon {
+      --mdc-icon-size: 18px;
+    }
+    /* Banner on's Every page / Home page: a setting of the list, ruled off from the
+       dashboards under it so it does not read as one of them. */
+    .bpages {
+      border-bottom: 1px solid var(--ssc-line-strong);
+    }
+    /* An event with an alert: a small bell in the block's corner, white like its label. */
+    .ev-in {
+      position: relative;
+    }
+    .ev-bell {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      --mdc-icon-size: 14px;
+      color: #fff;
+      pointer-events: none;
+    }
+    .lr-bell {
+      flex: 0 0 auto;
+      margin-left: auto;
+      --mdc-icon-size: 18px;
+    }
+
     @keyframes fadeIn {
       from {
         opacity: 0;
@@ -9247,6 +10643,10 @@ export class SimpleScheduleCard extends LitElement {
     .panel.reduce ~ .scrim .radio-dot,
     .panel.reduce ~ .scrim .ed-fold,
     .panel.reduce ~ .scrim .ed-fold-in,
+    .panel.reduce ~ .scrim .al-fold,
+    .panel.reduce ~ .scrim .al-fold-in,
+    .panel.reduce ~ .scrim .al-shared,
+    .panel.reduce ~ .scrim .al-shared-in,
     .panel.reduce ~ .scrim .ed-chip.time,
     .panel.reduce .menu-right,
     .panel.reduce .btn.width-toggle {

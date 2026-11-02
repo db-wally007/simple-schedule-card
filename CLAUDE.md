@@ -21,6 +21,7 @@ src/data/lanes.ts            column assignment
 src/data/colors.ts           per-calendar colour resolution
 src/data/calendar-source.ts  the WebSocket subscription
 src/data/drum.ts             the time drum's physics (throw, decay, rubber band, cylinder)
+src/data/alerting.ts         alerts on events: the Alert2 reminder API client, words, ids
 src/drum.ts                  the time drum itself: one column of the iOS-style picker
 tests/                       vitest over the four pure modules
 dist/simple-schedule-card.js the built bundle. COMMITTED on purpose (HACS installs it).
@@ -1246,6 +1247,64 @@ control that IS `disabled`: it lives inside a `<label>`, and a tap on the row to
 through the label regardless of its own pointer-events - the draft refused the change but the
 box drew itself ticked. A red "Locked" badge sits top-right to say why nothing reacts. Delete
 keeps its two-tap confirm: a deleted mirrored lesson never comes back.
+
+### Alerts go through the alerting integration's API, never its rule format
+
+The Alert section (built 2026-10-18) speaks only the Alert2 fork's reminder API -
+`alert2/hm/reminders/{targets,subscribe,save,delete}`, in that repo's
+`custom_components/alert2/hm_reminders.py`. The user asked for exactly that: an API
+rather than the card hard-coding how an alert rule is written. The fork compiles the
+rule (calendar trigger with an offset, a condition on `trigger.calendar_event.uid` /
+`.recurrence_id`), and the Alerts card's editor writes the very same expression
+(`calEventFilter`) - change the two together. Push targets and banner dashboards come
+from `targets`, never from the card.
+
+Decisions and traps, all met while building it:
+
+- **An alert is tied to HA's uid / recurrence_id**, not to a title: every event has
+  them (Bakalari lessons too), they survive a move, and a calendar trigger hands them
+  over. A new event's ids come from the create service's reply (`_editReply.id`); a
+  new SERIES' first occurrence id is computed (`firstOccurrenceId`, Google's
+  `<id>_<UTC stamp>`).
+- **Read-only events keep a live Alert section.** `_patchAlert` is the alerts' own door
+  because `_patchDraft` refuses everything on a read-only draft; `_renderFold(..., live)`
+  skips the static read-only row; `.sheet.editor.ro .al .ed-chip` undoes the locked
+  chips' `pointer-events: none`. Save appears on a read-only event once the alerts moved
+  and saves only them.
+- **Only the alerts changed -> the event is not written** (`_eventMoved` against
+  `eventWas`). Re-sending the event would be harmless but slow and puts an edit in its
+  history for nothing.
+- **Alerts are written AFTER the event**, one by one, and each saved id goes back into
+  the draft at once (`_markAlertSaved`): a failure part-way leaves a form whose second
+  Save repeats nothing that already worked. A new event turns into the edit form for
+  itself after its create, for the same reason.
+- **"This and future" makes a new series**: its alerts are re-made on the new id; the old
+  ones stay on the capped part and the fork's nightly sweep removes them once its events
+  are over. Deleting an occurrence deletes only that occurrence's alerts; a series or a
+  one-off, every alert of the uid (`_dropAlertsOf`).
+- **One subscription per connected card, guarded across its await** (`_remSubscribing`,
+  `_remGen`) - `updated()` runs on every state change in the house; see the subscribe
+  storm below. A failure is NOT retried from `updated()`: it becomes `_alerting.off` with
+  a sentence, and opening the form (or Try again) asks once more.
+- In a test script, `.ed-btn.danger` matches the alert's **Remove alert** before the
+  footer's Delete - select the footer button explicitly.
+- **By title** (step 2, 2026-10-20): `match: 'title'`, compared trimmed and lower-case on
+  both sides (`titleKey` here, `title_key` in the fork, `trim | lower` in the condition).
+  It is the only thing linking Bakalari lessons - each is an event of its own. A title
+  alert is SHARED: the form says so (`_sharedNote`, also when a saved one is switched to
+  "Just this one"), a moved/renamed event or a split series never re-saves it, deleting
+  one of its events never deletes it, and the fork's sweep never removes it. A NEW one has
+  `title: null` and takes the event's title at save time, so a title typed after choosing
+  it is the one used.
+- **Animations in the section are measured, not max-height ceilings.** The Alert fold,
+  each alert's settings and the shared note open by `grid-template-rows: 0fr -> 1fr` (to
+  the real height). With a max-height ceiling high enough for several open alerts, the
+  visible opening finished in a sixth of its time - measured as a snap. A new alert's row
+  grows by WAAPI from 0 to its measured height and only THEN its settings open
+  (`_animateAlertEntries`); a removed one folds to 0 before it leaves the draft
+  (`_removeAlert`). Both need the list KEYED (`repeat`), or a folding row hands its element
+  and its fill-forwards animation to the next alert. A grid item collapses content, not
+  padding: padding lives on an inner box (`.al-shared-box`).
 
 ## Conventions
 

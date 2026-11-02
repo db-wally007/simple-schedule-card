@@ -112,6 +112,7 @@ time_format: '24'
 | `layout_breakpoint` | number | `560` | Width in px below which `auto` uses the list. |
 | `event_colors` | map | `{}` | Colour by event title, e.g. `Lunch: '#f4c542'`. Matched case-insensitively on the whole summary. An explicit override that beats everything, including the colour helper. |
 | `read_only_uid_prefix` | string | `''` | Events whose uid starts with this open read-only in edit mode: every field locked, no Save, Delete the only action. For events another system owns and keeps in step, such as the Bakalari timetable mirror (`bakalari`). Off when empty. |
+| `alerts` | boolean | `true` | The edit form's Alert section (see [Alerts on events](#alerts-on-events)). Needs the Alert2 integration with calendar reminders; without it the section says why. `false` leaves it out. |
 | `back` | string | `''` | Phone layout only: draws a back chevron at the start of the header, for a card that is a page of its own. It goes back to whichever page of the app the user came from, and to this path only when there is nothing behind the page (opened directly, or after a reload). It stays pinned with the header (on a phone the header always pins to the top as the page scrolls, turning to frosted glass once content is beneath it). |
 | `min_contrast` | number | `4.5` | Minimum contrast between a block's fill and its white label; lighter fills are darkened until they pass. `3.5` for a brighter grid, `0` to use Google's palette untouched. |
 | `color_helper` | boolean \| string | `true` | Use the per-event colours published by the pyscript helper. `false` ignores it; a string points at a different path. |
@@ -423,6 +424,47 @@ series alone, as it should — but note this needs the colour helper at v1.1 or
 later. Before that it mapped colours by event uid, which every occurrence of a
 series shares, so one recoloured Monday repainted every Monday in the card. The
 write to Google was always correct; only the display was wrong.
+
+### Alerts on events
+
+The edit form ends with an **Alert** section: any number of alerts on the event,
+each saying how long before it starts (at the start, 5 minutes, 1 hour or 1 day
+before - or anything else as Custom, on a days / hours / minutes drum), which
+events it is for, who gets a push, which dashboards show a banner (on every page,
+or - Show on: Home page - only on each one's Home page, `/<dashboard>/home`), and
+its priority. A new alert is pushed to whoever is signed in and adding it, when they
+have a phone with the app. "At start of event" on an all-day event means its
+start: midnight. An event with an alert carries a small bell.
+
+**Applies to** has up to three answers, each with a line saying what it means:
+
+- **Just this one** - this event, or this one occurrence of a series.
+- **Every repeat** - every occurrence of a repeating event.
+- **Every "Title"** - every event with that title in this calendar, now and later
+  (compared trimmed and in any case). This is the one for events that belong
+  together only by name, such as a mirrored timetable where every lesson is an
+  event of its own: one alert on one "PrB" lesson covers them all, including
+  lessons not made yet. Such an alert is shared - the form says so - so changing or
+  removing it on one event changes it for all of them, and deleting one of those
+  events leaves it in place.
+
+Alerts are made by the [Alert2](https://github.com/redstone99/hass-alert2)
+integration, through its calendar reminder API (`alert2/hm/reminders/*`, in the
+[fork that has it](https://github.com/db-wally007/hass-alert2)). The card never writes an alert rule itself: it says which
+event, how long before and who is told, and the integration makes an ordinary
+alert of it - one that shows, and can be edited, in its Alerts view. Who can be
+pushed to and which dashboards can show a banner are read from the integration
+too, so they are always its own lists.
+
+Alerts follow the event as Home Assistant names it to a calendar trigger (its
+uid, and for one occurrence its recurrence id), so they keep working when the
+event moves, and they work on **every** event - including read-only ones
+(`read_only_uid_prefix`): the event is locked, its alerts are not, and Save then
+saves only them. Deleting an event deletes its own alerts; an alert on one event
+removes itself once that event is over. An alert by title stays until removed.
+
+Without that integration the section says why it cannot be used and the rest of
+the card is unaffected. `alerts: false` leaves the section out altogether.
 
 ### If nothing animates
 

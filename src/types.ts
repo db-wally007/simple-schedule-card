@@ -149,6 +149,14 @@ export interface SimpleScheduleCardConfig {
    */
   read_only_uid_prefix?: string;
   /**
+   * The edit form's Alert section: alerts on an event (a push to someone's phone,
+   * a banner on dashboards), made through the Alert2 integration's reminder API.
+   * Works on every event, a read-only one included - an alert does not change the
+   * event. Without that integration the section says why it cannot be used; set
+   * false to leave it out altogether. Default true.
+   */
+  alerts?: boolean;
+  /**
    * Phone layout only: draws a back chevron at the start of the header row, for a
    * card that is a page of its own. It goes BACK to whatever page of the app the
    * user came from - an alert's link, Home, a room - and to this path only when
